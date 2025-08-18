@@ -665,3 +665,6 @@ class AdvancedWorkflowEngine:
 
 # Global advanced workflow engine instance
 advanced_workflow_engine = AdvancedWorkflowEngine()
+
+# Alias for backward compatibility
+VisualWorkflowEngine = AdvancedWorkflowEngine
