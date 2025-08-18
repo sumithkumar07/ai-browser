@@ -299,34 +299,39 @@ async def generate_page_summary(url: str, content: str):
         performance_monitor.record_error("SUMMARY_ERROR", str(e))
 
 # Enhanced API Routes
-@app.on_event("startup")
-async def startup_event():
-    """Initialize background tasks after startup"""
-    performance_monitor.start_monitoring()
-    workflow_manager.start_initialization()
-
 @app.get("/api/health")
 async def health_check():
     """Enhanced health check with performance metrics"""
-    health_status = performance_monitor.get_health_status()
-    cache_stats = await cache_manager.get_cache_stats()
-    
-    return {
-        "status": "healthy",
-        "service": "AETHER Browser API v2.0",
-        "timestamp": datetime.utcnow().isoformat(),
-        "health": health_status,
-        "cache": cache_stats,
-        "features": [
-            "Multi-AI Provider Support",
-            "Smart Caching",
-            "Performance Monitoring",
-            "Extended Memory",
-            "Smart Model Selection",
-            "Automation Engine",
-            "Workflow Management"
-        ]
-    }
+    try:
+        health_status = performance_optimization_engine.get_performance_report()
+        cache_stats = await cache_manager.get_cache_stats()
+        
+        return {
+            "status": "healthy",
+            "service": "AETHER Browser API v3.0 - Enhanced",
+            "timestamp": datetime.utcnow().isoformat(),
+            "health": health_status,
+            "cache": cache_stats,
+            "enhanced_features": [
+                "Multi-AI Provider Support with Smart Selection",
+                "Advanced Caching with Multi-Layer Strategy", 
+                "Real-time Performance Optimization",
+                "Intelligent Memory & Learning System",
+                "Advanced Automation Engine with Parallel Execution",
+                "Visual Workflow Builder with Conditional Logic",
+                "Enhanced Integration Manager with OAuth 2.0",
+                "Cross-Page Browser Automation",
+                "Predictive AI Suggestions",
+                "User Behavior Pattern Learning"
+            ]
+        }
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "service": "AETHER Browser API v3.0 - Enhanced",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 @app.get("/api/performance")
 async def get_performance_metrics():
