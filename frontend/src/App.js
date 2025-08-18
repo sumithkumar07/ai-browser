@@ -60,13 +60,44 @@ function App() {
   const [aiProviders, setAiProviders] = useState(['groq']);
   const [selectedAiProvider, setSelectedAiProvider] = useState('groq');
 
-  // Initialize session
+  // Initialize session and load advanced features
   useEffect(() => {
     setSessionId(Date.now().toString());
     loadRecentTabs();
     loadRecommendations();
     loadActiveAutomations();
+    loadKeyboardShortcuts();
+    loadPerformanceData();
+    initializeVoiceCommands();
   }, []);
+
+  // Advanced features loaders
+  const loadKeyboardShortcuts = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/keyboard-shortcuts/available`);
+      setKeyboardShortcuts(response.data.shortcuts || []);
+    } catch (error) {
+      console.error('Failed to load keyboard shortcuts:', error);
+    }
+  };
+
+  const loadPerformanceData = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/enhanced/system/overview`);
+      setPerformanceData(response.data || {});
+    } catch (error) {
+      console.error('Failed to load performance data:', error);
+    }
+  };
+
+  const initializeVoiceCommands = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/voice-commands/available`);
+      console.log('Voice commands initialized:', response.data);
+    } catch (error) {
+      console.error('Failed to initialize voice commands:', error);
+    }
+  };
 
   const loadRecentTabs = async () => {
     try {
