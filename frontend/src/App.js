@@ -151,68 +151,78 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Browser Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center space-x-4">
-          {/* Navigation Controls */}
-          <div className="flex items-center space-x-2">
+    <div className="h-screen flex flex-col bg-gray-25">
+      {/* Enhanced Browser Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div className="flex items-center space-x-6">
+          {/* Enhanced Navigation Controls */}
+          <div className="flex items-center space-x-1">
             <button 
-              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+              className="nav-button"
               disabled={!currentUrl}
               onClick={() => window.history.back()}
+              title="Go back"
             >
-              <ArrowLeft size={20} className="text-gray-600" />
+              <ArrowLeft size={18} />
             </button>
             <button 
-              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+              className="nav-button"
               disabled={!currentUrl}
               onClick={() => window.history.forward()}
+              title="Go forward"
             >
-              <ArrowRight size={20} className="text-gray-600" />
+              <ArrowRight size={18} />
             </button>
             <button 
-              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+              className="nav-button"
               disabled={!currentUrl || isNavigating}
               onClick={() => navigateToUrl(currentUrl)}
+              title="Refresh page"
             >
-              <RotateCcw size={20} className="text-gray-600" />
+              <RotateCcw size={18} />
             </button>
           </div>
 
-          {/* URL Bar */}
-          <form onSubmit={handleUrlSubmit} className="flex-1 max-w-2xl">
+          {/* Enhanced URL Bar */}
+          <form onSubmit={handleUrlSubmit} className="url-bar-container">
             <div className="relative">
-              <Globe size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Globe size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
                 placeholder="Search or enter URL"
-                className="w-full pl-12 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="url-bar"
               />
+              {isNavigating && (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                  <div className="loading-dots">
+                    <div className="loading-dot"></div>
+                    <div className="loading-dot"></div>
+                    <div className="loading-dot"></div>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
 
-          {/* Right Controls */}
-          <div className="flex items-center space-x-2">
-            <button className="p-2 rounded-lg hover:bg-gray-100">
-              <Menu size={20} className="text-gray-600" />
+          {/* Enhanced Right Controls */}
+          <div className="flex items-center space-x-1">
+            <button className="nav-button" title="Menu">
+              <Menu size={18} />
             </button>
-            <button className="p-2 rounded-lg hover:bg-gray-100">
-              <Star size={20} className="text-gray-600" />
+            <button className="nav-button" title="Bookmarks">
+              <Star size={18} />
             </button>
-            <button className="p-2 rounded-lg hover:bg-gray-100">
-              <Search size={20} className="text-gray-600" />
+            <button className="nav-button" title="Search">
+              <Search size={18} />
             </button>
             <button
               onClick={() => setIsAssistantOpen(!isAssistantOpen)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                isAssistantOpen
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-primary-500 text-white hover:bg-primary-600'
-              }`}
+              className={`btn-primary ml-3 ${isAssistantOpen ? 'bg-primary-700' : ''}`}
+              title="Toggle AI Assistant"
             >
+              <MessageCircle size={18} className="mr-2" />
               Aether Assistant
             </button>
           </div>
