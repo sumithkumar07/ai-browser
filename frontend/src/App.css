@@ -1,3 +1,119 @@
+/* ============================================ */
+/* PHASE 1: AI-FIRST UI ENHANCEMENTS (Fellou.ai Inspired) */
+/* ============================================ */
+
+.ai-control-btn {
+  @apply flex items-center px-4 py-2.5 rounded-xl font-medium transition-all duration-200 border-2 border-transparent;
+  @apply hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50;
+}
+
+.ai-control-btn:hover {
+  @apply shadow-lg transform;
+}
+
+.btn-primary-enhanced {
+  @apply flex items-center px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 text-white;
+  @apply rounded-xl font-semibold transition-all duration-300 border-2 border-transparent;
+  @apply hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50;
+  @apply relative overflow-hidden;
+}
+
+.btn-primary-enhanced:hover {
+  @apply from-primary-700 to-purple-700 shadow-2xl transform;
+}
+
+.btn-primary-enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-primary-enhanced:hover::before {
+  left: 100%;
+}
+
+/* Enhanced AI Chat Interface */
+.ai-first-header {
+  @apply bg-white/95 backdrop-blur-sm border-b border-gray-200/50 px-6 py-4;
+  @apply shadow-sm sticky top-0 z-40;
+}
+
+.ai-enhanced-status {
+  @apply flex items-center space-x-2 px-3 py-1.5 bg-green-50 text-green-700;
+  @apply rounded-full text-xs font-medium border border-green-200;
+}
+
+/* Minimalist Navigation */
+.minimal-nav-controls {
+  @apply flex items-center space-x-1 opacity-75 hover:opacity-100 transition-opacity duration-200;
+}
+
+.nav-button-minimal {
+  @apply p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100;
+  @apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300;
+}
+
+/* AI Command Feedback */
+.ai-command-response {
+  @apply border-l-4 border-blue-500 bg-blue-50 p-4 rounded-r-lg;
+}
+
+.ai-command-response h4 {
+  @apply font-bold text-blue-800 mb-2;
+}
+
+.ai-command-response p {
+  @apply text-blue-700 text-sm leading-relaxed;
+}
+
+/* Enhanced Message Types */
+.message-bubble.assistant[data-type="ui_action"] {
+  @apply bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500;
+}
+
+.message-bubble.assistant[data-type="ui_action"]::before {
+  content: '🎛️';
+  @apply text-lg mr-2;
+}
+
+/* Fellou-Inspired Minimalism */
+.fellou-minimalist {
+  @apply space-y-6;
+}
+
+.feature-hint {
+  @apply text-xs text-gray-500 bg-gray-50 px-3 py-1 rounded-full inline-block;
+}
+
+/* Smart Toolbar Hiding */
+.smart-toolbar-hidden {
+  @apply opacity-0 pointer-events-none transform -translate-y-2 transition-all duration-300;
+}
+
+.smart-toolbar-visible {
+  @apply opacity-100 transform translate-y-0 transition-all duration-300;
+}
+
+/* AI Status Indicators */
+.ai-status-active {
+  @apply animate-pulse;
+}
+
+.ai-listening-indicator {
+  @apply flex items-center space-x-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium;
+  animation: gentle-pulse 1.5s infinite;
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.02); }
+}
+
 .App {
   text-align: center;
 }
