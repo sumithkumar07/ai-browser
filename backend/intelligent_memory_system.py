@@ -352,6 +352,52 @@ class IntelligentMemorySystem:
             "automation_frequency": len(automation_patterns)
         }
     
+    def _analyze_chat_patterns(self, patterns: List[Dict]) -> Dict[str, Any]:
+        """Analyze chat and communication patterns"""
+        
+        chat_patterns = [p for p in patterns if p.get("pattern_type") == "chat_preference"]
+        
+        if not chat_patterns:
+            return {
+                "communication_style": "standard", 
+                "preferred_topics": [], 
+                "response_complexity": "medium",
+                "language": "english"
+            }
+        
+        topics = defaultdict(float)
+        styles = defaultdict(float)
+        complexities = defaultdict(float)
+        languages = defaultdict(float)
+        
+        for pattern in chat_patterns:
+            data = pattern["data"]
+            confidence = pattern.get("confidence", 0.1)
+            
+            # Analyze topics
+            topic = data.get("topic", "general")
+            topics[topic] += confidence
+            
+            # Analyze communication style
+            style = data.get("style", "standard") 
+            styles[style] += confidence
+            
+            # Analyze complexity preference
+            complexity = data.get("complexity", "medium")
+            complexities[complexity] += confidence
+            
+            # Analyze language preference
+            language = data.get("language", "english")
+            languages[language] += confidence
+        
+        return {
+            "communication_style": max(styles, key=styles.get) if styles else "standard",
+            "preferred_topics": sorted(topics.items(), key=lambda x: x[1], reverse=True)[:5],
+            "response_complexity": max(complexities, key=complexities.get) if complexities else "medium", 
+            "language": max(languages, key=languages.get) if languages else "english",
+            "chat_frequency": len(chat_patterns)
+        }
+    
     def _analyze_temporal_patterns(self, patterns: List[Dict]) -> Dict[str, Any]:
         """Analyze temporal usage patterns"""
         
