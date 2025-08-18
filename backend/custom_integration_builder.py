@@ -1,1204 +1,1132 @@
+# Phase 4: Custom Integration Builder
 import asyncio
 import json
 import logging
-import time
-import uuid
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
-from enum import Enum
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Any, Optional, Callable
+from datetime import datetime
 from pymongo import MongoClient
+import uuid
 import httpx
-import os
 import yaml
-import base64
-from jinja2 import Template
-import re
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-class IntegrationAuthType(Enum):
+class IntegrationType(Enum):
     API_KEY = "api_key"
     OAUTH2 = "oauth2"
-    BASIC_AUTH = "basic_auth"
-    BEARER_TOKEN = "bearer_token"
-    CUSTOM_HEADER = "custom_header"
-    NO_AUTH = "no_auth"
-
-class IntegrationMethodType(Enum):
-    REST_API = "rest_api"
     WEBHOOK = "webhook"
-    WEBSOCKET = "websocket"
     DATABASE = "database"
     FILE_SYSTEM = "file_system"
-    SOAP = "soap"
-    GRAPHQL = "graphql"
 
-class IntegrationStatus(Enum):
-    DRAFT = "draft"
-    TESTING = "testing"
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    ERROR = "error"
+class FieldType(Enum):
+    TEXT = "text"
+    PASSWORD = "password"
+    URL = "url"
+    EMAIL = "email"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    SELECT = "select"
+    TEXTAREA = "textarea"
 
-@dataclass
-class CustomIntegration:
-    """Custom integration definition"""
-    integration_id: str
-    name: str
-    description: str
-    category: str
-    method_type: IntegrationMethodType
-    auth_type: IntegrationAuthType
-    base_url: str
-    endpoints: List[Dict[str, Any]]
-    auth_config: Dict[str, Any]
-    headers: Dict[str, str]
-    parameters: Dict[str, Any]
-    response_mapping: Dict[str, Any]
-    error_handling: Dict[str, Any]
-    rate_limiting: Dict[str, Any]
-    created_by: str
-    status: IntegrationStatus = IntegrationStatus.DRAFT
-    version: str = "1.0.0"
-    created_at: datetime = None
-    updated_at: datetime = None
-    
-    def __post_init__(self):
-        if self.created_at is None:
-            self.created_at = datetime.utcnow()
-        if self.updated_at is None:
-            self.updated_at = datetime.utcnow()
-
-@dataclass
-class IntegrationTemplate:
-    """Template for common integration patterns"""
-    template_id: str
-    name: str
-    description: str
-    category: str
-    template_data: Dict[str, Any]
-    variables: List[Dict[str, Any]]
-    example_config: Dict[str, Any]
-    documentation: str
-    
 class CustomIntegrationBuilder:
-    """Advanced custom integration builder with templates and testing"""
+    """
+    Phase 4: Advanced Custom Integration Builder
+    Allows users to create custom integrations with third-party services
+    """
     
-    def __init__(self, db_client: MongoClient):
-        self.db = db_client.aether_browser
-        self.integrations = self.db.custom_integrations
-        self.templates = self.db.integration_templates
-        self.test_results = self.db.integration_tests
-        self.usage_logs = self.db.integration_usage
+    def __init__(self, mongo_client: MongoClient):
+        self.client = mongo_client
+        self.db = mongo_client.aether_browser
+        self.integration_templates = self._load_integration_templates()
+        self.validation_rules = self._initialize_validation_rules()
         
-        # Runtime state
-        self.active_integrations = {}  # integration_id -> runtime instance
-        self.template_cache = {}
-        
-        # Predefined templates
-        self._initialize_templates()
-        
-        # Rate limiting
-        self.rate_limiters = {}
-        
-        # Background monitoring
-        self._monitor_task = None
-    
-    def _initialize_templates(self):
-        """Initialize common integration templates"""
-        
-        templates = [
-            IntegrationTemplate(
-                template_id="rest_api_basic",
-                name="Basic REST API",
-                description="Simple REST API integration with API key authentication",
-                category="Web API",
-                template_data={
-                    "method_type": "rest_api",
-                    "auth_type": "api_key",
-                    "endpoints": [
-                        {
-                            "name": "get_data",
-                            "method": "GET",
-                            "path": "/api/data",
-                            "description": "Retrieve data from API"
-                        },
-                        {
-                            "name": "post_data",
-                            "method": "POST",
-                            "path": "/api/data",
-                            "description": "Send data to API"
-                        }
-                    ]
-                },
-                variables=[
-                    {"name": "base_url", "type": "string", "required": True, "description": "API base URL"},
-                    {"name": "api_key", "type": "string", "required": True, "description": "API key for authentication"},
-                    {"name": "api_key_header", "type": "string", "default": "X-API-Key", "description": "Header name for API key"}
-                ],
-                example_config={
-                    "base_url": "https://api.example.com",
-                    "api_key": "your-api-key-here",
-                    "api_key_header": "X-API-Key"
-                },
-                documentation="Basic REST API integration template with API key authentication."
-            ),
-            IntegrationTemplate(
-                template_id="oauth2_api",
-                name="OAuth2 API",
-                description="OAuth2 authenticated API integration",
-                category="Web API",
-                template_data={
-                    "method_type": "rest_api",
-                    "auth_type": "oauth2",
-                    "endpoints": [
-                        {
-                            "name": "get_profile",
-                            "method": "GET",
-                            "path": "/api/user/profile",
-                            "description": "Get user profile"
-                        }
-                    ]
-                },
-                variables=[
-                    {"name": "base_url", "type": "string", "required": True},
-                    {"name": "client_id", "type": "string", "required": True},
-                    {"name": "client_secret", "type": "string", "required": True},
-                    {"name": "authorize_url", "type": "string", "required": True},
-                    {"name": "token_url", "type": "string", "required": True},
-                    {"name": "scope", "type": "string", "default": "read"}
-                ],
-                example_config={
-                    "base_url": "https://api.example.com",
-                    "client_id": "your-client-id",
-                    "client_secret": "your-client-secret",
-                    "authorize_url": "https://api.example.com/oauth/authorize",
-                    "token_url": "https://api.example.com/oauth/token",
-                    "scope": "read write"
-                },
-                documentation="OAuth2 API integration with authorization code flow."
-            ),
-            IntegrationTemplate(
-                template_id="webhook_receiver",
-                name="Webhook Receiver",
-                description="Receive webhooks from external services",
-                category="Webhook",
-                template_data={
-                    "method_type": "webhook",
-                    "auth_type": "custom_header",
-                    "endpoints": [
-                        {
-                            "name": "receive_webhook",
-                            "method": "POST",
-                            "path": "/webhook",
-                            "description": "Receive webhook data"
-                        }
-                    ]
-                },
-                variables=[
-                    {"name": "webhook_secret", "type": "string", "required": True},
-                    {"name": "signature_header", "type": "string", "default": "X-Signature"}
-                ],
-                example_config={
-                    "webhook_secret": "your-webhook-secret",
-                    "signature_header": "X-Signature"
-                },
-                documentation="Webhook receiver with signature verification."
-            ),
-            IntegrationTemplate(
-                template_id="database_connector",
-                name="Database Connector",
-                description="Connect to external database",
-                category="Database",
-                template_data={
-                    "method_type": "database",
-                    "auth_type": "basic_auth",
-                    "endpoints": [
-                        {
-                            "name": "query_data",
-                            "method": "SELECT",
-                            "description": "Execute SELECT query"
-                        },
-                        {
-                            "name": "insert_data",
-                            "method": "INSERT",
-                            "description": "Execute INSERT query"
-                        }
-                    ]
-                },
-                variables=[
-                    {"name": "host", "type": "string", "required": True},
-                    {"name": "port", "type": "integer", "default": 5432},
-                    {"name": "database", "type": "string", "required": True},
-                    {"name": "username", "type": "string", "required": True},
-                    {"name": "password", "type": "string", "required": True},
-                    {"name": "ssl_mode", "type": "string", "default": "prefer"}
-                ],
-                example_config={
-                    "host": "db.example.com",
-                    "port": 5432,
-                    "database": "mydb",
-                    "username": "dbuser",
-                    "password": "dbpassword",
-                    "ssl_mode": "require"
-                },
-                documentation="PostgreSQL database connector with connection pooling."
-            )
-        ]
-        
-        for template in templates:
-            self.template_cache[template.template_id] = template
-            
-            # Store in database if not exists
-            existing = self.templates.find_one({"template_id": template.template_id})
-            if not existing:
-                template_doc = asdict(template)
-                self.templates.insert_one(template_doc)
-    
-    async def start_integration_monitoring(self):
-        """Start background integration monitoring"""
-        
-        if self._monitor_task is not None:
-            return
-        
-        self._monitor_task = asyncio.create_task(self._integration_monitor_loop())
-        logger.info("Started custom integration monitoring")
-    
-    async def stop_integration_monitoring(self):
-        """Stop integration monitoring"""
-        
-        if self._monitor_task:
-            self._monitor_task.cancel()
-            self._monitor_task = None
-        
-        logger.info("Stopped custom integration monitoring")
-    
-    async def _integration_monitor_loop(self):
-        """Background integration monitoring loop"""
-        
-        while True:
-            try:
-                await asyncio.sleep(300)  # Check every 5 minutes
-                
-                # Monitor active integrations
-                await self._check_integration_health()
-                
-                # Update usage statistics
-                await self._update_usage_statistics()
-                
-                # Clean up old test results
-                await self._cleanup_old_data()
-                
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Integration monitor error: {e}")
-    
-    async def create_custom_integration(self, integration_data: Dict[str, Any], 
-                                      created_by: str) -> str:
-        """Create new custom integration"""
-        
-        integration_id = str(uuid.uuid4())
-        
+    async def create_custom_integration(self, integration_config: Dict[str, Any], user_session: str) -> Dict[str, Any]:
+        """Create a new custom integration"""
         try:
-            # Validate integration data
-            await self._validate_integration_data(integration_data)
+            integration_id = str(uuid.uuid4())
             
-            # Create integration object
-            integration = CustomIntegration(
-                integration_id=integration_id,
-                name=integration_data["name"],
-                description=integration_data.get("description", ""),
-                category=integration_data.get("category", "Custom"),
-                method_type=IntegrationMethodType(integration_data["method_type"]),
-                auth_type=IntegrationAuthType(integration_data["auth_type"]),
-                base_url=integration_data["base_url"],
-                endpoints=integration_data.get("endpoints", []),
-                auth_config=integration_data.get("auth_config", {}),
-                headers=integration_data.get("headers", {}),
-                parameters=integration_data.get("parameters", {}),
-                response_mapping=integration_data.get("response_mapping", {}),
-                error_handling=integration_data.get("error_handling", {}),
-                rate_limiting=integration_data.get("rate_limiting", {}),
-                created_by=created_by
-            )
+            # Validate configuration
+            validation_result = await self._validate_integration_config(integration_config)
+            if not validation_result["valid"]:
+                return {
+                    "success": False,
+                    "error": "Configuration validation failed",
+                    "validation_errors": validation_result["errors"]
+                }
             
-            # Store in database
-            integration_doc = asdict(integration)
-            integration_doc["method_type"] = integration.method_type.value
-            integration_doc["auth_type"] = integration.auth_type.value
-            integration_doc["status"] = integration.status.value
+            # Generate integration code
+            integration_code = await self._generate_integration_code(integration_config)
             
-            self.integrations.insert_one(integration_doc)
-            
-            logger.info(f"Created custom integration: {integration.name} ({integration_id})")
-            
-            return integration_id
-            
-        except Exception as e:
-            logger.error(f"Failed to create custom integration: {e}")
-            raise
-    
-    async def _validate_integration_data(self, data: Dict[str, Any]):
-        """Validate integration configuration data"""
-        
-        required_fields = ["name", "method_type", "auth_type", "base_url"]
-        
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"Missing required field: {field}")
-        
-        # Validate method type
-        try:
-            IntegrationMethodType(data["method_type"])
-        except ValueError:
-            raise ValueError(f"Invalid method_type: {data['method_type']}")
-        
-        # Validate auth type
-        try:
-            IntegrationAuthType(data["auth_type"])
-        except ValueError:
-            raise ValueError(f"Invalid auth_type: {data['auth_type']}")
-        
-        # Validate URL format
-        if not data["base_url"].startswith(("http://", "https://")):
-            raise ValueError("base_url must be a valid HTTP/HTTPS URL")
-        
-        # Validate endpoints
-        endpoints = data.get("endpoints", [])
-        for endpoint in endpoints:
-            if "name" not in endpoint or "method" not in endpoint:
-                raise ValueError("Each endpoint must have 'name' and 'method'")
-    
-    async def create_from_template(self, template_id: str, config: Dict[str, Any], 
-                                 created_by: str) -> str:
-        """Create integration from template"""
-        
-        try:
-            # Get template
-            template = await self._get_template(template_id)
-            if not template:
-                raise ValueError(f"Template {template_id} not found")
-            
-            # Validate required variables
-            await self._validate_template_config(template, config)
-            
-            # Generate integration from template
-            integration_data = await self._generate_from_template(template, config)
-            
-            # Create integration
-            integration_id = await self.create_custom_integration(integration_data, created_by)
-            
-            logger.info(f"Created integration from template {template_id}: {integration_id}")
-            
-            return integration_id
-            
-        except Exception as e:
-            logger.error(f"Failed to create integration from template: {e}")
-            raise
-    
-    async def _get_template(self, template_id: str) -> Optional[IntegrationTemplate]:
-        """Get integration template"""
-        
-        # Check cache first
-        if template_id in self.template_cache:
-            return self.template_cache[template_id]
-        
-        # Load from database
-        template_doc = self.templates.find_one({"template_id": template_id})
-        if not template_doc:
-            return None
-        
-        template = IntegrationTemplate(
-            template_id=template_doc["template_id"],
-            name=template_doc["name"],
-            description=template_doc["description"],
-            category=template_doc["category"],
-            template_data=template_doc["template_data"],
-            variables=template_doc["variables"],
-            example_config=template_doc["example_config"],
-            documentation=template_doc["documentation"]
-        )
-        
-        # Cache template
-        self.template_cache[template_id] = template
-        
-        return template
-    
-    async def _validate_template_config(self, template: IntegrationTemplate, config: Dict[str, Any]):
-        """Validate template configuration"""
-        
-        for variable in template.variables:
-            var_name = variable["name"]
-            
-            # Check required variables
-            if variable.get("required", False) and var_name not in config:
-                raise ValueError(f"Required variable missing: {var_name}")
-            
-            # Validate variable types
-            if var_name in config:
-                value = config[var_name]
-                var_type = variable.get("type", "string")
-                
-                if var_type == "integer" and not isinstance(value, int):
-                    try:
-                        config[var_name] = int(value)
-                    except ValueError:
-                        raise ValueError(f"Variable {var_name} must be an integer")
-                
-                elif var_type == "boolean" and not isinstance(value, bool):
-                    if isinstance(value, str):
-                        config[var_name] = value.lower() in ("true", "yes", "1")
-                    else:
-                        config[var_name] = bool(value)
-    
-    async def _generate_from_template(self, template: IntegrationTemplate, 
-                                    config: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate integration configuration from template"""
-        
-        # Start with template data
-        integration_data = template.template_data.copy()
-        
-        # Apply variable substitutions
-        template_json = json.dumps(integration_data)
-        
-        # Add default values for missing variables
-        for variable in template.variables:
-            var_name = variable["name"]
-            if var_name not in config and "default" in variable:
-                config[var_name] = variable["default"]
-        
-        # Perform template substitution
-        jinja_template = Template(template_json)
-        rendered_json = jinja_template.render(**config)
-        integration_data = json.loads(rendered_json)
-        
-        # Set base configuration
-        integration_data.update({
-            "name": config.get("name", template.name),
-            "description": config.get("description", template.description),
-            "category": template.category,
-            "base_url": config.get("base_url", ""),
-            "auth_config": self._build_auth_config(template, config),
-            "headers": config.get("headers", {}),
-            "parameters": config.get("parameters", {}),
-            "response_mapping": config.get("response_mapping", {}),
-            "error_handling": config.get("error_handling", {
-                "retry_attempts": 3,
-                "retry_delay": 1,
-                "timeout": 30
-            }),
-            "rate_limiting": config.get("rate_limiting", {
-                "requests_per_second": 10,
-                "burst_limit": 20
-            })
-        })
-        
-        return integration_data
-    
-    def _build_auth_config(self, template: IntegrationTemplate, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Build authentication configuration"""
-        
-        auth_type = template.template_data.get("auth_type")
-        auth_config = {}
-        
-        if auth_type == "api_key":
-            auth_config = {
-                "api_key": config.get("api_key", ""),
-                "header_name": config.get("api_key_header", "X-API-Key")
-            }
-        elif auth_type == "oauth2":
-            auth_config = {
-                "client_id": config.get("client_id", ""),
-                "client_secret": config.get("client_secret", ""),
-                "authorize_url": config.get("authorize_url", ""),
-                "token_url": config.get("token_url", ""),
-                "scope": config.get("scope", ""),
-                "redirect_uri": config.get("redirect_uri", "")
-            }
-        elif auth_type == "basic_auth":
-            auth_config = {
-                "username": config.get("username", ""),
-                "password": config.get("password", "")
-            }
-        elif auth_type == "bearer_token":
-            auth_config = {
-                "token": config.get("bearer_token", "")
-            }
-        elif auth_type == "custom_header":
-            auth_config = {
-                "header_name": config.get("custom_header_name", "Authorization"),
-                "header_value": config.get("custom_header_value", "")
-            }
-        
-        return auth_config
-    
-    async def test_integration(self, integration_id: str, test_data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Test integration configuration"""
-        
-        try:
-            # Get integration
-            integration = await self._get_integration(integration_id)
-            if not integration:
-                raise ValueError(f"Integration {integration_id} not found")
-            
-            # Perform connectivity test
-            test_result = await self._perform_integration_test(integration, test_data or {})
-            
-            # Store test result
-            test_doc = {
+            # Create integration record
+            integration_record = {
                 "integration_id": integration_id,
-                "test_data": test_data,
-                "result": test_result,
-                "timestamp": datetime.utcnow()
+                "name": integration_config["name"],
+                "description": integration_config.get("description", ""),
+                "type": integration_config["type"],
+                "creator_session": user_session,
+                "status": "draft",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "config": integration_config,
+                "generated_code": integration_code,
+                "test_results": [],
+                "deployment_status": "not_deployed",
+                "usage_count": 0,
+                "last_tested": None,
+                "version": "1.0.0"
             }
             
-            self.test_results.insert_one(test_doc)
-            
-            # Update integration status based on test result
-            new_status = IntegrationStatus.ACTIVE if test_result["success"] else IntegrationStatus.ERROR
-            
-            self.integrations.update_one(
-                {"integration_id": integration_id},
-                {"$set": {
-                    "status": new_status.value,
-                    "last_tested": datetime.utcnow(),
-                    "last_test_result": test_result
-                }}
-            )
-            
-            return test_result
-            
-        except Exception as e:
-            logger.error(f"Integration test failed for {integration_id}: {e}")
-            
-            error_result = {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-            # Store error result
-            test_doc = {
-                "integration_id": integration_id,
-                "test_data": test_data,
-                "result": error_result,
-                "timestamp": datetime.utcnow()
-            }
-            
-            self.test_results.insert_one(test_doc)
-            
-            return error_result
-    
-    async def _get_integration(self, integration_id: str) -> Optional[CustomIntegration]:
-        """Get integration by ID"""
-        
-        integration_doc = self.integrations.find_one({"integration_id": integration_id})
-        if not integration_doc:
-            return None
-        
-        return CustomIntegration(
-            integration_id=integration_doc["integration_id"],
-            name=integration_doc["name"],
-            description=integration_doc["description"],
-            category=integration_doc["category"],
-            method_type=IntegrationMethodType(integration_doc["method_type"]),
-            auth_type=IntegrationAuthType(integration_doc["auth_type"]),
-            base_url=integration_doc["base_url"],
-            endpoints=integration_doc["endpoints"],
-            auth_config=integration_doc["auth_config"],
-            headers=integration_doc["headers"],
-            parameters=integration_doc["parameters"],
-            response_mapping=integration_doc["response_mapping"],
-            error_handling=integration_doc["error_handling"],
-            rate_limiting=integration_doc["rate_limiting"],
-            created_by=integration_doc["created_by"],
-            status=IntegrationStatus(integration_doc["status"]),
-            version=integration_doc.get("version", "1.0.0"),
-            created_at=integration_doc.get("created_at"),
-            updated_at=integration_doc.get("updated_at")
-        )
-    
-    async def _perform_integration_test(self, integration: CustomIntegration, 
-                                      test_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform actual integration test"""
-        
-        start_time = time.time()
-        
-        try:
-            if integration.method_type == IntegrationMethodType.REST_API:
-                result = await self._test_rest_api(integration, test_data)
-            elif integration.method_type == IntegrationMethodType.WEBHOOK:
-                result = await self._test_webhook(integration, test_data)
-            elif integration.method_type == IntegrationMethodType.DATABASE:
-                result = await self._test_database(integration, test_data)
-            else:
-                result = await self._test_generic(integration, test_data)
-            
-            execution_time = time.time() - start_time
+            self.db.custom_integrations.insert_one(integration_record)
             
             return {
                 "success": True,
-                "execution_time": execution_time,
-                "result": result,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            
-            return {
-                "success": False,
-                "execution_time": execution_time,
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-    
-    async def _test_rest_api(self, integration: CustomIntegration, test_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Test REST API integration"""
-        
-        # Prepare authentication
-        headers = integration.headers.copy()
-        auth_config = integration.auth_config
-        
-        if integration.auth_type == IntegrationAuthType.API_KEY:
-            headers[auth_config.get("header_name", "X-API-Key")] = auth_config.get("api_key", "")
-        elif integration.auth_type == IntegrationAuthType.BEARER_TOKEN:
-            headers["Authorization"] = f"Bearer {auth_config.get('token', '')}"
-        elif integration.auth_type == IntegrationAuthType.CUSTOM_HEADER:
-            headers[auth_config.get("header_name", "Authorization")] = auth_config.get("header_value", "")
-        
-        # Test first endpoint or specified endpoint
-        endpoint = test_data.get("endpoint")
-        if not endpoint and integration.endpoints:
-            endpoint = integration.endpoints[0]
-        
-        if not endpoint:
-            raise ValueError("No endpoint specified for testing")
-        
-        # Prepare request
-        method = endpoint.get("method", "GET").upper()
-        path = endpoint.get("path", "/")
-        url = integration.base_url.rstrip('/') + '/' + path.lstrip('/')
-        
-        timeout = integration.error_handling.get("timeout", 30)
-        
-        async with httpx.AsyncClient() as client:
-            if method == "GET":
-                response = await client.get(url, headers=headers, timeout=timeout)
-            elif method == "POST":
-                json_data = test_data.get("json_data", {})
-                response = await client.post(url, headers=headers, json=json_data, timeout=timeout)
-            elif method == "PUT":
-                json_data = test_data.get("json_data", {})
-                response = await client.put(url, headers=headers, json=json_data, timeout=timeout)
-            elif method == "DELETE":
-                response = await client.delete(url, headers=headers, timeout=timeout)
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
-            
-            # Process response
-            result = {
-                "status_code": response.status_code,
-                "headers": dict(response.headers),
-                "url": str(response.url),
-                "method": method
-            }
-            
-            # Try to parse JSON response
-            try:
-                result["json_response"] = response.json()
-            except:
-                result["text_response"] = response.text[:1000]  # Limit response size
-            
-            # Check if response indicates success
-            if 200 <= response.status_code < 300:
-                result["success"] = True
-            else:
-                result["success"] = False
-                result["error"] = f"HTTP {response.status_code}: {response.text[:200]}"
-            
-            return result
-    
-    async def _test_webhook(self, integration: CustomIntegration, test_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Test webhook integration"""
-        
-        # For webhook testing, we simulate a webhook payload
-        webhook_data = test_data.get("webhook_data", {"test": "data"})
-        
-        return {
-            "success": True,
-            "message": "Webhook configuration validated",
-            "test_payload": webhook_data,
-            "auth_type": integration.auth_type.value
-        }
-    
-    async def _test_database(self, integration: CustomIntegration, test_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Test database integration"""
-        
-        # For database testing, we simulate a connection test
-        auth_config = integration.auth_config
-        
-        return {
-            "success": True,
-            "message": "Database connection configuration validated",
-            "host": auth_config.get("host", "unknown"),
-            "database": auth_config.get("database", "unknown"),
-            "connection_test": "simulated_success"
-        }
-    
-    async def _test_generic(self, integration: CustomIntegration, test_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Test generic integration"""
-        
-        return {
-            "success": True,
-            "message": f"Generic {integration.method_type.value} integration test completed",
-            "method_type": integration.method_type.value
-        }
-    
-    async def execute_integration(self, integration_id: str, endpoint_name: str, 
-                                parameters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Execute integration endpoint"""
-        
-        try:
-            integration = await self._get_integration(integration_id)
-            if not integration:
-                raise ValueError(f"Integration {integration_id} not found")
-            
-            if integration.status != IntegrationStatus.ACTIVE:
-                raise ValueError(f"Integration {integration_id} is not active")
-            
-            # Find endpoint
-            endpoint = None
-            for ep in integration.endpoints:
-                if ep.get("name") == endpoint_name:
-                    endpoint = ep
-                    break
-            
-            if not endpoint:
-                raise ValueError(f"Endpoint {endpoint_name} not found")
-            
-            # Check rate limiting
-            await self._check_rate_limit(integration_id, integration.rate_limiting)
-            
-            # Execute endpoint
-            result = await self._execute_endpoint(integration, endpoint, parameters or {})
-            
-            # Log usage
-            await self._log_integration_usage(integration_id, endpoint_name, result)
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Integration execution failed: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-    
-    async def _check_rate_limit(self, integration_id: str, rate_config: Dict[str, Any]):
-        """Check rate limiting for integration"""
-        
-        if not rate_config:
-            return
-        
-        requests_per_second = rate_config.get("requests_per_second", 10)
-        burst_limit = rate_config.get("burst_limit", 20)
-        
-        # Simple rate limiting implementation
-        # In production, use Redis or similar for distributed rate limiting
-        current_time = time.time()
-        
-        if integration_id not in self.rate_limiters:
-            self.rate_limiters[integration_id] = {
-                "requests": [],
-                "last_reset": current_time
-            }
-        
-        limiter = self.rate_limiters[integration_id]
-        
-        # Clean old requests
-        cutoff_time = current_time - 1.0  # Last second
-        limiter["requests"] = [req_time for req_time in limiter["requests"] if req_time > cutoff_time]
-        
-        # Check limits
-        if len(limiter["requests"]) >= burst_limit:
-            raise Exception("Rate limit exceeded: burst limit reached")
-        
-        if len(limiter["requests"]) >= requests_per_second:
-            sleep_time = 1.0 / requests_per_second
-            await asyncio.sleep(sleep_time)
-        
-        # Record request
-        limiter["requests"].append(current_time)
-    
-    async def _execute_endpoint(self, integration: CustomIntegration, 
-                              endpoint: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute specific endpoint"""
-        
-        start_time = time.time()
-        
-        try:
-            if integration.method_type == IntegrationMethodType.REST_API:
-                result = await self._execute_rest_endpoint(integration, endpoint, parameters)
-            elif integration.method_type == IntegrationMethodType.DATABASE:
-                result = await self._execute_database_endpoint(integration, endpoint, parameters)
-            else:
-                result = {"success": False, "error": f"Unsupported method type: {integration.method_type.value}"}
-            
-            execution_time = time.time() - start_time
-            result["execution_time"] = execution_time
-            
-            return result
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            return {
-                "success": False,
-                "error": str(e),
-                "execution_time": execution_time,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-    
-    async def _execute_rest_endpoint(self, integration: CustomIntegration, 
-                                   endpoint: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute REST API endpoint"""
-        
-        # Prepare request
-        method = endpoint.get("method", "GET").upper()
-        path = endpoint.get("path", "/")
-        url = integration.base_url.rstrip('/') + '/' + path.lstrip('/')
-        
-        # Apply parameter substitution in URL
-        for param_name, param_value in parameters.items():
-            url = url.replace(f"{{{param_name}}}", str(param_value))
-        
-        # Prepare headers
-        headers = integration.headers.copy()
-        auth_config = integration.auth_config
-        
-        if integration.auth_type == IntegrationAuthType.API_KEY:
-            headers[auth_config.get("header_name", "X-API-Key")] = auth_config.get("api_key", "")
-        elif integration.auth_type == IntegrationAuthType.BEARER_TOKEN:
-            headers["Authorization"] = f"Bearer {auth_config.get('token', '')}"
-        
-        timeout = integration.error_handling.get("timeout", 30)
-        
-        async with httpx.AsyncClient() as client:
-            if method == "GET":
-                response = await client.get(url, headers=headers, params=parameters, timeout=timeout)
-            elif method == "POST":
-                response = await client.post(url, headers=headers, json=parameters, timeout=timeout)
-            elif method == "PUT":
-                response = await client.put(url, headers=headers, json=parameters, timeout=timeout)
-            elif method == "DELETE":
-                response = await client.delete(url, headers=headers, timeout=timeout)
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
-            
-            # Process response
-            if 200 <= response.status_code < 300:
-                try:
-                    response_data = response.json()
-                except:
-                    response_data = response.text
-                
-                # Apply response mapping if configured
-                if integration.response_mapping:
-                    response_data = self._apply_response_mapping(response_data, integration.response_mapping)
-                
-                return {
-                    "success": True,
-                    "data": response_data,
-                    "status_code": response.status_code,
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"HTTP {response.status_code}: {response.text}",
-                    "status_code": response.status_code,
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-    
-    async def _execute_database_endpoint(self, integration: CustomIntegration, 
-                                       endpoint: Dict[str, Any], parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute database endpoint"""
-        
-        # Simulate database execution
-        operation = endpoint.get("method", "SELECT")
-        
-        return {
-            "success": True,
-            "operation": operation,
-            "parameters": parameters,
-            "message": f"Database operation {operation} executed successfully",
-            "rows_affected": 1,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    
-    def _apply_response_mapping(self, response_data: Any, mapping: Dict[str, Any]) -> Dict[str, Any]:
-        """Apply response mapping configuration"""
-        
-        if not isinstance(response_data, dict) or not mapping:
-            return response_data
-        
-        mapped_data = {}
-        
-        for output_key, mapping_config in mapping.items():
-            if isinstance(mapping_config, str):
-                # Simple field mapping
-                if mapping_config in response_data:
-                    mapped_data[output_key] = response_data[mapping_config]
-            elif isinstance(mapping_config, dict):
-                # Complex mapping with transformations
-                source_field = mapping_config.get("source")
-                transform = mapping_config.get("transform")
-                default_value = mapping_config.get("default")
-                
-                if source_field in response_data:
-                    value = response_data[source_field]
-                    
-                    # Apply transformations
-                    if transform == "lowercase":
-                        value = str(value).lower()
-                    elif transform == "uppercase":
-                        value = str(value).upper()
-                    elif transform == "int":
-                        value = int(value)
-                    elif transform == "float":
-                        value = float(value)
-                    
-                    mapped_data[output_key] = value
-                elif default_value is not None:
-                    mapped_data[output_key] = default_value
-        
-        return mapped_data
-    
-    async def _log_integration_usage(self, integration_id: str, endpoint_name: str, result: Dict[str, Any]):
-        """Log integration usage"""
-        
-        try:
-            usage_log = {
                 "integration_id": integration_id,
-                "endpoint_name": endpoint_name,
-                "success": result.get("success", False),
-                "execution_time": result.get("execution_time", 0.0),
-                "error": result.get("error"),
-                "timestamp": datetime.utcnow()
+                "message": "Custom integration created successfully",
+                "generated_code": integration_code,
+                "test_endpoint": f"/api/test-custom-integration/{integration_id}"
             }
             
-            self.usage_logs.insert_one(usage_log)
-            
         except Exception as e:
-            logger.error(f"Error logging integration usage: {e}")
+            logger.error(f"Custom integration creation failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
-    async def _check_integration_health(self):
-        """Check health of active integrations"""
+    async def _validate_integration_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate integration configuration"""
+        errors = []
         
-        try:
-            active_integrations = list(self.integrations.find({"status": IntegrationStatus.ACTIVE.value}))
+        # Required fields
+        required_fields = ["name", "type", "endpoints", "authentication"]
+        for field in required_fields:
+            if field not in config:
+                errors.append(f"Missing required field: {field}")
+        
+        # Validate integration type
+        if "type" in config:
+            try:
+                IntegrationType(config["type"])
+            except ValueError:
+                errors.append(f"Invalid integration type: {config['type']}")
+        
+        # Validate endpoints
+        if "endpoints" in config:
+            endpoint_errors = self._validate_endpoints(config["endpoints"])
+            errors.extend(endpoint_errors)
+        
+        # Validate authentication
+        if "authentication" in config:
+            auth_errors = self._validate_authentication(config["authentication"])
+            errors.extend(auth_errors)
+        
+        # Validate custom fields
+        if "custom_fields" in config:
+            field_errors = self._validate_custom_fields(config["custom_fields"])
+            errors.extend(field_errors)
+        
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors
+        }
+    
+    def _validate_endpoints(self, endpoints: List[Dict[str, Any]]) -> List[str]:
+        """Validate endpoint configurations"""
+        errors = []
+        
+        for i, endpoint in enumerate(endpoints):
+            # Required endpoint fields
+            required = ["name", "method", "url", "description"]
+            for field in required:
+                if field not in endpoint:
+                    errors.append(f"Endpoint {i}: Missing required field '{field}'")
             
-            for integration_doc in active_integrations:
-                integration_id = integration_doc["integration_id"]
-                
+            # Validate HTTP method
+            if "method" in endpoint:
+                valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+                if endpoint["method"].upper() not in valid_methods:
+                    errors.append(f"Endpoint {i}: Invalid HTTP method '{endpoint['method']}'")
+            
+            # Validate URL format
+            if "url" in endpoint:
+                if not endpoint["url"].startswith(("http://", "https://", "{{", "/")):
+                    errors.append(f"Endpoint {i}: Invalid URL format")
+        
+        return errors
+    
+    def _validate_authentication(self, auth: Dict[str, Any]) -> List[str]:
+        """Validate authentication configuration"""
+        errors = []
+        
+        if "type" not in auth:
+            errors.append("Authentication: Missing type")
+            return errors
+        
+        auth_type = auth["type"]
+        
+        if auth_type == "api_key":
+            if "key_location" not in auth:
+                errors.append("API Key auth: Missing key_location")
+            if "key_name" not in auth:
+                errors.append("API Key auth: Missing key_name")
+        
+        elif auth_type == "oauth2":
+            required_oauth = ["client_id_field", "client_secret_field", "auth_url", "token_url"]
+            for field in required_oauth:
+                if field not in auth:
+                    errors.append(f"OAuth2 auth: Missing {field}")
+        
+        elif auth_type == "bearer":
+            if "token_field" not in auth:
+                errors.append("Bearer auth: Missing token_field")
+        
+        return errors
+    
+    def _validate_custom_fields(self, fields: List[Dict[str, Any]]) -> List[str]:
+        """Validate custom field configurations"""
+        errors = []
+        
+        for i, field in enumerate(fields):
+            # Required field properties
+            required = ["name", "type", "label"]
+            for prop in required:
+                if prop not in field:
+                    errors.append(f"Field {i}: Missing required property '{prop}'")
+            
+            # Validate field type
+            if "type" in field:
                 try:
-                    # Perform health check
-                    integration = await self._get_integration(integration_id)
-                    test_result = await self._perform_integration_test(integration, {})
-                    
-                    # Update health status
-                    health_status = "healthy" if test_result["success"] else "unhealthy"
-                    
-                    self.integrations.update_one(
-                        {"integration_id": integration_id},
-                        {"$set": {
-                            "health_status": health_status,
-                            "last_health_check": datetime.utcnow()
-                        }}
-                    )
-                    
-                except Exception as e:
-                    logger.error(f"Health check failed for integration {integration_id}: {e}")
-                    
-                    self.integrations.update_one(
-                        {"integration_id": integration_id},
-                        {"$set": {
-                            "health_status": "error",
-                            "last_health_check": datetime.utcnow(),
-                            "health_error": str(e)
-                        }}
-                    )
+                    FieldType(field["type"])
+                except ValueError:
+                    errors.append(f"Field {i}: Invalid field type '{field['type']}'")
             
-        except Exception as e:
-            logger.error(f"Integration health check error: {e}")
-    
-    async def _update_usage_statistics(self):
-        """Update integration usage statistics"""
+            # Validate select options
+            if field.get("type") == "select" and "options" not in field:
+                errors.append(f"Field {i}: Select field missing options")
         
+        return errors
+    
+    async def _generate_integration_code(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate integration code from configuration"""
+        
+        integration_type = config["type"]
+        name = config["name"]
+        endpoints = config["endpoints"]
+        auth_config = config["authentication"]
+        
+        # Generate Python class code
+        python_code = self._generate_python_integration_class(config)
+        
+        # Generate JavaScript SDK code
+        js_code = self._generate_javascript_sdk(config)
+        
+        # Generate OpenAPI specification
+        openapi_spec = self._generate_openapi_spec(config)
+        
+        # Generate usage examples
+        usage_examples = self._generate_usage_examples(config)
+        
+        # Generate test cases
+        test_cases = self._generate_test_cases(config)
+        
+        return {
+            "python_class": python_code,
+            "javascript_sdk": js_code,
+            "openapi_spec": openapi_spec,
+            "usage_examples": usage_examples,
+            "test_cases": test_cases,
+            "generated_at": datetime.utcnow().isoformat()
+        }
+    
+    def _generate_python_integration_class(self, config: Dict[str, Any]) -> str:
+        """Generate Python integration class"""
+        
+        name = config["name"]
+        class_name = f"{name.replace(' ', '').replace('-', '')}Integration"
+        endpoints = config["endpoints"]
+        auth_config = config["authentication"]
+        
+        code_parts = []
+        
+        # Class header
+        code_parts.append(f'''import asyncio
+import httpx
+import json
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+
+class {class_name}:
+    """
+    Custom integration for {name}
+    Generated by AETHER Custom Integration Builder
+    """
+    
+    def __init__(self, credentials: Dict[str, Any]):
+        self.credentials = credentials
+        self.base_url = "{config.get('base_url', '')}"
+        self.session = None
+    
+    async def __aenter__(self):
+        self.session = httpx.AsyncClient(timeout=30.0)
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.aclose()''')
+        
+        # Authentication method
+        auth_method = self._generate_auth_method(auth_config)
+        code_parts.append(auth_method)
+        
+        # Generate endpoint methods
+        for endpoint in endpoints:
+            method_code = self._generate_endpoint_method(endpoint, auth_config)
+            code_parts.append(method_code)
+        
+        # Utility methods
+        code_parts.append('''
+    async def _make_request(self, method: str, url: str, headers: Dict[str, str] = None, 
+                           data: Dict[str, Any] = None, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Make authenticated HTTP request"""
         try:
-            # Calculate usage stats for each integration
-            pipeline = [
-                {"$group": {
-                    "_id": "$integration_id",
-                    "total_calls": {"$sum": 1},
-                    "successful_calls": {"$sum": {"$cond": ["$success", 1, 0]}},
-                    "avg_execution_time": {"$avg": "$execution_time"},
-                    "last_used": {"$max": "$timestamp"}
-                }}
-            ]
+            # Prepare headers
+            request_headers = await self._get_auth_headers()
+            if headers:
+                request_headers.update(headers)
             
-            stats = list(self.usage_logs.aggregate(pipeline))
-            
-            for stat in stats:
-                integration_id = stat["_id"]
-                success_rate = (stat["successful_calls"] / stat["total_calls"]) * 100
-                
-                self.integrations.update_one(
-                    {"integration_id": integration_id},
-                    {"$set": {
-                        "usage_stats": {
-                            "total_calls": stat["total_calls"],
-                            "success_rate": success_rate,
-                            "avg_execution_time": stat["avg_execution_time"],
-                            "last_used": stat["last_used"]
-                        },
-                        "stats_updated_at": datetime.utcnow()
-                    }}
-                )
-            
-        except Exception as e:
-            logger.error(f"Usage statistics update error: {e}")
-    
-    async def _cleanup_old_data(self):
-        """Clean up old test results and usage logs"""
-        
-        try:
-            # Clean up test results older than 30 days
-            cutoff_date = datetime.utcnow() - timedelta(days=30)
-            
-            test_result = self.test_results.delete_many({"timestamp": {"$lt": cutoff_date}})
-            if test_result.deleted_count > 0:
-                logger.info(f"Cleaned up {test_result.deleted_count} old test results")
-            
-            # Clean up usage logs older than 90 days
-            log_cutoff_date = datetime.utcnow() - timedelta(days=90)
-            
-            usage_result = self.usage_logs.delete_many({"timestamp": {"$lt": log_cutoff_date}})
-            if usage_result.deleted_count > 0:
-                logger.info(f"Cleaned up {usage_result.deleted_count} old usage logs")
-            
-        except Exception as e:
-            logger.error(f"Data cleanup error: {e}")
-    
-    # Public API Methods
-    
-    def get_available_templates(self) -> List[Dict[str, Any]]:
-        """Get list of available integration templates"""
-        
-        templates = list(self.templates.find({}, {"_id": 0}))
-        return templates
-    
-    def get_user_integrations(self, created_by: str) -> List[Dict[str, Any]]:
-        """Get integrations created by user"""
-        
-        integrations = list(self.integrations.find(
-            {"created_by": created_by},
-            {"_id": 0}
-        ).sort("created_at", -1))
-        
-        # Convert datetime objects
-        for integration in integrations:
-            for field in ["created_at", "updated_at", "last_tested"]:
-                if integration.get(field):
-                    integration[field] = integration[field].isoformat()
-        
-        return integrations
-    
-    def get_integration_details(self, integration_id: str) -> Optional[Dict[str, Any]]:
-        """Get detailed integration information"""
-        
-        integration = self.integrations.find_one({"integration_id": integration_id}, {"_id": 0})
-        
-        if integration:
-            # Convert datetime objects
-            for field in ["created_at", "updated_at", "last_tested", "last_health_check"]:
-                if integration.get(field):
-                    integration[field] = integration[field].isoformat()
-            
-            # Get recent test results
-            recent_tests = list(self.test_results.find(
-                {"integration_id": integration_id},
-                {"_id": 0}
-            ).sort("timestamp", -1).limit(5))
-            
-            for test in recent_tests:
-                if test.get("timestamp"):
-                    test["timestamp"] = test["timestamp"].isoformat()
-            
-            integration["recent_tests"] = recent_tests
-            
-            # Get usage statistics
-            usage_stats = self.usage_logs.count_documents({"integration_id": integration_id})
-            integration["total_usage_count"] = usage_stats
-        
-        return integration
-    
-    async def update_integration(self, integration_id: str, update_data: Dict[str, Any]) -> bool:
-        """Update integration configuration"""
-        
-        try:
-            # Validate update data
-            allowed_fields = [
-                "name", "description", "base_url", "endpoints", "headers",
-                "parameters", "response_mapping", "error_handling", "rate_limiting"
-            ]
-            
-            update_doc = {}
-            for field in allowed_fields:
-                if field in update_data:
-                    update_doc[field] = update_data[field]
-            
-            if not update_doc:
-                return False
-            
-            # Add update timestamp
-            update_doc["updated_at"] = datetime.utcnow()
-            
-            # Update in database
-            result = self.integrations.update_one(
-                {"integration_id": integration_id},
-                {"$set": update_doc}
+            # Make request
+            response = await self.session.request(
+                method=method,
+                url=url,
+                headers=request_headers,
+                json=data,
+                params=params
             )
             
-            return result.modified_count > 0
+            response.raise_for_status()
+            return {
+                "success": True,
+                "data": response.json() if response.content else {},
+                "status_code": response.status_code
+            }
             
         except Exception as e:
-            logger.error(f"Integration update error: {e}")
-            return False
+            return {
+                "success": False,
+                "error": str(e),
+                "status_code": getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None
+            }
     
-    async def delete_integration(self, integration_id: str) -> bool:
-        """Delete custom integration"""
+    def _build_url(self, endpoint: str) -> str:
+        """Build full URL from endpoint"""
+        if endpoint.startswith(('http://', 'https://')):
+            return endpoint
+        return f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"''')
+        
+        return '\n'.join(code_parts)
+    
+    def _generate_auth_method(self, auth_config: Dict[str, Any]) -> str:
+        """Generate authentication method"""
+        
+        auth_type = auth_config["type"]
+        
+        if auth_type == "api_key":
+            key_location = auth_config.get("key_location", "header")
+            key_name = auth_config.get("key_name", "X-API-Key")
+            
+            if key_location == "header":
+                return f'''
+    async def _get_auth_headers(self) -> Dict[str, str]:
+        """Get authentication headers"""
+        return {{
+            "{key_name}": self.credentials.get("api_key", ""),
+            "Content-Type": "application/json"
+        }}'''
+            
+        elif auth_type == "bearer":
+            return '''
+    async def _get_auth_headers(self) -> Dict[str, str]:
+        """Get authentication headers"""
+        return {
+            "Authorization": f"Bearer {self.credentials.get('token', '')}",
+            "Content-Type": "application/json"
+        }'''
+        
+        elif auth_type == "oauth2":
+            return '''
+    async def _get_auth_headers(self) -> Dict[str, str]:
+        """Get authentication headers"""
+        # OAuth2 token should be refreshed as needed
+        access_token = await self._get_oauth_token()
+        return {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+    
+    async def _get_oauth_token(self) -> str:
+        """Get or refresh OAuth2 token"""
+        # Implementation depends on OAuth2 flow
+        return self.credentials.get("access_token", "")'''
+        
+        return '''
+    async def _get_auth_headers(self) -> Dict[str, str]:
+        """Get authentication headers"""
+        return {"Content-Type": "application/json"}'''
+    
+    def _generate_endpoint_method(self, endpoint: Dict[str, Any], auth_config: Dict[str, Any]) -> str:
+        """Generate method for endpoint"""
+        
+        method_name = endpoint["name"].lower().replace(" ", "_").replace("-", "_")
+        http_method = endpoint["method"].upper()
+        url = endpoint["url"]
+        description = endpoint.get("description", "")
+        
+        # Generate parameters
+        params = endpoint.get("parameters", [])
+        param_list = []
+        param_docs = []
+        
+        for param in params:
+            param_name = param["name"]
+            param_type = param.get("type", "str")
+            is_required = param.get("required", False)
+            
+            if is_required:
+                param_list.append(f"{param_name}: {param_type}")
+            else:
+                param_list.append(f"{param_name}: Optional[{param_type}] = None")
+            
+            param_docs.append(f"        {param_name}: {param.get('description', '')}")
+        
+        param_str = ", ".join(param_list)
+        if param_str:
+            param_str = ", " + param_str
+        
+        doc_params = "\n".join(param_docs) if param_docs else "        No parameters"
+        
+        method_code = f'''
+    async def {method_name}(self{param_str}) -> Dict[str, Any]:
+        """
+        {description}
+        
+        Parameters:
+{doc_params}
+        
+        Returns:
+            Dict containing the API response
+        """
+        url = self._build_url("{url}")
+        
+        # Prepare request data
+        data = {{}}
+        params = {{}}'''
+        
+        # Add parameter handling
+        for param in params:
+            param_name = param["name"]
+            location = param.get("location", "body")
+            
+            if location == "body":
+                method_code += f'''
+        if {param_name} is not None:
+            data["{param_name}"] = {param_name}'''
+            elif location == "query":
+                method_code += f'''
+        if {param_name} is not None:
+            params["{param_name}"] = {param_name}'''
+        
+        method_code += f'''
+        
+        return await self._make_request("{http_method}", url, data=data, params=params)'''
+        
+        return method_code
+    
+    def _generate_javascript_sdk(self, config: Dict[str, Any]) -> str:
+        """Generate JavaScript SDK"""
+        
+        name = config["name"]
+        class_name = f"{name.replace(' ', '').replace('-', '')}SDK"
+        
+        js_code = f'''/**
+ * {name} JavaScript SDK
+ * Generated by AETHER Custom Integration Builder
+ */
+
+class {class_name} {{
+    constructor(credentials) {{
+        this.credentials = credentials;
+        this.baseUrl = "{config.get('base_url', '')}";
+    }}
+    
+    async makeRequest(method, endpoint, data = null, params = null) {{
+        const url = this.buildUrl(endpoint);
+        const headers = await this.getAuthHeaders();
+        
+        const config = {{
+            method: method,
+            headers: headers
+        }};
+        
+        if (data) {{
+            config.body = JSON.stringify(data);
+        }}
+        
+        if (params) {{
+            const urlParams = new URLSearchParams(params);
+            url += '?' + urlParams.toString();
+        }}
+        
+        try {{
+            const response = await fetch(url, config);
+            const result = await response.json();
+            
+            return {{
+                success: response.ok,
+                data: result,
+                status: response.status
+            }};
+        }} catch (error) {{
+            return {{
+                success: false,
+                error: error.message
+            }};
+        }}
+    }}
+    
+    buildUrl(endpoint) {{
+        if (endpoint.startsWith('http')) {{
+            return endpoint;
+        }}
+        return `${{this.baseUrl.replace(/\/$/, '')}}/${{endpoint.replace(/^\//, '')}}`;
+    }}
+    
+    async getAuthHeaders() {{
+        const headers = {{
+            'Content-Type': 'application/json'
+        }};
+        
+        // Add authentication based on type
+        {self._generate_js_auth_logic(config["authentication"])}
+        
+        return headers;
+    }}'''
+        
+        # Add endpoint methods
+        for endpoint in config["endpoints"]:
+            method_name = endpoint["name"].replace(" ", "").replace("-", "")
+            method_name = method_name[0].lower() + method_name[1:]
+            
+            js_code += f'''
+    
+    async {method_name}(params = {{}}) {{
+        return await this.makeRequest('{endpoint["method"]}', '{endpoint["url"]}', params);
+    }}'''
+        
+        js_code += '\n}\n\n'
+        js_code += f'// Export for use\nif (typeof module !== "undefined") {{ module.exports = {class_name}; }}'
+        
+        return js_code
+    
+    def _generate_js_auth_logic(self, auth_config: Dict[str, Any]) -> str:
+        """Generate JavaScript authentication logic"""
+        
+        auth_type = auth_config["type"]
+        
+        if auth_type == "api_key":
+            key_name = auth_config.get("key_name", "X-API-Key")
+            return f'''headers['{key_name}'] = this.credentials.apiKey;'''
+        
+        elif auth_type == "bearer":
+            return '''headers['Authorization'] = `Bearer ${this.credentials.token}`;'''
+        
+        elif auth_type == "oauth2":
+            return '''headers['Authorization'] = `Bearer ${this.credentials.accessToken}`;'''
+        
+        return '// No additional authentication headers'
+    
+    def _generate_openapi_spec(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate OpenAPI specification"""
+        
+        spec = {
+            "openapi": "3.0.0",
+            "info": {
+                "title": f"{config['name']} API",
+                "description": config.get("description", ""),
+                "version": "1.0.0",
+                "contact": {
+                    "name": "AETHER Custom Integration",
+                    "url": "https://aether.ai"
+                }
+            },
+            "servers": [
+                {
+                    "url": config.get("base_url", ""),
+                    "description": "Production server"
+                }
+            ],
+            "paths": {},
+            "components": {
+                "securitySchemes": self._generate_security_schemes(config["authentication"])
+            }
+        }
+        
+        # Add paths from endpoints
+        for endpoint in config["endpoints"]:
+            path = endpoint["url"]
+            method = endpoint["method"].lower()
+            
+            if path not in spec["paths"]:
+                spec["paths"][path] = {}
+            
+            spec["paths"][path][method] = {
+                "summary": endpoint["name"],
+                "description": endpoint.get("description", ""),
+                "parameters": self._generate_openapi_parameters(endpoint.get("parameters", [])),
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        
+        return spec
+    
+    def _generate_security_schemes(self, auth_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate OpenAPI security schemes"""
+        
+        auth_type = auth_config["type"]
+        
+        if auth_type == "api_key":
+            key_location = auth_config.get("key_location", "header")
+            key_name = auth_config.get("key_name", "X-API-Key")
+            
+            return {
+                "apiKey": {
+                    "type": "apiKey",
+                    "in": key_location,
+                    "name": key_name
+                }
+            }
+        
+        elif auth_type == "bearer":
+            return {
+                "bearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer"
+                }
+            }
+        
+        elif auth_type == "oauth2":
+            return {
+                "oauth2": {
+                    "type": "oauth2",
+                    "flows": {
+                        "authorizationCode": {
+                            "authorizationUrl": auth_config.get("auth_url", ""),
+                            "tokenUrl": auth_config.get("token_url", ""),
+                            "scopes": auth_config.get("scopes", {})
+                        }
+                    }
+                }
+            }
+        
+        return {}
+    
+    def _generate_openapi_parameters(self, params: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Generate OpenAPI parameters"""
+        
+        openapi_params = []
+        
+        for param in params:
+            location = param.get("location", "query")
+            if location == "body":
+                continue  # Body parameters handled separately
+            
+            openapi_param = {
+                "name": param["name"],
+                "in": location,
+                "description": param.get("description", ""),
+                "required": param.get("required", False),
+                "schema": {
+                    "type": param.get("type", "string")
+                }
+            }
+            
+            openapi_params.append(openapi_param)
+        
+        return openapi_params
+    
+    def _generate_usage_examples(self, config: Dict[str, Any]) -> Dict[str, str]:
+        """Generate usage examples"""
+        
+        name = config["name"]
+        class_name = f"{name.replace(' ', '').replace('-', '')}Integration"
+        
+        python_example = f'''# Python Usage Example
+import asyncio
+from {class_name.lower()} import {class_name}
+
+async def main():
+    credentials = {{
+        "api_key": "your_api_key_here"  # Replace with actual credentials
+    }}
+    
+    async with {class_name}(credentials) as integration:
+        # Example API call
+        result = await integration.{config["endpoints"][0]["name"].lower().replace(" ", "_")}()
+        
+        if result["success"]:
+            print("Success:", result["data"])
+        else:
+            print("Error:", result["error"])
+
+if __name__ == "__main__":
+    asyncio.run(main())'''
+        
+        js_example = f'''// JavaScript Usage Example
+const {class_name.replace("Integration", "SDK")} = require('./{class_name.lower()}_sdk');
+
+const credentials = {{
+    apiKey: "your_api_key_here"  // Replace with actual credentials
+}};
+
+const sdk = new {class_name.replace("Integration", "SDK")}(credentials);
+
+// Example API call
+sdk.{config["endpoints"][0]["name"].replace(" ", "").replace("-", "")[0].lower() + config["endpoints"][0]["name"].replace(" ", "").replace("-", "")[1:]}()
+    .then(result => {{
+        if (result.success) {{
+            console.log("Success:", result.data);
+        }} else {{
+            console.log("Error:", result.error);
+        }}
+    }})
+    .catch(error => {{
+        console.error("Request failed:", error);
+    }});'''
+        
+        curl_example = f'''# cURL Example
+curl -X {config["endpoints"][0]["method"]} \\
+  "{config.get("base_url", "")}{config["endpoints"][0]["url"]}" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: your_api_key_here" \\
+  -d '{{}}'
+'''
+        
+        return {
+            "python": python_example,
+            "javascript": js_example,
+            "curl": curl_example
+        }
+    
+    def _generate_test_cases(self, config: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate test cases for the integration"""
+        
+        test_cases = []
+        
+        for endpoint in config["endpoints"]:
+            test_case = {
+                "name": f"Test {endpoint['name']}",
+                "endpoint": endpoint["name"],
+                "method": endpoint["method"],
+                "url": endpoint["url"],
+                "description": f"Test the {endpoint['name']} endpoint",
+                "test_data": self._generate_test_data(endpoint),
+                "expected_response": {
+                    "status_code": 200,
+                    "success": True
+                },
+                "validation_rules": [
+                    "Response should have success field",
+                    "Status code should be 200 for successful requests",
+                    "Response should be valid JSON"
+                ]
+            }
+            
+            test_cases.append(test_case)
+        
+        return test_cases
+    
+    def _generate_test_data(self, endpoint: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate test data for endpoint"""
+        
+        test_data = {}
+        params = endpoint.get("parameters", [])
+        
+        for param in params:
+            param_name = param["name"]
+            param_type = param.get("type", "string")
+            
+            # Generate sample data based on type
+            if param_type == "string":
+                test_data[param_name] = f"test_{param_name}"
+            elif param_type == "number" or param_type == "integer":
+                test_data[param_name] = 123
+            elif param_type == "boolean":
+                test_data[param_name] = True
+            elif param_type == "array":
+                test_data[param_name] = ["item1", "item2"]
+            else:
+                test_data[param_name] = f"sample_{param_name}"
+        
+        return test_data
+    
+    async def test_custom_integration(self, integration_id: str, test_config: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Test a custom integration"""
+        try:
+            # Get integration record
+            integration = self.db.custom_integrations.find_one({"integration_id": integration_id})
+            if not integration:
+                return {
+                    "success": False,
+                    "error": "Integration not found"
+                }
+            
+            # Get test cases
+            test_cases = integration["generated_code"]["test_cases"]
+            test_results = []
+            
+            # Run tests
+            for test_case in test_cases:
+                result = await self._run_integration_test(integration, test_case, test_config)
+                test_results.append(result)
+            
+            # Calculate overall success rate
+            successful_tests = len([r for r in test_results if r["success"]])
+            success_rate = successful_tests / len(test_results) if test_results else 0
+            
+            # Update integration record
+            self.db.custom_integrations.update_one(
+                {"integration_id": integration_id},
+                {
+                    "$set": {
+                        "last_tested": datetime.utcnow(),
+                        "test_results": test_results
+                    }
+                }
+            )
+            
+            return {
+                "success": True,
+                "integration_id": integration_id,
+                "test_results": test_results,
+                "success_rate": success_rate,
+                "total_tests": len(test_results),
+                "successful_tests": successful_tests
+            }
+            
+        except Exception as e:
+            logger.error(f"Integration testing failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def _run_integration_test(self, integration: Dict[str, Any], test_case: Dict[str, Any], test_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Run individual integration test"""
         
         try:
-            # Delete integration
-            result = self.integrations.delete_one({"integration_id": integration_id})
+            # Prepare test request
+            method = test_case["method"]
+            url = test_case["url"]
+            test_data = test_case.get("test_data", {})
             
-            if result.deleted_count > 0:
-                # Clean up related data
-                self.test_results.delete_many({"integration_id": integration_id})
-                self.usage_logs.delete_many({"integration_id": integration_id})
+            # Build full URL
+            base_url = integration["config"].get("base_url", "")
+            if not url.startswith("http"):
+                url = f"{base_url.rstrip('/')}/{url.lstrip('/')}"
+            
+            # Prepare headers (use test credentials if provided)
+            headers = {"Content-Type": "application/json"}
+            
+            # Add authentication
+            auth_config = integration["config"]["authentication"]
+            if test_config and "credentials" in test_config:
+                auth_headers = self._get_test_auth_headers(auth_config, test_config["credentials"])
+                headers.update(auth_headers)
+            
+            # Make test request
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    json=test_data if method.upper() in ["POST", "PUT", "PATCH"] else None,
+                    params=test_data if method.upper() == "GET" else None
+                )
                 
-                logger.info(f"Deleted integration {integration_id}")
-                return True
+                # Validate response
+                validation_results = self._validate_test_response(response, test_case)
+                
+                return {
+                    "test_name": test_case["name"],
+                    "success": validation_results["valid"],
+                    "status_code": response.status_code,
+                    "response_time": response.elapsed.total_seconds(),
+                    "validation_results": validation_results,
+                    "tested_at": datetime.utcnow().isoformat()
+                }
+        
+        except Exception as e:
+            return {
+                "test_name": test_case["name"],
+                "success": False,
+                "error": str(e),
+                "tested_at": datetime.utcnow().isoformat()
+            }
+    
+    def _get_test_auth_headers(self, auth_config: Dict[str, Any], credentials: Dict[str, Any]) -> Dict[str, str]:
+        """Get authentication headers for testing"""
+        
+        headers = {}
+        auth_type = auth_config["type"]
+        
+        if auth_type == "api_key":
+            key_name = auth_config.get("key_name", "X-API-Key")
+            headers[key_name] = credentials.get("api_key", "")
+        
+        elif auth_type == "bearer":
+            headers["Authorization"] = f"Bearer {credentials.get('token', '')}"
+        
+        elif auth_type == "oauth2":
+            headers["Authorization"] = f"Bearer {credentials.get('access_token', '')}"
+        
+        return headers
+    
+    def _validate_test_response(self, response: httpx.Response, test_case: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate test response"""
+        
+        validation_results = {
+            "valid": True,
+            "checks": [],
+            "errors": []
+        }
+        
+        expected = test_case.get("expected_response", {})
+        
+        # Check status code
+        expected_status = expected.get("status_code", 200)
+        if response.status_code == expected_status:
+            validation_results["checks"].append(f"Status code: {response.status_code} ✓")
+        else:
+            validation_results["valid"] = False
+            validation_results["errors"].append(f"Expected status {expected_status}, got {response.status_code}")
+        
+        # Check response content type
+        content_type = response.headers.get("content-type", "")
+        if "application/json" in content_type:
+            validation_results["checks"].append("Content-Type: application/json ✓")
+        else:
+            validation_results["errors"].append(f"Unexpected content-type: {content_type}")
+        
+        # Try to parse JSON
+        try:
+            response_data = response.json()
+            validation_results["checks"].append("Valid JSON response ✓")
             
-            return False
+            # Check for success field if expected
+            if expected.get("success") is not None:
+                if response_data.get("success") == expected["success"]:
+                    validation_results["checks"].append(f"Success field: {response_data.get('success')} ✓")
+                else:
+                    validation_results["valid"] = False
+                    validation_results["errors"].append(f"Expected success: {expected['success']}, got: {response_data.get('success')}")
+        
+        except Exception as e:
+            validation_results["valid"] = False
+            validation_results["errors"].append(f"Invalid JSON response: {str(e)}")
+        
+        return validation_results
+    
+    async def deploy_custom_integration(self, integration_id: str, deployment_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Deploy custom integration to production"""
+        try:
+            integration = self.db.custom_integrations.find_one({"integration_id": integration_id})
+            if not integration:
+                return {
+                    "success": False,
+                    "error": "Integration not found"
+                }
+            
+            # Validate deployment readiness
+            if not integration.get("test_results"):
+                return {
+                    "success": False,
+                    "error": "Integration must be tested before deployment"
+                }
+            
+            # Create deployment record
+            deployment_id = str(uuid.uuid4())
+            deployment_record = {
+                "deployment_id": deployment_id,
+                "integration_id": integration_id,
+                "deployed_at": datetime.utcnow(),
+                "deployment_config": deployment_config,
+                "status": "active",
+                "version": integration.get("version", "1.0.0"),
+                "endpoints": self._create_deployment_endpoints(integration)
+            }
+            
+            self.db.integration_deployments.insert_one(deployment_record)
+            
+            # Update integration status
+            self.db.custom_integrations.update_one(
+                {"integration_id": integration_id},
+                {
+                    "$set": {
+                        "deployment_status": "deployed",
+                        "deployed_at": datetime.utcnow(),
+                        "deployment_id": deployment_id
+                    }
+                }
+            )
+            
+            return {
+                "success": True,
+                "deployment_id": deployment_id,
+                "integration_id": integration_id,
+                "endpoints": deployment_record["endpoints"],
+                "message": "Integration deployed successfully"
+            }
             
         except Exception as e:
-            logger.error(f"Integration deletion error: {e}")
-            return False
+            logger.error(f"Integration deployment failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _create_deployment_endpoints(self, integration: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Create deployment endpoints"""
+        
+        endpoints = []
+        integration_id = integration["integration_id"]
+        
+        for endpoint_config in integration["config"]["endpoints"]:
+            endpoint = {
+                "name": endpoint_config["name"],
+                "method": endpoint_config["method"],
+                "path": f"/api/custom-integrations/{integration_id}/{endpoint_config['name'].lower().replace(' ', '-')}",
+                "description": endpoint_config.get("description", ""),
+                "parameters": endpoint_config.get("parameters", [])
+            }
+            endpoints.append(endpoint)
+        
+        return endpoints
+    
+    async def get_custom_integration(self, integration_id: str) -> Dict[str, Any]:
+        """Get custom integration details"""
+        
+        integration = self.db.custom_integrations.find_one(
+            {"integration_id": integration_id},
+            {"_id": 0}
+        )
+        
+        if not integration:
+            return {
+                "success": False,
+                "error": "Integration not found"
+            }
+        
+        return {
+            "success": True,
+            "integration": integration
+        }
+    
+    async def list_custom_integrations(self, user_session: str = None, filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """List custom integrations"""
+        
+        query = {}
+        if user_session:
+            query["creator_session"] = user_session
+        
+        if filters:
+            if "status" in filters:
+                query["status"] = filters["status"]
+            if "type" in filters:
+                query["type"] = filters["type"]
+        
+        integrations = list(self.db.custom_integrations.find(
+            query,
+            {"_id": 0, "generated_code": 0}  # Exclude large generated code
+        ).sort("created_at", -1))
+        
+        return {
+            "success": True,
+            "integrations": integrations,
+            "total": len(integrations)
+        }
+    
+    def _load_integration_templates(self) -> Dict[str, Dict[str, Any]]:
+        """Load predefined integration templates"""
+        
+        return {
+            "rest_api": {
+                "name": "REST API Integration",
+                "description": "Generic REST API integration template",
+                "type": "api_key",
+                "authentication": {
+                    "type": "api_key",
+                    "key_location": "header",
+                    "key_name": "X-API-Key"
+                },
+                "endpoints": [
+                    {
+                        "name": "Get Data",
+                        "method": "GET",
+                        "url": "/api/data",
+                        "description": "Retrieve data from API"
+                    },
+                    {
+                        "name": "Create Record",
+                        "method": "POST", 
+                        "url": "/api/records",
+                        "description": "Create a new record"
+                    }
+                ]
+            },
+            "oauth_api": {
+                "name": "OAuth API Integration",
+                "description": "OAuth-based API integration template",
+                "type": "oauth2",
+                "authentication": {
+                    "type": "oauth2",
+                    "auth_url": "https://api.example.com/oauth/authorize",
+                    "token_url": "https://api.example.com/oauth/token"
+                },
+                "endpoints": [
+                    {
+                        "name": "Get User Profile",
+                        "method": "GET",
+                        "url": "/api/user/profile",
+                        "description": "Get authenticated user profile"
+                    }
+                ]
+            }
+        }
+    
+    def _initialize_validation_rules(self) -> Dict[str, List[str]]:
+        """Initialize validation rules"""
+        
+        return {
+            "required_fields": ["name", "type", "endpoints", "authentication"],
+            "valid_auth_types": ["api_key", "oauth2", "bearer", "basic"],
+            "valid_http_methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+            "valid_field_types": ["text", "password", "url", "email", "number", "boolean", "select", "textarea"]
+        }
 
-# Global custom integration builder instance
-custom_integration_builder = None  # Will be initialized in server.py
+# Global instance
+custom_integration_builder = None
+
+def initialize_custom_integration_builder(mongo_client: MongoClient):
+    global custom_integration_builder
+    custom_integration_builder = CustomIntegrationBuilder(mongo_client)
+    return custom_integration_builder
