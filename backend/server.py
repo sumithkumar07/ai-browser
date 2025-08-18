@@ -71,6 +71,39 @@ enhanced_integration_manager = EnhancedIntegrationManager(client)
 advanced_workflow_engine = AdvancedWorkflowEngine(client)
 integration_auth_manager = IntegrationAuthManager(client)
 
+# Initialize enhanced components after mongo client is ready
+def initialize_enhanced_components():
+    """Initialize all enhanced components that depend on MongoDB"""
+    try:
+        if client is None:
+            raise Exception("MongoDB client not initialized")
+        
+        # Initialize intelligent memory system
+        memory_system = IntelligentMemorySystem(client)
+        logger.info("Intelligent Memory System initialized")
+        
+        # Initialize enhanced integration manager
+        enhanced_integration_mgr = EnhancedIntegrationManager(client)
+        logger.info("Enhanced Integration Manager initialized")
+        
+        # Initialize advanced workflow engine
+        workflow_engine = AdvancedWorkflowEngine(client)
+        logger.info("Advanced Workflow Engine initialized")
+        
+        # Initialize Phase 1-4 components
+        agentic_engine = initialize_agentic_engine(client)
+        logger.info("Agentic Engine initialized")
+        
+        timeline_mgr = initialize_timeline_manager(client)
+        logger.info("Timeline Manager initialized")
+        
+        logger.info("All enhanced components initialized successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize enhanced components: {e}")
+        return False
+
 # Startup event to initialize all enhanced systems
 @app.on_event("startup")
 async def startup_event():
