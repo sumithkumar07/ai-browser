@@ -15,7 +15,8 @@ import asyncio
 import time
 import logging
 
-# Import ALL enhancement engines - PHASES 1-4 IMPLEMENTED IN PARALLEL
+# Import enhanced endpoints
+from enhanced_backend_endpoints import router as enhanced_router
 from native_browser_engine_enhanced import NativeBrowserEngine, BrowserSecurityManager, BrowserPerformanceMonitor
 from multi_ai_provider_engine import MultiAIProviderEngine, AIProvider
 from shadow_workspace_engine import ShadowWorkspaceEngine, WorkspaceStatus
