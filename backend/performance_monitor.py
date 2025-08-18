@@ -234,7 +234,10 @@ def monitor_performance(func):
         status_code = 200
         
         try:
-            result = await func(*args, **kwargs)
+            if asyncio.iscoroutinefunction(func):
+                result = await func(*args, **kwargs)
+            else:
+                result = func(*args, **kwargs)
             return result
         except Exception as e:
             status_code = 500
