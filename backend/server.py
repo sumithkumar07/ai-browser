@@ -1,25 +1,22 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
+from pymongo import MongoClient
 import uuid
 from datetime import datetime
 import httpx
 from bs4 import BeautifulSoup
-import logging
+import groq
+import json
 
-# Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app = FastAPI(title="AETHER Browser API", version="1.0.0")
 
-app = FastAPI(title="AETHER Browser API", version="3.0.0")
-
-# Add CORS middleware
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,121 +25,111 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Database connection
+MONGO_URL = os.getenv("MONGO_URL")
+client = MongoClient(MONGO_URL)
+db = client.aether_browser
+
+# Groq client
+groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
+
 # Pydantic models
 class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
     current_url: Optional[str] = None
-    language: Optional[str] = None
 
 class BrowsingSession(BaseModel):
     url: str
     title: Optional[str] = None
 
-# In-memory storage
-storage = {
-    "recent_tabs": [],
-    "chat_sessions": [],
-    "recommendations": [
-        {
-            "id": "1",
-            "title": "Discover AI Tools",
-            "description": "Explore the latest AI-powered tools and services",
-            "url": "https://www.producthunt.com/topics/artificial-intelligence"
-        },
-        {
-            "id": "2",
-            "title": "Tech News",
-            "description": "Stay updated with technology trends",
-            "url": "https://news.ycombinator.com"
-        },
-        {
-            "id": "3",
-            "title": "Learn Something New",
-            "description": "Educational content and tutorials",
-            "url": "https://www.coursera.org"
-        }
-    ]
-}
+class Tab(BaseModel):
+    id: str
+    url: str
+    title: str
+    timestamp: datetime
 
 # Helper functions
-async def fetch_page_content(url: str) -> Dict[str, Any]:
+async def get_page_content(url: str) -> Dict[str, Any]:
     """Fetch and parse web page content"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(url, headers={
-                'User-Agent': 'AETHER Browser/3.0'
-            })
+            response = await client.get(url)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Remove unwanted elements
-            for element in soup(["script", "style", "nav", "header", "footer"]):
-                element.decompose()
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
                 
             title = soup.title.string if soup.title else url
             text_content = soup.get_text()
             
             # Clean up text
             lines = (line.strip() for line in text_content.splitlines())
-            text = ' '.join(line for line in lines if line)[:5000]
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = ' '.join(chunk for chunk in chunks if chunk)
             
             return {
                 "title": title.strip(),
-                "content": text,
-                "url": url,
-                "word_count": len(text.split()),
-                "extracted_at": datetime.utcnow().isoformat()
+                "content": text[:5000],  # Limit content size
+                "url": url
             }
-            
     except Exception as e:
-        return {
-            "title": url,
-            "content": f"Error loading page: {str(e)}",
-            "url": url,
-            "error": True,
-            "extracted_at": datetime.utcnow().isoformat()
-        }
+        return {"title": url, "content": f"Error loading page: {str(e)}", "url": url}
 
-def get_ai_response(message: str, context: str = None) -> str:
-    """Generate AI response (fallback version)"""
-    if "automate" in message.lower() or "task" in message.lower():
-        return f"I understand you want to automate something: '{message}'. I'm currently in basic mode, but I can help you navigate and browse websites. Advanced automation features are being initialized."
-    elif context:
-        return f"I can see you're on a webpage about '{context[:100]}...'. How can I help you with this page? I can assist with navigation, searching, or explaining the content."
-    else:
-        return f"I understand your question: '{message}'. I'm running in basic mode right now. I can help you browse websites, navigate pages, and provide basic assistance. What would you like to do?"
+async def get_ai_response(message: str, context: Optional[str] = None, session_id: Optional[str] = None) -> str:
+    """Get AI response using Groq API"""
+    try:
+        # Get conversation history
+        messages = [
+            {
+                "role": "system", 
+                "content": "You are AETHER AI Assistant, an intelligent browser companion. You help users with web browsing, answer questions, and provide helpful information. Be concise but informative."
+            }
+        ]
+        
+        if session_id:
+            # Get previous messages from database
+            chat_history = list(db.chat_sessions.find(
+                {"session_id": session_id}
+            ).sort("timestamp", -1).limit(10))
+            
+            for chat in reversed(chat_history):
+                messages.append({"role": "user", "content": chat["user_message"]})
+                messages.append({"role": "assistant", "content": chat["ai_response"]})
+        
+        # Add context if available (web page content)
+        if context:
+            context_msg = f"Current webpage context: {context[:2000]}"
+            messages.append({"role": "system", "content": context_msg})
+        
+        messages.append({"role": "user", "content": message})
+        
+        # Get response from Groq
+        chat_completion = groq_client.chat.completions.create(
+            messages=messages,
+            model="llama-3.3-70b-versatile",  # Using latest available Llama model
+            temperature=0.7,
+            max_tokens=1000
+        )
+        
+        return chat_completion.choices[0].message.content
+        
+    except Exception as e:
+        return f"Sorry, I'm having trouble processing your request: {str(e)}"
 
 # API Routes
-@app.get("/")
-async def root():
-    return {
-        "message": "AETHER Browser API",
-        "version": "3.0.0",
-        "status": "operational"
-    }
-
 @app.get("/api/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "service": "AETHER Browser API v3.0",
-        "timestamp": datetime.utcnow().isoformat(),
-        "features": [
-            "Web Browsing & Navigation",
-            "AI Chat Assistant (Basic Mode)",
-            "Browsing History Tracking",
-            "Content Analysis",
-            "Recommendations Engine"
-        ]
-    }
+    return {"status": "healthy", "service": "AETHER Browser API"}
 
 @app.post("/api/browse")
 async def browse_page(session: BrowsingSession):
-    """Browse to a web page"""
+    """Fetch web page content and store browsing history"""
     try:
-        page_data = await fetch_page_content(session.url)
+        page_data = await get_page_content(session.url)
         
         # Store in recent tabs
         tab_data = {
@@ -150,12 +137,16 @@ async def browse_page(session: BrowsingSession):
             "url": session.url,
             "title": page_data["title"],
             "timestamp": datetime.utcnow(),
-            "content_preview": page_data["content"][:300]
+            "content_preview": page_data["content"][:200]
         }
         
-        # Add to beginning and keep only last 10
-        storage["recent_tabs"].insert(0, tab_data)
-        storage["recent_tabs"] = storage["recent_tabs"][:10]
+        db.recent_tabs.insert_one(tab_data)
+        
+        # Keep only last 10 tabs
+        all_tabs = list(db.recent_tabs.find().sort("timestamp", -1))
+        if len(all_tabs) > 10:
+            for tab in all_tabs[10:]:
+                db.recent_tabs.delete_one({"_id": tab["_id"]})
         
         return {
             "success": True,
@@ -172,35 +163,33 @@ async def chat_with_ai(chat_data: ChatMessage):
     try:
         session_id = chat_data.session_id or str(uuid.uuid4())
         
-        # Get page context if available
+        # Get page context if URL provided
         context = None
         if chat_data.current_url:
-            try:
-                page_data = await fetch_page_content(chat_data.current_url)
-                context = page_data.get("title", "")
-            except:
-                context = chat_data.current_url
+            page_data = await get_page_content(chat_data.current_url)
+            context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
         
-        # Generate AI response
-        response = get_ai_response(chat_data.message, context)
+        # Get AI response
+        ai_response = await get_ai_response(
+            chat_data.message, 
+            context=context,
+            session_id=session_id
+        )
         
         # Store chat session
         chat_record = {
             "session_id": session_id,
             "user_message": chat_data.message,
-            "ai_response": response,
+            "ai_response": ai_response,
             "current_url": chat_data.current_url,
             "timestamp": datetime.utcnow()
         }
         
-        storage["chat_sessions"].append(chat_record)
+        db.chat_sessions.insert_one(chat_record)
         
         return {
-            "response": response,
-            "session_id": session_id,
-            "provider": "basic",
-            "response_time": 0.1,
-            "message_type": "conversation"
+            "response": ai_response,
+            "session_id": session_id
         }
         
     except Exception as e:
@@ -209,55 +198,102 @@ async def chat_with_ai(chat_data: ChatMessage):
 @app.get("/api/recent-tabs")
 async def get_recent_tabs():
     """Get recent browsing tabs"""
-    return {"tabs": storage["recent_tabs"][:4]}
+    try:
+        tabs = list(db.recent_tabs.find(
+            {}, 
+            {"_id": 0}
+        ).sort("timestamp", -1).limit(4))
+        
+        return {"tabs": tabs}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/recommendations")
 async def get_recommendations():
-    """Get browsing recommendations"""
-    return {"recommendations": storage["recommendations"]}
+    """Get AI-powered browsing recommendations"""
+    try:
+        # Get recent browsing history
+        recent_tabs = list(db.recent_tabs.find().sort("timestamp", -1).limit(5))
+        
+        if not recent_tabs:
+            # Default recommendations
+            recommendations = [
+                {
+                    "id": "1",
+                    "title": "Discover AI Tools",
+                    "description": "Explore the latest AI-powered tools and services",
+                    "url": "https://www.producthunt.com/topics/artificial-intelligence"
+                },
+                {
+                    "id": "2", 
+                    "title": "Tech News",
+                    "description": "Stay updated with technology trends",
+                    "url": "https://news.ycombinator.com"
+                },
+                {
+                    "id": "3",
+                    "title": "Learn Something New",
+                    "description": "Educational content and tutorials",
+                    "url": "https://www.coursera.org"
+                }
+            ]
+        else:
+            # AI-powered recommendations based on browsing history
+            browsing_context = "\n".join([f"- {tab['title']}: {tab.get('content_preview', '')}" for tab in recent_tabs])
+            
+            prompt = f"""Based on this browsing history, suggest 3 relevant websites or pages the user might be interested in:
+{browsing_context}
+
+Return only a JSON array with objects containing: id, title, description, url
+Make recommendations relevant and helpful."""
+
+            try:
+                ai_response = await get_ai_response(prompt)
+                # Try to parse AI response as JSON
+                import re
+                json_match = re.search(r'\[.*\]', ai_response, re.DOTALL)
+                if json_match:
+                    recommendations = json.loads(json_match.group())
+                else:
+                    raise Exception("No valid JSON found")
+            except:
+                # Fallback recommendations
+                recommendations = [
+                    {
+                        "id": "1",
+                        "title": "Continue Reading",
+                        "description": "Based on your recent browsing",
+                        "url": recent_tabs[0]["url"] if recent_tabs else "https://google.com"
+                    },
+                    {
+                        "id": "2",
+                        "title": "Related Topics",
+                        "description": "Discover similar content",
+                        "url": "https://www.google.com/search?q=" + recent_tabs[0]["title"].replace(" ", "+") if recent_tabs else "https://google.com"
+                    },
+                    {
+                        "id": "3",
+                        "title": "Trending Now",
+                        "description": "Popular content today",
+                        "url": "https://trends.google.com"
+                    }
+                ]
+        
+        return {"recommendations": recommendations}
+        
+    except Exception as e:
+        return {"recommendations": []}
 
 @app.delete("/api/clear-history")
-async def clear_history():
-    """Clear browsing history"""
-    storage["recent_tabs"] = []
-    storage["chat_sessions"] = []
-    return {"success": True, "message": "History cleared"}
-
-# Basic automation endpoints
-@app.post("/api/automate-task")
-async def create_automation_task(task_data: ChatMessage):
-    """Create automation task"""
-    return {
-        "success": True,
-        "message": f"Automation task received: {task_data.message}",
-        "task_id": str(uuid.uuid4()),
-        "status": "basic_mode"
-    }
-
-@app.get("/api/active-automations")
-async def get_active_automations():
-    """Get active automations"""
-    return {
-        "success": True,
-        "active_tasks": [],
-        "message": "No active automations in basic mode"
-    }
-
-@app.post("/api/voice-command")
-async def process_voice_command(request: Dict[str, Any]):
-    """Process voice command"""
-    return {
-        "success": True,
-        "message": "Voice command received (basic mode)"
-    }
-
-@app.post("/api/keyboard-shortcut")
-async def keyboard_shortcut(request: Dict[str, Any]):
-    """Handle keyboard shortcut"""
-    return {
-        "success": True,
-        "message": "Keyboard shortcut handled (basic mode)"
-    }
+async def clear_browsing_history():
+    """Clear browsing history and chat sessions"""
+    try:
+        db.recent_tabs.delete_many({})
+        db.chat_sessions.delete_many({})
+        return {"success": True, "message": "History cleared"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
