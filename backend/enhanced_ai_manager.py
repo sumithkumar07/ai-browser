@@ -618,7 +618,8 @@ Always be helpful, accurate, and proactive in suggesting ways to enhance the use
             return cached_result
         
         # Determine optimal provider and model
-        provider, model = self.select_optimal_provider_and_model(query_type, "medium")
+        complexity = "medium"
+        provider, model = self.select_optimal_provider_and_model(query_type, complexity)
         
         # Build messages with enhanced context
         messages = self._build_enhanced_messages(message, context, session_history, query_type, language)
@@ -694,7 +695,8 @@ Always be helpful, accurate, and proactive in suggesting ways to enhance the use
         
         try:
             query_type = QueryType.SUMMARIZATION
-            provider, model = self.select_optimal_provider_and_model(query_type, "medium")
+            complexity = "medium"
+        provider, model = self.select_optimal_provider_and_model(query_type, complexity)
             
             length_instructions = {
                 "short": "Provide a brief 2-3 sentence summary",
