@@ -60,6 +60,12 @@ function App() {
   const [workspaceLayout, setWorkspaceLayout] = useState('default');
   const [aiProviders, setAiProviders] = useState(['groq']);
   const [selectedAiProvider, setSelectedAiProvider] = useState('groq');
+  
+  // **PHASE 3: AUTONOMOUS AI STATE**
+  const [proactiveSuggestions, setProactiveSuggestions] = useState([]);
+  const [autonomousInsights, setAutonomousInsights] = useState({});
+  const [backgroundTasks, setBackgroundTasks] = useState([]);
+  const [aiLearningMode, setAiLearningMode] = useState(true);
 
   // Initialize session and load advanced features
   useEffect(() => {
