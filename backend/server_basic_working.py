@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -11,13 +11,10 @@ import httpx
 from bs4 import BeautifulSoup
 import groq
 import json
-import asyncio
-import time
-import logging
 
 load_dotenv()
 
-app = FastAPI(title="AETHER Browser API - Enhanced", version="3.0.0")
+app = FastAPI(title="AETHER Browser API", version="1.0.0")
 
 # CORS middleware
 app.add_middleware(
@@ -36,12 +33,11 @@ db = client.aether_browser
 # Groq client
 groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# Enhanced Pydantic models
+# Pydantic models
 class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
     current_url: Optional[str] = None
-    language: Optional[str] = None
 
 class BrowsingSession(BaseModel):
     url: str
@@ -70,7 +66,7 @@ class IntegrationRequest(BaseModel):
     api_key: str
     type: str
 
-# Enhanced helper functions
+# Helper functions
 async def get_page_content(url: str) -> Dict[str, Any]:
     """Fetch and parse web page content"""
     try:
@@ -141,26 +137,10 @@ async def get_ai_response(message: str, context: Optional[str] = None, session_i
     except Exception as e:
         return f"Sorry, I'm having trouble processing your request: {str(e)}"
 
-# ============================================
-# BASIC API ENDPOINTS (WORKING)
-# ============================================
-
+# API Routes
 @app.get("/api/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "service": "AETHER Browser API v3.0 - Enhanced",
-        "timestamp": datetime.utcnow().isoformat(),
-        "enhanced_features": [
-            "Multi-AI Provider Support",
-            "Advanced Automation Engine", 
-            "Intelligent Memory System",
-            "Performance Optimization",
-            "Enhanced Integrations",
-            "Voice Commands & Keyboard Shortcuts",
-            "Advanced Workflow Engine"
-        ]
-    }
+    return {"status": "healthy", "service": "AETHER Browser API"}
 
 @app.post("/api/browse")
 async def browse_page(session: BrowsingSession):
@@ -332,9 +312,9 @@ async def clear_browsing_history():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ============================================
+# ===============================
 # ENHANCED ENDPOINTS (FIXING THE 8 FAILING ONES)
-# ============================================
+# ===============================
 
 @app.post("/api/summarize")
 async def summarize_page(request: SummarizationRequest):
@@ -428,27 +408,18 @@ async def create_workflow(request: WorkflowRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Workflow creation failed: {str(e)}")
 
-# ============================================
-# NEW AUTOMATION & WORKFLOW ENDPOINTS
-# ============================================
-
-@app.post("/api/automate-task")
-async def create_automation_task(task_data: ChatMessage):
-    """Create a new automation task from natural language description"""
+# Enhanced automation endpoints
+@app.post("/api/enhanced/automation/create-advanced")
+async def create_advanced_automation(request: Dict[str, Any]):
+    """Create advanced automation task"""
     try:
-        task_id = str(uuid.uuid4())
+        automation_id = str(uuid.uuid4())
         
-        # Create automation task
         automation_data = {
-            "id": task_id,
-            "description": task_data.message,
-            "user_session": task_data.session_id or str(uuid.uuid4()),
-            "current_url": task_data.current_url,
+            "id": automation_id,
+            "type": "advanced",
+            "configuration": request,
             "status": "created",
-            "complexity": "medium",
-            "estimated_duration": 300,  # 5 minutes default
-            "total_steps": 5,
-            "current_step": 0,
             "created_at": datetime.utcnow()
         }
         
@@ -456,158 +427,50 @@ async def create_automation_task(task_data: ChatMessage):
         
         return {
             "success": True,
-            "task_id": task_id,
-            "task_details": {
-                "description": automation_data["description"],
-                "complexity": automation_data["complexity"],
-                "estimated_duration": automation_data["estimated_duration"],
-                "total_steps": automation_data["total_steps"],
-                "status": automation_data["status"]
-            },
-            "message": f"Automation task created: {automation_data['description']}"
+            "automation_id": automation_id,
+            "status": "created",
+            "message": "Advanced automation created successfully"
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Automation creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Advanced automation creation failed: {str(e)}")
 
-@app.post("/api/execute-automation/{task_id}")
-async def execute_automation(task_id: str, background_tasks: BackgroundTasks):
-    """Execute an automation task in the background"""
+@app.post("/api/enhanced/workflows/template/create")
+async def create_workflow_template(request: Dict[str, Any]):
+    """Create workflow template"""
     try:
-        # Update task status to running
-        db.automations.update_one(
-            {"id": task_id},
-            {"$set": {"status": "running", "started_at": datetime.utcnow()}}
-        )
+        template_id = str(uuid.uuid4())
+        
+        template_data = {
+            "id": template_id,
+            "name": request.get("name", "Untitled Template"),
+            "description": request.get("description", ""),
+            "template": request,
+            "created_at": datetime.utcnow()
+        }
+        
+        db.workflow_templates.insert_one(template_data)
         
         return {
             "success": True,
-            "task_id": task_id,
-            "status": "started",
-            "message": "Automation task started in background"
+            "template_id": template_id,
+            "name": template_data["name"],
+            "message": "Workflow template created successfully"
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Automation execution failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Workflow template creation failed: {str(e)}")
 
-@app.get("/api/automation-status/{task_id}")
-async def get_automation_status(task_id: str):
-    """Get current status of an automation task"""
-    try:
-        task = db.automations.find_one({"id": task_id}, {"_id": 0})
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-        
-        return {
-            "success": True,
-            "task_status": task
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Status retrieval failed: {str(e)}")
-
-@app.post("/api/cancel-automation/{task_id}")
-async def cancel_automation(task_id: str):
-    """Cancel a running automation task"""
-    try:
-        result = db.automations.update_one(
-            {"id": task_id},
-            {"$set": {"status": "cancelled", "cancelled_at": datetime.utcnow()}}
-        )
-        
-        if result.modified_count == 0:
-            raise HTTPException(status_code=404, detail="Task not found or already completed")
-        
-        return {
-            "success": True,
-            "task_id": task_id,
-            "message": "Automation task cancelled"
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Cancellation failed: {str(e)}")
-
-@app.get("/api/active-automations")
-async def get_active_automations():
-    """Get list of all active automation tasks"""
-    try:
-        active_tasks = list(db.automations.find(
-            {"status": {"$in": ["created", "running", "paused"]}},
-            {"_id": 0}
-        ))
-        
-        return {
-            "success": True,
-            "active_tasks": active_tasks,
-            "count": len(active_tasks)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Active tasks retrieval failed: {str(e)}")
-
-@app.get("/api/automation-suggestions")
-async def get_automation_suggestions(current_url: str = ""):
-    """Get AI-powered automation suggestions for current context"""
-    try:
-        # Get page context if URL provided
-        suggestions = []
-        if current_url:
-            page_data = await get_page_content(current_url)
-            
-            # Generate context-aware suggestions
-            suggestions = [
-                {
-                    "title": "Extract Data",
-                    "description": f"Extract key information from {page_data['title']}",
-                    "command": f"extract data from {current_url}",
-                    "estimated_time": "2 minutes"
-                },
-                {
-                    "title": "Monitor Changes",
-                    "description": "Monitor this page for content changes",
-                    "command": f"monitor {current_url} for changes",
-                    "estimated_time": "ongoing"
-                }
-            ]
-        else:
-            suggestions = [
-                {
-                    "title": "Browse & Extract",
-                    "description": "Browse multiple pages and extract data",
-                    "command": "browse and extract data from multiple pages",
-                    "estimated_time": "5 minutes"
-                },
-                {
-                    "title": "Content Research",
-                    "description": "Research topic across multiple sources",
-                    "command": "research topic across multiple sources",
-                    "estimated_time": "3 minutes"
-                }
-            ]
-        
-        return {
-            "success": True,
-            "suggestions": suggestions,
-            "context_url": current_url
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Suggestions failed: {str(e)}")
-
-# ============================================
-# ENHANCED INTEGRATION ENDPOINTS (FIXING OAUTH & API KEY STORAGE)
-# ============================================
-
+# Enhanced integration endpoints
 @app.post("/api/enhanced/integrations/oauth/initiate")
 async def initiate_oauth(request: Dict[str, Any]):
-    """Initiate OAuth 2.0 flow for integration"""
+    """Initiate OAuth flow"""
     try:
         oauth_session_id = str(uuid.uuid4())
         
         oauth_data = {
             "session_id": oauth_session_id,
             "provider": request.get("provider", "unknown"),
-            "user_session": request.get("user_session", str(uuid.uuid4())),
             "status": "initiated",
             "created_at": datetime.utcnow()
         }
@@ -626,7 +489,7 @@ async def initiate_oauth(request: Dict[str, Any]):
 
 @app.post("/api/enhanced/integrations/api-key/store")
 async def store_api_key(request: IntegrationRequest):
-    """Store API key for integration with validation"""
+    """Store API key for integration"""
     try:
         integration_id = str(uuid.uuid4())
         
@@ -651,106 +514,70 @@ async def store_api_key(request: IntegrationRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"API key storage failed: {str(e)}")
 
-@app.post("/api/enhanced/automation/create-advanced")
-async def create_advanced_automation(request: Dict[str, Any]):
-    """Create advanced automation task with enhanced capabilities"""
+# Additional enhanced endpoints for completeness
+@app.get("/api/enhanced/system/overview")
+async def system_overview():
+    """Get comprehensive system status"""
     try:
-        task_id = str(uuid.uuid4())
-        
-        automation_data = {
-            "id": task_id,
-            "type": "advanced",
-            "description": request.get("description", "Advanced automation task"),
-            "user_session": request.get("user_session", str(uuid.uuid4())),
-            "configuration": request,
-            "status": "created",
-            "complexity": "high",
-            "features": ["parallel_execution", "conditional_logic", "error_recovery"],
-            "created_at": datetime.utcnow()
-        }
-        
-        db.advanced_automations.insert_one(automation_data)
+        # Count various entities
+        tabs_count = db.recent_tabs.count_documents({})
+        chats_count = db.chat_sessions.count_documents({})
+        workflows_count = db.workflows.count_documents({}) if 'workflows' in db.list_collection_names() else 0
         
         return {
-            "success": True,
-            "automation_id": task_id,
-            "status": "created",
-            "enhanced_features": automation_data["features"],
-            "message": "Advanced automation created successfully"
+            "status": "operational",
+            "version": "3.0.0",
+            "timestamp": datetime.utcnow().isoformat(),
+            "stats": {
+                "recent_tabs": tabs_count,
+                "chat_sessions": chats_count,
+                "workflows": workflows_count
+            },
+            "features": {
+                "ai_chat": "operational",
+                "web_browsing": "operational", 
+                "automation": "operational",
+                "workflows": "operational",
+                "integrations": "operational"
+            }
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Advanced automation creation failed: {str(e)}")
-
-@app.post("/api/enhanced/workflows/template/create")
-async def create_workflow_template(request: Dict[str, Any]):
-    """Create workflow template with visual builder support"""
-    try:
-        template_id = str(uuid.uuid4())
-        
-        template_data = {
-            "id": template_id,
-            "name": request.get("name", "Untitled Template"),
-            "description": request.get("description", ""),
-            "template": request,
-            "user_session": request.get("user_session", str(uuid.uuid4())),
-            "features": ["conditional_logic", "parallel_execution", "error_handling", "visual_builder"],
-            "created_at": datetime.utcnow()
-        }
-        
-        db.workflow_templates.insert_one(template_data)
-        
         return {
-            "success": True,
-            "template_id": template_id,
-            "name": template_data["name"],
-            "features": template_data["features"],
-            "message": "Workflow template created successfully"
+            "status": "degraded",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
         }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Workflow template creation failed: {str(e)}")
-
-# ============================================
-# VOICE COMMANDS & KEYBOARD SHORTCUTS
-# ============================================
-
-@app.post("/api/voice-command")
-async def process_voice_command(request: Dict[str, Any]):
-    """Process voice command and return execution instructions"""
-    try:
-        voice_text = request.get("voice_text", request.get("command", ""))
-        user_session = request.get("user_session", "anonymous")
-        
-        # Simple command processing
-        if "navigate to" in voice_text.lower():
-            url = voice_text.lower().replace("navigate to", "").strip()
-            return {"success": True, "action": "navigate", "url": url}
-        elif "search for" in voice_text.lower():
-            query = voice_text.lower().replace("search for", "").strip()
-            return {"success": True, "action": "search", "query": query}
-        else:
-            return {"success": True, "action": "chat", "message": voice_text}
-            
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
 @app.get("/api/voice-commands/available")
-async def get_available_voice_commands(user_session: str = "anonymous"):
-    """Get all available voice commands"""
-    try:
-        commands = [
+async def get_available_voice_commands():
+    """Get available voice commands"""
+    return {
+        "success": True,
+        "commands": [
             {"command": "navigate to [url]", "description": "Navigate to a website"},
             {"command": "search for [query]", "description": "Search the web"},
             {"command": "summarize page", "description": "Summarize current page"},
-            {"command": "chat [message]", "description": "Chat with AI assistant"},
-            {"command": "create automation", "description": "Create automation task"},
-            {"command": "show recent tabs", "description": "Display recent browsing history"}
+            {"command": "chat [message]", "description": "Chat with AI assistant"}
         ]
-        return {
-            "success": True,
-            "commands": commands
-        }
+    }
+
+@app.post("/api/voice-command")
+async def process_voice_command(request: Dict[str, Any]):
+    """Process voice command"""
+    try:
+        command_text = request.get("command", "")
+        
+        # Simple command processing
+        if "navigate to" in command_text.lower():
+            url = command_text.lower().replace("navigate to", "").strip()
+            return {"success": True, "action": "navigate", "url": url}
+        elif "search for" in command_text.lower():
+            query = command_text.lower().replace("search for", "").strip()
+            return {"success": True, "action": "search", "query": query}
+        else:
+            return {"success": True, "action": "chat", "message": command_text}
+            
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -764,9 +591,7 @@ async def execute_keyboard_shortcut(request: Dict[str, Any]):
             "ctrl+h": {"action": "home", "description": "Go to homepage"},
             "ctrl+r": {"action": "refresh", "description": "Refresh page"},
             "ctrl+t": {"action": "new_tab", "description": "Open new tab"},
-            "ctrl+/": {"action": "help", "description": "Show help"},
-            "ctrl+shift+a": {"action": "automation", "description": "Open automation panel"},
-            "ctrl+shift+v": {"action": "voice", "description": "Activate voice commands"}
+            "ctrl+/": {"action": "help", "description": "Show help"}
         }
         
         if shortcut in shortcuts_map:
@@ -776,57 +601,6 @@ async def execute_keyboard_shortcut(request: Dict[str, Any]):
             
     except Exception as e:
         return {"success": False, "error": str(e)}
-
-# ============================================
-# SYSTEM OVERVIEW & ANALYTICS
-# ============================================
-
-@app.get("/api/enhanced/system/overview")
-async def get_enhanced_system_overview():
-    """Get comprehensive system overview with all enhancements"""
-    try:
-        # Count various entities
-        tabs_count = db.recent_tabs.count_documents({})
-        chats_count = db.chat_sessions.count_documents({})
-        workflows_count = db.workflows.count_documents({}) if 'workflows' in db.list_collection_names() else 0
-        automations_count = db.automations.count_documents({}) if 'automations' in db.list_collection_names() else 0
-        
-        return {
-            "status": "enhanced_operational",
-            "version": "3.0.0",
-            "timestamp": datetime.utcnow().isoformat(),
-            "stats": {
-                "recent_tabs": tabs_count,
-                "chat_sessions": chats_count,
-                "workflows": workflows_count,
-                "automations": automations_count
-            },
-            "features": {
-                "ai_chat": "operational",
-                "web_browsing": "operational", 
-                "automation": "enhanced_operational",
-                "workflows": "enhanced_operational",
-                "integrations": "enhanced_operational",
-                "voice_commands": "operational",
-                "keyboard_shortcuts": "operational"
-            },
-            "enhanced_capabilities": [
-                "Multi-AI Provider Support",
-                "Advanced Automation Engine",
-                "Intelligent Memory System",
-                "Performance Optimization",
-                "Enhanced OAuth Integration",
-                "Voice Command Processing",
-                "Advanced Workflow Templates"
-            ]
-        }
-        
-    except Exception as e:
-        return {
-            "status": "degraded",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }
 
 if __name__ == "__main__":
     import uvicorn
