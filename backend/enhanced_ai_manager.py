@@ -688,4 +688,80 @@ Always be helpful, accurate, and proactive in suggesting ways to enhance the use
 
 
 # Global enhanced AI manager instance
+
+    async def summarize_webpage(self, content: str, length: str = "medium") -> str:
+        """Summarize webpage content"""
+        
+        try:
+            query_type = QueryType.SUMMARIZATION
+            provider, model = self.select_optimal_provider_and_model(query_type, "medium")
+            
+            length_instructions = {
+                "short": "Provide a brief 2-3 sentence summary",
+                "medium": "Provide a comprehensive paragraph summary", 
+                "long": "Provide a detailed multi-paragraph summary with key points"
+            }
+            
+            messages = [{
+                "role": "user",
+                "content": f"""Please summarize this webpage content:
+
+{content[:5000]}  
+
+{length_instructions.get(length, length_instructions['medium'])}.
+Focus on the main topics, key information, and important insights."""
+            }]
+
+            # Get response from selected provider
+            if provider == AIProvider.GROQ:
+                response = await self._get_groq_response(messages, model, query_type)
+            elif provider == AIProvider.OPENAI and self.openai_client:
+                response = await self._get_openai_response(messages, model, query_type)
+            elif provider == AIProvider.ANTHROPIC and self.anthropic_client:
+                response = await self._get_anthropic_response(messages, model, query_type)
+            elif provider == AIProvider.GOOGLE and self.google_client:
+                response = await self._get_google_response(messages, model, query_type)
+            else:
+                response = await self._get_groq_response(messages, "llama-3.1-8b-instant", query_type)
+
+            return response
+            
+        except Exception as e:
+            logger.error(f"Webpage summarization error: {e}")
+            return "Unable to summarize content due to an error."
+    
+    async def suggest_search_query(self, partial_query: str) -> List[str]:
+        """Suggest search queries based on partial input"""
+        
+        try:
+            provider, model = self.select_optimal_provider_and_model(QueryType.GENERAL, "medium")
+            
+            messages = [{
+                "role": "user", 
+                "content": f"""Based on this partial search query: "{partial_query}"
+            
+Suggest 5 relevant, complete search queries that the user might be looking for.
+Return only the suggested queries, one per line, without numbering or bullets."""
+            }]
+
+            # Get response from selected provider
+            if provider == AIProvider.GROQ:
+                response = await self._get_groq_response(messages, model, QueryType.GENERAL)
+            elif provider == AIProvider.OPENAI and self.openai_client:
+                response = await self._get_openai_response(messages, model, QueryType.GENERAL)
+            elif provider == AIProvider.ANTHROPIC and self.anthropic_client:
+                response = await self._get_anthropic_response(messages, model, QueryType.GENERAL)
+            elif provider == AIProvider.GOOGLE and self.google_client:
+                response = await self._get_google_response(messages, model, QueryType.GENERAL)
+            else:
+                response = await self._get_groq_response(messages, "llama-3.1-8b-instant", QueryType.GENERAL)
+            
+            # Extract suggestions
+            suggestions = [line.strip() for line in response.split('\n') if line.strip()]
+            return suggestions[:5]
+            
+        except Exception as e:
+            logger.error(f"Search suggestion error: {e}")
+            return [partial_query]  # Return original as fallback
+
 enhanced_ai_manager = EnhancedAIManager()
