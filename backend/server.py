@@ -436,11 +436,19 @@ async def chat_with_ai(chat_data: ChatMessage):
             session_id=session_id
         )
         
-        # Extract enhanced response data
-        ai_response = ai_result["response"] if isinstance(ai_result, dict) else ai_result
-        proactive_suggestions = ai_result.get("proactive_suggestions", []) if isinstance(ai_result, dict) else []
-        automation_opportunities = ai_result.get("automation_opportunities", []) if isinstance(ai_result, dict) else []
-        suggested_actions = ai_result.get("suggested_actions", []) if isinstance(ai_result, dict) else []
+        # Extract enhanced response data - MULTI-AI PROVIDER RESPONSE
+        ai_response = ai_result.response if hasattr(ai_result, 'response') else str(ai_result)
+        proactive_suggestions = []
+        automation_opportunities = []
+        suggested_actions = []
+        
+        # Add multi-AI provider metadata
+        ai_metadata = {
+            "provider": ai_result.provider.value if hasattr(ai_result, 'provider') else "groq",
+            "model": ai_result.model if hasattr(ai_result, 'model') else "llama-3.3-70b-versatile",
+            "quality_score": ai_result.quality_score if hasattr(ai_result, 'quality_score') else 0.8,
+            "response_time": ai_result.response_time if hasattr(ai_result, 'response_time') else 1.0
+        }
         
         # **PHASE 3: AUTONOMOUS TASK CREATION**
         automation_task_id = None
