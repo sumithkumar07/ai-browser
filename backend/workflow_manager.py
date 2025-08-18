@@ -17,7 +17,16 @@ class WorkflowManager:
         self.user_patterns_collection = self.db.user_patterns
         
         # Initialize default workflow templates
-        asyncio.create_task(self._initialize_templates())
+        self._init_task = None
+    
+    def start_initialization(self):
+        """Start template initialization - should be called after event loop is running"""
+        if self._init_task is None:
+            try:
+                self._init_task = asyncio.create_task(self._initialize_templates())
+            except RuntimeError:
+                # No event loop running yet
+                pass
     
     async def _initialize_templates(self):
         """Initialize default workflow templates"""
