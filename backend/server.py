@@ -459,9 +459,16 @@ Would you like me to start this automation?
             # Get page context if URL provided
             context = None
             if chat_data.current_url:
-                page_data = await get_page_content_with_cache(chat_data.current_url)
-                if not page_data.get("error", False):
-                    context = f"Page: {page_data['title']}\nDescription: {page_data.get('meta_description', '')}\nContent: {page_data['content'][:3000]}"
+                try:
+                    page_data = await get_page_content_with_cache(chat_data.current_url)
+                    if not page_data.get("error", False):
+                        title = page_data.get('title', 'Unknown Page')
+                        description = page_data.get('meta_description', '')
+                        content = page_data.get('content', '')[:3000]
+                        context = f"Page: {title}\nDescription: {description}\nContent: {content}"
+                except Exception as e:
+                    logger.error(f"Failed to get page context: {e}")
+                    context = f"Page URL: {chat_data.current_url}"
             
             # Get AI response with enhanced capabilities
             ai_result = await get_enhanced_ai_response(
