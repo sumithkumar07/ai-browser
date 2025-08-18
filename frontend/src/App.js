@@ -587,52 +587,24 @@ function App() {
               </div>
             </form>
 
-            {/* Enhanced Right Controls */}
-            <div className="flex items-center space-x-1">
+            {/* AI-First Minimalist Controls - Fellou.ai Inspired */}
+            <div className="flex items-center space-x-3">
               <button 
                 onClick={handleVoiceCommand}
-                className={`nav-button ${voiceRecording ? 'bg-red-100 text-red-600' : ''}`}
-                title={voiceRecording ? "Recording..." : "Voice command"}
+                className={`ai-control-btn ${voiceRecording ? 'bg-red-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                title={voiceRecording ? "Listening..." : "Voice Command"}
               >
-                {voiceRecording ? <MicOff size={18} /> : <Mic size={18} />}
-              </button>
-              <button 
-                onClick={() => setIsAdvancedWorkspace(!isAdvancedWorkspace)}
-                className={`nav-button ${isAdvancedWorkspace ? 'bg-blue-100 text-blue-600' : ''}`}
-                title="Advanced Workspace"
-              >
-                <Layout size={18} />
-              </button>
-              <button 
-                onClick={() => setIsWorkflowBuilderOpen(true)}
-                className="nav-button"
-                title="Workflow Builder"
-              >
-                <Workflow size={18} />
-              </button>
-              <button 
-                onClick={() => setIsTimelineOpen(true)}
-                className="nav-button"
-                title="Timeline & History"
-              >
-                <Layers size={18} />
-              </button>
-              <button className="nav-button" title="Menu">
-                <Menu size={18} />
-              </button>
-              <button className="nav-button" title="Bookmarks">
-                <Star size={18} />
-              </button>
-              <button className="nav-button" title="Search">
-                <Search size={18} />
+                {voiceRecording ? <MicOff size={20} /> : <Mic size={20} />}
+                {voiceRecording && <span className="ml-2 text-sm font-medium">Listening...</span>}
               </button>
               <button
                 onClick={() => setIsAssistantOpen(!isAssistantOpen)}
-                className={`btn-primary ml-3 ${isAssistantOpen ? 'bg-primary-700' : ''}`}
-                title="Toggle AI Assistant"
+                className={`btn-primary-enhanced ${isAssistantOpen ? 'bg-primary-700' : ''}`}
+                title="AI-Powered Assistant - Controls Everything"
               >
-                <MessageCircle size={18} className="mr-2" />
-                Aether Assistant
+                <MessageCircle size={20} className="mr-3" />
+                <span className="font-semibold">Aether Assistant</span>
+                <div className="ml-2 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               </button>
             </div>
           </div>
