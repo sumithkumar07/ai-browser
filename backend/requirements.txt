@@ -61,7 +61,7 @@ pdf2image==1.17.0
 pytesseract==0.3.10
 
 # PHASE 4: Security & Browser Engine
-cryptography==41.0.8
+cryptography>=42.0.0
 pyotp==2.9.0
 qrcode==7.4.2
 playwright==1.40.0
