@@ -814,8 +814,388 @@ function App() {
         </div>
       </div>
     );
+  // Recent Tabs Grid Component
+  function RecentTabsGrid() {
+    return (
+      <div className="tabs-grid">
+        {recentTabs.length > 0 ? (
+          recentTabs.map((tab, index) => (
+            <div
+              key={tab.id || index}
+              onClick={() => handleTabClick(tab)}
+              className="tab-card card-interactive group"
+            >
+              <div className="flex items-start space-x-3 h-full">
+                <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center group-hover:bg-primary-100 transition-colors">
+                  <Globe size={20} className="text-primary-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 truncate text-sm mb-2">
+                    {tab.title || `Recent ${index + 1}`}
+                  </h3>
+                  <p className="text-xs text-gray-500 truncate">{tab.url}</p>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <>
+            {['Recent 1', 'Recent 2', 'Pages', 'Apps'].map((title, index) => (
+              <div key={index} className="tab-card card-interactive group">
+                <div className="flex items-start space-x-3 h-full">
+                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                    <Globe size={20} className="text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
+                    <p className="text-xs text-gray-500 mt-1">No recent activity</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
   }
-  );
+
+  // Recommendations Grid Component
+  function RecommendationsGrid() {
+    return (
+      <div className="recommendations-grid">
+        {recommendations.length > 0 ? (
+          recommendations.map((rec, index) => (
+            <div
+              key={rec.id || index}
+              onClick={() => handleRecommendationClick(rec)}
+              className="recommendation-card card-interactive group"
+            >
+              <div className="flex items-start space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Globe size={24} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-primary-700 transition-colors">
+                    {rec.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">{rec.description}</p>
+                  <div className="mt-3 flex items-center text-xs text-gray-400">
+                    <span>AI Recommended</span>
+                    <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
+                    <span>Trending</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <>
+            {[
+              {
+                title: "Discover AI Tools",
+                description: "Explore the latest AI-powered tools and services to enhance your productivity and creativity.",
+                icon: "🤖"
+              },
+              {
+                title: "Tech News & Updates",
+                description: "Stay informed with the latest technology trends, product launches, and industry insights.",
+                icon: "📰"
+              },
+              {
+                title: "Learning Resources",
+                description: "Find educational content, tutorials, and courses to expand your knowledge and skills.",
+                icon: "📚"
+              }
+            ].map((item, index) => (
+              <div key={index} className="recommendation-card card-interactive group">
+                <div className="flex items-start space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center flex-shrink-0 text-xl">
+                    {item.icon}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-primary-700 transition-colors">
+                      {item.title}
+                    </h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">{item.description}</p>
+                    <div className="mt-3 flex items-center text-xs text-gray-400">
+                      <span>Curated Content</span>
+                      <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
+                      <span>Popular</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // AI Assistant Content Component  
+  function AIAssistantContent() {
+    return (
+      <>
+        {/* Enhanced Assistant Header */}
+        <div className="assistant-header flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <MessageCircle size={16} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Aether Assistant</h3>
+              <p className="text-xs text-gray-500">AI-powered browsing companion</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsAssistantOpen(false)}
+            className="nav-button"
+            title="Close assistant"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Enhanced Chat Messages */}
+        <div className="assistant-messages">
+          {chatMessages.length === 0 && (
+            <div className="text-center py-12 animate-fade-in">
+              <div className="w-16 h-16 bg-gradient-to-br from-primary-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <MessageCircle size={32} className="text-primary-600" />
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Hello! How can I help you?</h4>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
+                Ask me anything about the web, get help with browsing, or just have a conversation.
+              </p>
+            </div>
+          )}
+          
+          {chatMessages.map((message) => (
+            <div
+              key={message.id}
+              className={`chat-message ${message.type}`}
+            >
+              <div className={`message-bubble ${message.type}`}>
+                <div className="leading-relaxed whitespace-pre-line">{message.content}</div>
+                
+                {/* Automation action buttons */}
+                {message.message_type === 'automation_offer' && message.automation_task_id && (
+                  <div className="flex items-center space-x-2 mt-3">
+                    <button
+                      onClick={() => executeAutomation(message.automation_task_id)}
+                      className="flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      <Play size={12} />
+                      <span>Start</span>
+                    </button>
+                    <button
+                      onClick={() => setShowAutomationPanel(true)}
+                      className="flex items-center space-x-1 px-3 py-1 bg-gray-500 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      <Settings size={12} />
+                      <span>Customize</span>
+                    </button>
+                    <button
+                      onClick={() => cancelAutomation(message.automation_task_id)}
+                      className="flex items-center space-x-1 px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      <X size={12} />
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                )}
+                
+                {/* Automation suggestions */}
+                {message.automation_suggestions && message.automation_suggestions.length > 0 && (
+                  <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                    <div className="text-xs font-medium text-blue-800 mb-2">💡 Quick Actions:</div>
+                    {message.automation_suggestions.slice(0, 2).map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setChatInput(suggestion.command)}
+                        className="block w-full text-left text-xs p-2 hover:bg-blue-100 rounded transition-colors mb-1 last:mb-0"
+                      >
+                        <span className="font-medium text-blue-700">{suggestion.title}</span>
+                        <span className="text-blue-600 ml-1">({suggestion.estimated_time})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="text-xs opacity-60 mt-2">
+                  {new Date(message.timestamp).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="chat-message assistant">
+              <div className="message-bubble assistant">
+                <div className="flex items-center space-x-2">
+                  <div className="loading-dots">
+                    <div className="loading-dot"></div>
+                    <div className="loading-dot"></div>
+                    <div className="loading-dot"></div>
+                  </div>
+                  <span className="text-sm text-gray-600">Thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Enhanced Chat Input */}
+        <div className="assistant-input-container">
+          <div className="flex items-end space-x-3">
+            <div className="flex-1">
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message..."
+                rows={1}
+                className="input-primary resize-none min-h-[44px] max-h-[120px] text-sm"
+                style={{
+                  height: 'auto',
+                  minHeight: '44px',
+                  maxHeight: '120px'
+                }}
+              />
+            </div>
+            <button
+              onClick={sendMessage}
+              disabled={!chatInput.trim() || isLoading}
+              className="btn-primary p-3 flex-shrink-0"
+              title="Send message"
+            >
+              <Send size={16} />
+            </button>
+          </div>
+          
+          {currentUrl && (
+            <div className="flex items-center space-x-2 mt-3 px-3 py-2 bg-primary-50 rounded-lg">
+              <Globe size={14} className="text-primary-600" />
+              <span className="text-xs text-primary-700 font-medium truncate">
+                Analyzing: {pageTitle || currentUrl}
+              </span>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // Sidebar Content Component
+  function SidebarContent() {
+    return (
+      <div className="p-4 space-y-4">
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Navigation</h3>
+          <div className="space-y-1">
+            <button 
+              onClick={() => setCurrentUrl('')}
+              className="block w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100"
+            >
+              🏠 Home
+            </button>
+            <button 
+              onClick={() => setIsTimelineOpen(true)}
+              className="block w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100"
+            >
+              📋 History & Timeline
+            </button>
+            <button 
+              onClick={() => setIsWorkflowBuilderOpen(true)}
+              className="block w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100"
+            >
+              ⚡ Workflow Builder
+            </button>
+          </div>
+        </div>
+        
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Quick Actions</h3>
+          <div className="space-y-1">
+            <button 
+              onClick={loadRecommendations}
+              className="block w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100"
+            >
+              🔄 Refresh Recommendations  
+            </button>
+            <button 
+              onClick={loadActiveAutomations}
+              className="block w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100"
+            >
+              🤖 Active Automations ({activeAutomations.length})
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Timeline Content Component
+  function TimelineContent() {
+    return (
+      <div className="p-4">
+        <p className="text-gray-600 text-sm">
+          Timeline content will appear here when the Timeline component is integrated.
+        </p>
+      </div>
+    );
+  }
+
+  // Performance Content Component  
+  function PerformanceContent() {
+    return (
+      <div className="p-4 space-y-4">
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-2">System Status</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Status:</span>
+              <span className="text-green-600 font-medium">
+                {performanceData.status || 'Operational'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>AI Provider:</span>
+              <span className="font-medium">{selectedAiProvider.toUpperCase()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Active Tasks:</span>
+              <span className="font-medium">{activeAutomations.length}</span>
+            </div>
+          </div>
+        </div>
+        
+        {performanceData.stats && (
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-2">Statistics</h3>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>Recent Tabs:</span>
+                <span>{performanceData.stats.recent_tabs || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Chat Sessions:</span>
+                <span>{performanceData.stats.chat_sessions || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Workflows:</span>
+                <span>{performanceData.stats.workflows || 0}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
 }
 
 export default App;
