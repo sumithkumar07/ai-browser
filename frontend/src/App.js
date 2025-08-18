@@ -30,6 +30,7 @@ import AdvancedWorkspaceLayout from './components/AdvancedWorkspaceLayout';
 import VisualWorkflowBuilder from './components/WorkflowBuilder/VisualWorkflowBuilder';
 import Timeline from './components/Timeline/Timeline';
 import DragDropLayer from './components/DragDrop/DragDropLayer';
+import EnhancedWebView from './components/EnhancedWebView';
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
