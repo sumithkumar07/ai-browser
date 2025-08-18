@@ -20,8 +20,16 @@ class PerformanceMonitor:
             'cache_stats': deque(maxlen=60)
         }
         
-        # Start background monitoring
-        asyncio.create_task(self._background_monitoring())
+        self._background_task = None
+    
+    def start_monitoring(self):
+        """Start background monitoring - should be called after event loop is running"""
+        if self._background_task is None:
+            try:
+                self._background_task = asyncio.create_task(self._background_monitoring())
+            except RuntimeError:
+                # No event loop running yet
+                pass
     
     def record_api_call(self, endpoint: str, method: str, status_code: int, response_time: float):
         """Record API call metrics"""
