@@ -618,7 +618,7 @@ Always be helpful, accurate, and proactive in suggesting ways to enhance the use
             return cached_result
         
         # Determine optimal provider and model
-        provider, model, complexity = self._select_optimal_provider(query_type, message, user_id)
+        provider, model = self.select_optimal_provider_and_model(query_type, "medium")
         
         # Build messages with enhanced context
         messages = self._build_enhanced_messages(message, context, session_history, query_type, language)
