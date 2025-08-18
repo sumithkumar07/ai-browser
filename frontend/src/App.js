@@ -525,89 +525,118 @@ function App() {
   }, [currentUrl, sessionId]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-25">
-      {/* Enhanced Browser Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-        <div className="flex items-center space-x-6">
-          {/* Enhanced Navigation Controls */}
-          <div className="flex items-center space-x-1">
-            <button 
-              className="nav-button"
-              disabled={!currentUrl}
-              onClick={() => window.history.back()}
-              title="Go back"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <button 
-              className="nav-button"
-              disabled={!currentUrl}
-              onClick={() => window.history.forward()}
-              title="Go forward"
-            >
-              <ArrowRight size={18} />
-            </button>
-            <button 
-              className="nav-button"
-              disabled={!currentUrl || isNavigating}
-              onClick={() => navigateToUrl(currentUrl)}
-              title="Refresh page"
-            >
-              <RotateCcw size={18} />
-            </button>
-          </div>
-
-          {/* Enhanced URL Bar */}
-          <form onSubmit={handleUrlSubmit} className="url-bar-container">
-            <div className="relative">
-              <Globe size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="Search or enter URL"
-                className="url-bar"
-              />
-              {isNavigating && (
-                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                  <div className="loading-dots">
-                    <div className="loading-dot"></div>
-                    <div className="loading-dot"></div>
-                    <div className="loading-dot"></div>
-                  </div>
-                </div>
-              )}
-              {activeAutomations.length > 0 && !isNavigating && (
-                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
-                  <Zap size={16} className="text-blue-500 animate-pulse" />
-                  <span className="text-xs text-blue-600 font-medium">{activeAutomations.length}</span>
-                </div>
-              )}
+    <DragDropLayer onSmartAction={handleSmartAction} isEnabled={true}>
+      <div className="h-screen flex flex-col bg-gray-25">
+        {/* Enhanced Browser Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+          <div className="flex items-center space-x-6">
+            {/* Enhanced Navigation Controls */}
+            <div className="flex items-center space-x-1">
+              <button 
+                className="nav-button"
+                disabled={!currentUrl}
+                onClick={() => window.history.back()}
+                title="Go back"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <button 
+                className="nav-button"
+                disabled={!currentUrl}
+                onClick={() => window.history.forward()}
+                title="Go forward"
+              >
+                <ArrowRight size={18} />
+              </button>
+              <button 
+                className="nav-button"
+                disabled={!currentUrl || isNavigating}
+                onClick={() => navigateToUrl(currentUrl)}
+                title="Refresh page"
+              >
+                <RotateCcw size={18} />
+              </button>
             </div>
-          </form>
 
-          {/* Enhanced Right Controls */}
-          <div className="flex items-center space-x-1">
-            <button className="nav-button" title="Menu">
-              <Menu size={18} />
-            </button>
-            <button className="nav-button" title="Bookmarks">
-              <Star size={18} />
-            </button>
-            <button className="nav-button" title="Search">
-              <Search size={18} />
-            </button>
-            <button
-              onClick={() => setIsAssistantOpen(!isAssistantOpen)}
-              className={`btn-primary ml-3 ${isAssistantOpen ? 'bg-primary-700' : ''}`}
-              title="Toggle AI Assistant"
-            >
-              <MessageCircle size={18} className="mr-2" />
-              Aether Assistant
-            </button>
+            {/* Enhanced URL Bar */}
+            <form onSubmit={handleUrlSubmit} className="url-bar-container">
+              <div className="relative">
+                <Globe size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="Search or enter URL"
+                  className="url-bar"
+                />
+                {isNavigating && (
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                    <div className="loading-dots">
+                      <div className="loading-dot"></div>
+                      <div className="loading-dot"></div>
+                      <div className="loading-dot"></div>
+                    </div>
+                  </div>
+                )}
+                {activeAutomations.length > 0 && !isNavigating && (
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
+                    <Zap size={16} className="text-blue-500 animate-pulse" />
+                    <span className="text-xs text-blue-600 font-medium">{activeAutomations.length}</span>
+                  </div>
+                )}
+              </div>
+            </form>
+
+            {/* Enhanced Right Controls */}
+            <div className="flex items-center space-x-1">
+              <button 
+                onClick={handleVoiceCommand}
+                className={`nav-button ${voiceRecording ? 'bg-red-100 text-red-600' : ''}`}
+                title={voiceRecording ? "Recording..." : "Voice command"}
+              >
+                {voiceRecording ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
+              <button 
+                onClick={() => setIsAdvancedWorkspace(!isAdvancedWorkspace)}
+                className={`nav-button ${isAdvancedWorkspace ? 'bg-blue-100 text-blue-600' : ''}`}
+                title="Advanced Workspace"
+              >
+                <Layout size={18} />
+              </button>
+              <button 
+                onClick={() => setIsWorkflowBuilderOpen(true)}
+                className="nav-button"
+                title="Workflow Builder"
+              >
+                <Workflow size={18} />
+              </button>
+              <button 
+                onClick={() => setIsTimelineOpen(true)}
+                className="nav-button"
+                title="Timeline & History"
+              >
+                <Layers size={18} />
+              </button>
+              <button className="nav-button" title="Menu">
+                <Menu size={18} />
+              </button>
+              <button className="nav-button" title="Bookmarks">
+                <Star size={18} />
+              </button>
+              <button className="nav-button" title="Search">
+                <Search size={18} />
+              </button>
+              <button
+                onClick={() => setIsAssistantOpen(!isAssistantOpen)}
+                className={`btn-primary ml-3 ${isAssistantOpen ? 'bg-primary-700' : ''}`}
+                title="Toggle AI Assistant"
+              >
+                <MessageCircle size={18} className="mr-2" />
+                Aether Assistant
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex">
