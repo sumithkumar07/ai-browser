@@ -229,6 +229,11 @@ async def generate_page_summary(url: str, content: str):
         performance_monitor.record_error("SUMMARY_ERROR", str(e))
 
 # Enhanced API Routes
+@app.on_event("startup")
+async def startup_event():
+    """Initialize background tasks after startup"""
+    performance_monitor.start_monitoring()
+
 @app.get("/api/health")
 async def health_check():
     """Enhanced health check with performance metrics"""
