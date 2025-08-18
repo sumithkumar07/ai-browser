@@ -327,7 +327,7 @@ const VisualWorkflowBuilder = ({ isVisible, onClose, initialWorkflow = null }) =
   };
 
   const clearWorkflow = () => {
-    if (confirm('Are you sure you want to clear the workflow? This cannot be undone.')) {
+    if (window.confirm('Are you sure you want to clear the workflow? This cannot be undone.')) {
       setNodes([]);
       setEdges([]);
       setSelectedNode(null);
