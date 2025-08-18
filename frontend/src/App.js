@@ -814,6 +814,8 @@ function App() {
         </div>
       </div>
     );
+  }
+
   // Recent Tabs Grid Component
   function RecentTabsGrid() {
     return (
