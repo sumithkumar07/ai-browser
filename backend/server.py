@@ -1796,3 +1796,6 @@ async def get_enhancements_dashboard():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
+# Import the enhanced API endpoints at the end of server.py
+exec(open("/app/backend/integrated_server_enhanced.py").read())
+
