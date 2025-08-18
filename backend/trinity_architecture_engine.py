@@ -65,7 +65,6 @@ class TrinityArchitectureEngine:
         
         # Performance and coordination
         self.coordinator = TrinityCoordinator()
-        self.deep_action_processor = DeepActionProcessor()
         self.hierarchical_planner = HierarchicalPlanner()
         
     async def initialize(self) -> bool:
