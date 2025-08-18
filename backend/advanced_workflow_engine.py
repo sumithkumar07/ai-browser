@@ -20,6 +20,15 @@ import httpx
 from bs4 import BeautifulSoup
 import structlog
 
+# Custom JSON encoder for enums
+class EnumEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Enum):
+            return obj.value
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
 # Configure logging
 logger = structlog.get_logger(__name__)
 
