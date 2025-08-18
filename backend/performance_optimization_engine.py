@@ -672,6 +672,134 @@ class PerformanceOptimizationEngine:
     def get_provider_recommendations(self) -> Optional[Dict[str, Any]]:
         """Get AI provider recommendations"""
         return getattr(self, '_provider_recommendations', None)
+    
+    def _analyze_response_performance(self) -> Dict[str, Any]:
+        """Analyze response performance metrics"""
+        if not self.metrics.response_times:
+            return {"status": "no_data", "metrics": {}}
+        
+        response_times = list(self.metrics.response_times)
+        return {
+            "average_response_time": sum(response_times) / len(response_times),
+            "min_response_time": min(response_times),
+            "max_response_time": max(response_times),
+            "total_requests": len(response_times),
+            "performance_grade": self._calculate_performance_grade(response_times)
+        }
+    
+    def _analyze_resource_utilization(self) -> Dict[str, Any]:
+        """Analyze resource utilization"""
+        return {
+            "memory": {
+                "current": self.metrics.memory_usage[-1] if self.metrics.memory_usage else 0,
+                "average": sum(self.metrics.memory_usage) / len(self.metrics.memory_usage) if self.metrics.memory_usage else 0,
+                "peak": max(self.metrics.memory_usage) if self.metrics.memory_usage else 0
+            },
+            "cpu": {
+                "current": self.metrics.cpu_usage[-1] if self.metrics.cpu_usage else 0,
+                "average": sum(self.metrics.cpu_usage) / len(self.metrics.cpu_usage) if self.metrics.cpu_usage else 0,
+                "peak": max(self.metrics.cpu_usage) if self.metrics.cpu_usage else 0
+            }
+        }
+    
+    def _analyze_ai_provider_performance(self) -> Dict[str, Any]:
+        """Analyze AI provider performance"""
+        provider_analysis = {}
+        for provider, metrics in self.metrics.ai_provider_performance.items():
+            if metrics["response_times"] and metrics["success_rates"]:
+                avg_response_time = sum(metrics["response_times"]) / len(metrics["response_times"])
+                success_rate = sum(metrics["success_rates"]) / len(metrics["success_rates"]) * 100
+                
+                provider_analysis[provider] = {
+                    "average_response_time": avg_response_time,
+                    "success_rate": success_rate,
+                    "total_calls": metrics["total_calls"],
+                    "error_count": metrics["error_counts"]
+                }
+        
+        return provider_analysis
+    
+    def _analyze_automation_performance(self) -> Dict[str, Any]:
+        """Analyze automation performance"""
+        automation_analysis = {}
+        for task_type, metrics in self.metrics.automation_performance.items():
+            if metrics["execution_times"]:
+                avg_execution_time = sum(metrics["execution_times"]) / len(metrics["execution_times"])
+                success_rate = sum(metrics["success_rates"]) / len(metrics["success_rates"]) * 100 if metrics["success_rates"] else 0
+                
+                automation_analysis[task_type] = {
+                    "average_execution_time": avg_execution_time,
+                    "success_rate": success_rate,
+                    "total_executions": len(metrics["execution_times"])
+                }
+        
+        return automation_analysis
+    
+    def _analyze_cache_performance(self) -> Dict[str, Any]:
+        """Analyze cache performance"""
+        if not hasattr(self, '_cache_metrics'):
+            return {"overall_hit_rate": 0, "cache_types": {}}
+        
+        cache_analysis = {}
+        for cache_type, metrics in self._cache_metrics.items():
+            cache_analysis[cache_type] = {
+                "hit_rate": metrics["hit_rate"],
+                "total_hits": metrics["hits"],
+                "total_misses": metrics["misses"]
+            }
+        
+        return {
+            "overall_hit_rate": self._calculate_overall_cache_hit_rate(),
+            "cache_types": cache_analysis
+        }
+    
+    def _generate_performance_recommendations(self) -> List[str]:
+        """Generate performance recommendations"""
+        recommendations = []
+        
+        # Response time recommendations
+        if self.metrics.response_times:
+            avg_response_time = sum(self.metrics.response_times) / len(self.metrics.response_times)
+            if avg_response_time > 2.0:
+                recommendations.append("Consider optimizing AI provider selection for faster responses")
+        
+        # Memory recommendations
+        if self.metrics.memory_usage:
+            current_memory = self.metrics.memory_usage[-1]
+            if current_memory > 80:
+                recommendations.append("High memory usage detected - consider cache optimization")
+        
+        # Cache recommendations
+        cache_hit_rate = self._calculate_overall_cache_hit_rate()
+        if cache_hit_rate < 70:
+            recommendations.append("Low cache hit rate - review caching strategy")
+        
+        return recommendations
+    
+    def _calculate_performance_grade(self, response_times: List[float]) -> str:
+        """Calculate performance grade based on response times"""
+        avg_time = sum(response_times) / len(response_times)
+        
+        if avg_time <= 0.5:
+            return "A"
+        elif avg_time <= 1.0:
+            return "B"
+        elif avg_time <= 2.0:
+            return "C"
+        elif avg_time <= 5.0:
+            return "D"
+        else:
+            return "F"
+    
+    async def _reduce_cache_sizes(self):
+        """Reduce cache sizes to free memory"""
+        # Reduce deque sizes
+        if hasattr(self, '_detailed_metrics'):
+            self._detailed_metrics = deque(list(self._detailed_metrics)[-30:], maxlen=30)
+        
+        # Reduce metrics sizes
+        self.metrics.response_times = deque(list(self.metrics.response_times)[-500:], maxlen=500)
+        self.metrics.memory_usage = deque(list(self.metrics.memory_usage)[-30:], maxlen=30)
 
 
 class MemoryManager:
