@@ -35,6 +35,14 @@ from performance_optimization_engine import performance_optimization_engine
 from enhanced_integration_manager import enhanced_integration_manager, EnhancedIntegrationManager
 from advanced_workflow_engine import advanced_workflow_engine, AdvancedWorkflowEngine
 
+# Import new Phase 1-4 modules
+from enhanced_agentic_engine import initialize_agentic_engine
+from native_browser_engine import enhanced_browser_engine
+from ai_data_extractor import ai_data_extractor
+from social_media_automation import social_media_automator
+from report_generator import advanced_report_generator
+from timeline_manager import initialize_timeline_manager
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
