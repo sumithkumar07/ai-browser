@@ -535,60 +535,121 @@ class AetherAPITester:
         return health_result.get("success", False)
     
     async def run_comprehensive_tests(self):
-        """Run all comprehensive tests"""
+        """Run all comprehensive tests for AETHER Enhancement Roadmap"""
         print(f"\n🚀 STARTING COMPREHENSIVE AETHER BACKEND API TESTING")
+        print(f"🎯 TESTING ALL 5 PHASES OF AETHER ENHANCEMENT ROADMAP")
         print(f"Backend URL: {BASE_URL}")
         print(f"Session ID: {self.session_id}")
         print("=" * 80)
         
         test_results = {}
         
-        # High Priority Tests
+        # COMPREHENSIVE API TESTING - All Major Endpoints
+        test_results["comprehensive_apis"] = await self.test_comprehensive_api_endpoints()
+        
+        # PHASE 1: Foundation Enhancements (AI Intelligence Boost)
+        test_results["phase1_ai_intelligence"] = await self.test_phase1_ai_intelligence_boost()
+        
+        # PHASE 2: Invisible Capability Upgrades (Agentic Automation)
+        test_results["phase2_agentic_automation"] = await self.test_phase2_agentic_automation()
+        
+        # PHASE 3: Selective UI Enhancements (Performance & Intelligence)
+        test_results["phase3_performance_intelligence"] = await self.test_phase3_performance_intelligence()
+        
+        # PHASE 4: Advanced Features (Integrations & Extensibility)
+        test_results["phase4_integrations_extensibility"] = await self.test_phase4_integrations_extensibility()
+        
+        # PHASE 5: Final Polish (Voice Commands & Keyboard Shortcuts)
+        test_results["phase5_voice_keyboard_polish"] = await self.test_phase5_voice_keyboard_polish()
+        
+        # Legacy Core Tests (High Priority)
         test_results["core_browser"] = await self.test_core_browser_apis()
         test_results["ai_chat"] = await self.test_ai_chat_system()
         
-        # Medium Priority Tests  
+        # Legacy Medium Priority Tests  
         test_results["automation"] = await self.test_automation_features()
         test_results["enhanced_ai"] = await self.test_enhanced_ai_features()
         
-        # Low Priority Tests
+        # Legacy Low Priority Tests
         test_results["performance"] = await self.test_performance_health_monitoring()
         test_results["workflows"] = await self.test_workflow_features()
         test_results["integrations"] = await self.test_integration_features()
         
-        # Summary
+        # COMPREHENSIVE SUMMARY
         print("\n" + "=" * 80)
-        print("📋 TEST SUMMARY")
+        print("📋 COMPREHENSIVE TEST SUMMARY - AETHER ENHANCEMENT ROADMAP")
         print("=" * 80)
         
         total_tests = len(self.test_results)
         passed_tests = len([r for r in self.test_results if r["status"] == "PASS"])
         failed_tests = len([r for r in self.test_results if r["status"] == "FAIL"])
+        warning_tests = len([r for r in self.test_results if r["status"] == "WARN"])
         
         print(f"Total Tests: {total_tests}")
         print(f"Passed: {passed_tests} ✅")
         print(f"Failed: {failed_tests} ❌")
+        print(f"Warnings: {warning_tests} ⚠️")
         print(f"Success Rate: {(passed_tests/total_tests*100):.1f}%")
         
-        print("\n📊 FEATURE AREA RESULTS:")
-        for feature, success in test_results.items():
+        print("\n🎯 AETHER ENHANCEMENT PHASES RESULTS:")
+        phase_results = {
+            "phase1_ai_intelligence": "Phase 1: AI Intelligence Boost",
+            "phase2_agentic_automation": "Phase 2: Agentic Automation", 
+            "phase3_performance_intelligence": "Phase 3: Performance & Intelligence",
+            "phase4_integrations_extensibility": "Phase 4: Integrations & Extensibility",
+            "phase5_voice_keyboard_polish": "Phase 5: Voice Commands & Keyboard Shortcuts"
+        }
+        
+        for phase_key, phase_name in phase_results.items():
+            if phase_key in test_results:
+                status = "✅ WORKING" if test_results[phase_key] else "❌ ISSUES FOUND"
+                print(f"  {phase_name}: {status}")
+        
+        print("\n📊 LEGACY FEATURE AREA RESULTS:")
+        legacy_features = {k: v for k, v in test_results.items() if k not in phase_results and k != "comprehensive_apis"}
+        for feature, success in legacy_features.items():
             status = "✅ WORKING" if success else "❌ ISSUES FOUND"
             print(f"  {feature.replace('_', ' ').title()}: {status}")
         
-        # Critical Issues
-        critical_failures = [r for r in self.test_results if r["status"] == "FAIL" and any(endpoint in r["endpoint"] for endpoint in ["/health", "/browse", "/chat"])]
+        # Critical Issues Analysis
+        critical_endpoints = ["/health", "/browse", "/chat", "/enhanced/system/overview"]
+        critical_failures = [r for r in self.test_results if r["status"] == "FAIL" and any(endpoint in r["endpoint"] for endpoint in critical_endpoints)]
         
         if critical_failures:
             print("\n🚨 CRITICAL ISSUES FOUND:")
             for failure in critical_failures:
                 print(f"  - {failure['method']} {failure['endpoint']}: {failure['details']}")
         
-        # Performance Issues
+        # Performance Issues Analysis
         slow_endpoints = [r for r in self.test_results if r["response_time"] > 5.0]
         if slow_endpoints:
             print("\n⚠️ SLOW ENDPOINTS (>5s):")
             for slow in slow_endpoints:
                 print(f"  - {slow['method']} {slow['endpoint']}: {slow['response_time']:.2f}s")
+        
+        # Enhancement Features Status
+        print(f"\n🔍 ENHANCEMENT FEATURES VALIDATION:")
+        enhancement_features = [
+            "Multi-AI Provider Support",
+            "Advanced Automation Engine", 
+            "Intelligent Memory System",
+            "Performance Optimization",
+            "Enhanced Integrations",
+            "Voice Commands Engine",
+            "Keyboard Shortcuts System"
+        ]
+        
+        working_features = 0
+        for feature in enhancement_features:
+            # Check if related endpoints are working
+            related_passed = len([r for r in self.test_results if r["status"] == "PASS" and any(keyword in r["endpoint"].lower() for keyword in feature.lower().split())])
+            if related_passed > 0:
+                print(f"  ✅ {feature}: Operational")
+                working_features += 1
+            else:
+                print(f"  ⚠️ {feature}: Needs Verification")
+        
+        print(f"\n📈 ENHANCEMENT COVERAGE: {working_features}/{len(enhancement_features)} features validated")
         
         return test_results
 
