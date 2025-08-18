@@ -686,5 +686,6 @@ Always be helpful, accurate, and proactive in suggesting ways to enhance the use
                 "error": True
             }
 
+
 # Global enhanced AI manager instance
 enhanced_ai_manager = EnhancedAIManager()
