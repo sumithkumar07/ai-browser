@@ -289,6 +289,251 @@ class AetherAPITester:
         
         return True
     
+    async def test_phase1_ai_intelligence_boost(self):
+        """Test Phase 1: Foundation Enhancements (AI Intelligence Boost)"""
+        print("\n🧠 TESTING PHASE 1: AI INTELLIGENCE BOOST")
+        print("=" * 60)
+        
+        # Test multi-provider AI routing
+        await self.test_api_call("GET", "/enhanced/ai/providers")
+        
+        # Test context-aware AI responses with page content analysis
+        context_chat_data = {
+            "message": "Analyze the content of this webpage and provide insights",
+            "session_id": self.session_id,
+            "current_url": "https://example.com"
+        }
+        await self.test_api_call("POST", "/chat", context_chat_data)
+        
+        # Test session history management (100+ messages)
+        for i in range(3):  # Test multiple messages for session continuity
+            chat_data = {
+                "message": f"This is message {i+1} in our conversation. Remember this context.",
+                "session_id": self.session_id,
+                "current_url": "https://example.com"
+            }
+            await self.test_api_call("POST", "/chat", chat_data)
+        
+        # Test performance monitoring and caching
+        await self.test_api_call("GET", "/performance")
+        
+        # Test visual webpage understanding capabilities
+        visual_data = {
+            "user_session": self.session_id,
+            "context": "visual analysis of webpage layout"
+        }
+        await self.test_api_call("POST", "/enhanced/ai/personalized-suggestions", visual_data)
+        
+        # Test user behavioral insights
+        await self.test_api_call("GET", f"/enhanced/memory/user-insights/{self.session_id}")
+        
+        return True
+    
+    async def test_phase2_agentic_automation(self):
+        """Test Phase 2: Invisible Capability Upgrades (Agentic Automation)"""
+        print("\n🤖 TESTING PHASE 2: AGENTIC AUTOMATION")
+        print("=" * 60)
+        
+        # Test automation task creation and execution
+        task_data = {
+            "description": "Extract all links from the current webpage and categorize them",
+            "user_session": self.session_id,
+            "current_url": "https://example.com",
+            "user_preferences": {"automation_level": "advanced"}
+        }
+        create_task = await self.test_api_call("POST", "/enhanced/automation/create-advanced", task_data)
+        
+        # Test background task processing
+        await self.test_api_call("GET", "/active-automations")
+        
+        # Test cross-page workflow capabilities
+        workflow_data = {
+            "user_session": self.session_id,
+            "template_id": "cross_page_workflow",
+            "parameters": {"start_url": "https://example.com"}
+        }
+        await self.test_api_call("POST", "/enhanced/workflows/template/create", workflow_data)
+        
+        # Test parallel task execution
+        if create_task.get("success") and create_task.get("data", {}).get("task_id"):
+            task_id = create_task["data"]["task_id"]
+            await self.test_api_call("GET", f"/enhanced/automation/status/{task_id}")
+            await self.test_api_call("POST", f"/enhanced/automation/pause/{task_id}")
+            await self.test_api_call("POST", f"/enhanced/automation/resume/{task_id}")
+        
+        # Test automation suggestions system
+        await self.test_api_call("GET", "/automation-suggestions", {"current_url": "https://example.com"})
+        
+        # Test automation statistics
+        await self.test_api_call("GET", "/enhanced/automation/statistics")
+        
+        return True
+    
+    async def test_phase3_performance_intelligence(self):
+        """Test Phase 3: Selective UI Enhancements (Performance & Intelligence)"""
+        print("\n⚡ TESTING PHASE 3: PERFORMANCE & INTELLIGENCE")
+        print("=" * 60)
+        
+        # Test advanced caching strategy
+        await self.test_api_call("GET", "/enhanced/performance/cache-analytics")
+        
+        # Test user pattern learning system
+        await self.test_api_call("GET", f"/enhanced/memory/user-insights/{self.session_id}")
+        
+        # Test performance analytics endpoints
+        await self.test_api_call("GET", "/enhanced/performance/report")
+        
+        # Test memory management optimization
+        await self.test_api_call("GET", "/enhanced/system/overview")
+        
+        # Test database query optimization
+        await self.test_api_call("GET", "/recent-tabs")
+        await self.test_api_call("GET", "/recommendations")
+        
+        # Test performance optimization trigger
+        await self.test_api_call("POST", "/enhanced/performance/optimize")
+        
+        return True
+    
+    async def test_phase4_integrations_extensibility(self):
+        """Test Phase 4: Advanced Features (Integrations & Extensibility)"""
+        print("\n🔗 TESTING PHASE 4: INTEGRATIONS & EXTENSIBILITY")
+        print("=" * 60)
+        
+        # Test custom integration builder functionality
+        await self.test_api_call("GET", "/enhanced/integrations/available")
+        
+        # Test OAuth 2.0 authentication flows
+        oauth_data = {
+            "integration_id": "test_oauth_integration",
+            "user_session": self.session_id,
+            "redirect_uri": "http://localhost:3000/oauth/callback",
+            "state": "test_state_123"
+        }
+        await self.test_api_call("POST", "/enhanced/integrations/oauth/initiate", oauth_data)
+        
+        # Test integration health monitoring
+        await self.test_api_call("GET", f"/integration-auth/user/{self.session_id}")
+        
+        # Test API rate limit management
+        test_credentials = {
+            "user_session": self.session_id,
+            "integration": "test_api",
+            "credentials": {"api_key": "test_key_123", "secret": "test_secret"}
+        }
+        await self.test_api_call("POST", "/integration-auth/store", test_credentials)
+        
+        # Test integration deployment capabilities
+        api_key_data = {
+            "user_session": self.session_id,
+            "integration_id": "test_integration",
+            "credentials": {"api_key": "test_api_key"}
+        }
+        await self.test_api_call("POST", "/enhanced/integrations/api-key/store", api_key_data)
+        
+        # Test integration validation
+        validation_data = {
+            "integration": "test_integration",
+            "credentials": {"api_key": "test_key"}
+        }
+        await self.test_api_call("POST", "/integration-auth/validate", validation_data)
+        
+        return True
+    
+    async def test_phase5_voice_keyboard_polish(self):
+        """Test Phase 5: Final Polish (Voice Commands & Keyboard Shortcuts)"""
+        print("\n🎤 TESTING PHASE 5: VOICE COMMANDS & KEYBOARD SHORTCUTS")
+        print("=" * 60)
+        
+        # Test voice commands engine with natural language processing
+        voice_data = {
+            "voice_text": "Navigate to the homepage and show me recent tabs",
+            "user_session": self.session_id,
+            "context": {"current_url": "https://example.com"}
+        }
+        await self.test_api_call("POST", "/voice-command", voice_data)
+        
+        # Test keyboard shortcuts system with all categories
+        await self.test_api_call("GET", "/keyboard-shortcuts", {"category": "navigation", "user_session": self.session_id})
+        await self.test_api_call("GET", "/keyboard-shortcuts", {"category": "automation", "user_session": self.session_id})
+        
+        # Test custom shortcuts creation and management
+        custom_shortcut = {
+            "user_session": self.session_id,
+            "combination": "Ctrl+Shift+A",
+            "action": "open_ai_assistant",
+            "category": "ai",
+            "description": "Open AI Assistant Panel",
+            "parameters": {"panel": "chat"}
+        }
+        await self.test_api_call("POST", "/keyboard-shortcuts/custom", custom_shortcut)
+        
+        # Test accessibility features
+        await self.test_api_call("GET", "/voice-commands/available", {"user_session": self.session_id})
+        
+        # Test user preferences and configuration
+        await self.test_api_call("GET", "/keyboard-shortcuts/usage-stats", {"user_session": self.session_id})
+        
+        # Test voice command history
+        await self.test_api_call("GET", f"/voice-commands/history/{self.session_id}", {"limit": 10})
+        
+        # Test custom voice command
+        custom_voice = {
+            "user_session": self.session_id,
+            "command_name": "quick_search",
+            "patterns": ["search for", "find", "look up"],
+            "action": "perform_search",
+            "command_type": "search",
+            "parameters": {"search_engine": "google"}
+        }
+        await self.test_api_call("POST", "/voice-commands/custom", custom_voice)
+        
+        # Test shortcuts export
+        export_data = {"user_session": self.session_id}
+        await self.test_api_call("POST", "/shortcuts/export", export_data)
+        
+        return True
+    
+    async def test_comprehensive_api_endpoints(self):
+        """Test all major API endpoints comprehensively"""
+        print("\n🌐 TESTING COMPREHENSIVE API ENDPOINTS")
+        print("=" * 60)
+        
+        # Enhanced health check
+        health_result = await self.test_api_call("GET", "/health")
+        
+        # Enhanced chat with all capabilities
+        enhanced_chat_data = {
+            "message": "I need help with web automation. Can you analyze this page and suggest some automation tasks?",
+            "session_id": self.session_id,
+            "current_url": "https://example.com",
+            "language": "en"
+        }
+        await self.test_api_call("POST", "/chat", enhanced_chat_data)
+        
+        # Enhanced browse with content analysis
+        browse_data = {
+            "url": "https://github.com",
+            "title": "GitHub"
+        }
+        await self.test_api_call("POST", "/browse", browse_data)
+        
+        # Test summarization
+        summary_data = {
+            "url": "https://example.com",
+            "length": "medium"
+        }
+        await self.test_api_call("POST", "/summarize", summary_data)
+        
+        # Test search suggestions
+        search_data = {"query": "artificial intelligence tools"}
+        await self.test_api_call("POST", "/search-suggestions", search_data)
+        
+        # Enhanced system status
+        await self.test_api_call("GET", "/enhanced/system/full-status")
+        
+        return health_result.get("success", False)
+    
     async def run_comprehensive_tests(self):
         """Run all comprehensive tests"""
         print(f"\n🚀 STARTING COMPREHENSIVE AETHER BACKEND API TESTING")
