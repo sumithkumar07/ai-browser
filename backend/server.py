@@ -24,6 +24,9 @@ from integration_manager import integration_manager
 
 load_dotenv()
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="AETHER Browser API", version="2.0.0")
 
 # Enhanced CORS middleware
