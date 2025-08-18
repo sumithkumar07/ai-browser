@@ -25,6 +25,7 @@ from performance_monitor import performance_monitor, monitor_performance
 from automation_engine import automation_engine
 from workflow_manager import workflow_manager, WorkflowManager
 from integration_manager import integration_manager
+from integration_auth_manager import IntegrationAuthManager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -45,8 +46,9 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL, maxPoolSize=50, minPoolSize=10)
 db = client.aether_browser
 
-# Initialize workflow manager
+# Initialize managers
 workflow_manager = WorkflowManager(client)
+integration_auth_manager = IntegrationAuthManager(client)
 
 # Enhanced Pydantic models
 class ChatMessage(BaseModel):
