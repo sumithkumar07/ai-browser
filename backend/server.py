@@ -230,7 +230,6 @@ async def generate_page_summary(url: str, content: str):
 
 # Enhanced API Routes
 @app.get("/api/health")
-@monitor_performance
 async def health_check():
     """Enhanced health check with performance metrics"""
     health_status = performance_monitor.get_health_status()
@@ -247,7 +246,9 @@ async def health_check():
             "Smart Caching",
             "Performance Monitoring",
             "Extended Memory",
-            "Smart Model Selection"
+            "Smart Model Selection",
+            "Automation Engine",
+            "Workflow Management"
         ]
     }
 
