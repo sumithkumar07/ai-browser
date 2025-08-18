@@ -429,12 +429,11 @@ async def chat_with_ai(chat_data: ChatMessage):
             page_data = await get_page_content(chat_data.current_url)
             context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
         
-        # **PHASE 3: ENHANCED AI RESPONSE WITH AUTONOMOUS CAPABILITIES**
-        ai_result = await get_ai_response(
+        # **PHASE 1-3: ENHANCED AI RESPONSE WITH MULTI-PROVIDER SUPPORT**
+        ai_result = await multi_ai_engine.get_smart_response(
             chat_data.message, 
-            context=context,
-            session_id=session_id,
-            proactive=True
+            context={"page": page_data} if page_data else None,
+            session_id=session_id
         )
         
         # Extract enhanced response data
