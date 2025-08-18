@@ -114,6 +114,56 @@ function App() {
     }
   };
 
+  // **PHASE 3: AUTONOMOUS AI FUNCTIONS**
+  const loadProactiveSuggestions = async () => {
+    if (!aiLearningMode) return;
+    
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/proactive-suggestions`, {
+        params: {
+          session_id: sessionId,
+          current_url: currentUrl
+        }
+      });
+      
+      if (response.data.success) {
+        setProactiveSuggestions(response.data.suggestions || []);
+        setAutonomousInsights(response.data.autonomous_insights || {});
+      }
+    } catch (error) {
+      console.error('Failed to load proactive suggestions:', error);
+    }
+  };
+
+  const executeAutonomousAction = async (action, context = {}) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/autonomous-action`, {
+        action: action,
+        session_id: sessionId,
+        context: { ...context, current_url: currentUrl }
+      });
+      
+      if (response.data.success) {
+        // Add autonomous action to chat
+        const autonomousMessage = {
+          id: Date.now(),
+          type: 'assistant',
+          content: response.data.message,
+          timestamp: new Date(),
+          message_type: 'autonomous_action',
+          autonomous_data: response.data
+        };
+        
+        setChatMessages(prev => [...prev, autonomousMessage]);
+        
+        // Refresh suggestions after action
+        loadProactiveSuggestions();
+      }
+    } catch (error) {
+      console.error('Failed to execute autonomous action:', error);
+    }
+  };
+
   const loadRecentTabs = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/recent-tabs`);
