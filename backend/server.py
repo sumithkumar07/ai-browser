@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 import json
 import asyncio
 import time
+import logging
 
 # Import our enhanced modules
 from ai_manager import ai_manager, AIProvider
