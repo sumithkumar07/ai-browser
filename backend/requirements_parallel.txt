@@ -1,0 +1,70 @@
+# Core Dependencies (Already installed)
+fastapi==0.104.1
+uvicorn==0.24.0
+pymongo==4.6.0
+python-dotenv==1.0.0
+pydantic==2.5.0
+httpx==0.25.2
+beautifulsoup4==4.12.2
+groq==0.4.1
+python-multipart==0.0.6
+redis==5.0.1
+aiofiles==23.2.1
+cachetools==5.3.2
+openai==1.8.0
+anthropic==0.8.1
+google-generativeai==0.3.2
+langdetect==1.0.9
+markdown==3.5.1
+Pillow==10.1.0
+selenium==4.15.2
+celery==5.3.4
+psutil==7.0.0
+
+# PHASE 1: Advanced AI & Workflow Dependencies
+asyncio-mqtt==0.16.1
+asyncpg==0.29.0
+sqlalchemy==2.0.25
+alembic==1.13.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-socketio==5.10.0
+websockets==12.0
+sentence-transformers==2.2.2
+numpy==1.26.3
+scikit-learn==1.4.0
+transformers==4.36.2
+
+# PHASE 2: Performance & Caching
+aiocache==0.12.2
+motor==3.3.2
+aio-pika==9.4.1
+prometheus-client==0.19.0
+structlog==23.2.0
+ujson==5.9.0
+orjson==3.9.12
+
+# PHASE 3: UI/UX & Workflow Enhancement
+jinja2==3.1.2
+asyncio-throttle==1.0.2
+python-magic==0.4.27
+pdf2image==1.17.0
+
+# PHASE 4: Security & Browser Engine
+cryptography>=42.0.0
+pyotp==2.9.0
+qrcode==7.4.2
+playwright==1.40.0
+fake-useragent==1.4.0
+
+# PHASE 5: Advanced Integrations
+tweepy==4.14.0
+python-telegram-bot==20.7
+slack-sdk==3.26.1
+notion-client==2.2.1
+airtable-python-wrapper==0.15.3
+
+# PHASE 6: Lightweight ML
+SpeechRecognition==3.10.0
+pydub==0.25.1
+langchain==0.1.0
