@@ -848,6 +848,131 @@ async def execute_integration_action(action_data: Dict[str, Any]):
         performance_monitor.record_error("INTEGRATION_ACTION_ERROR", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+# ====================================
+# INTEGRATION AUTHENTICATION ENDPOINTS
+# ====================================
+
+@app.post("/api/integration-auth/store")
+async def store_integration_credentials(auth_data: Dict[str, Any]):
+    """Store integration credentials for a user"""
+    try:
+        user_session = auth_data.get("user_session")
+        integration = auth_data.get("integration")
+        credentials = auth_data.get("credentials", {})
+        
+        if not all([user_session, integration, credentials]):
+            raise HTTPException(status_code=400, detail="Missing required fields")
+        
+        # Validate credentials format
+        validation_result = await integration_auth_manager.validate_credentials(integration, credentials)
+        
+        if not validation_result["valid"]:
+            return {
+                "success": False,
+                "message": validation_result["message"],
+                "validation": validation_result
+            }
+        
+        # Store credentials
+        stored = await integration_auth_manager.store_integration_credentials(
+            user_session, integration, credentials
+        )
+        
+        if stored:
+            return {
+                "success": True,
+                "message": f"Credentials stored for {integration}",
+                "features_available": validation_result["features_available"]
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to store credentials"
+            }
+            
+    except Exception as e:
+        performance_monitor.record_error("AUTH_STORE_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/integration-auth/user/{user_session}")
+async def get_user_integrations(user_session: str):
+    """Get all active integrations for a user"""
+    try:
+        integrations = await integration_auth_manager.get_user_integrations(user_session)
+        
+        return {
+            "success": True,
+            "integrations": integrations,
+            "count": len(integrations)
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTH_GET_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/integration-auth/test")
+async def test_integration_connection(test_data: Dict[str, Any]):
+    """Test an integration connection"""
+    try:
+        user_session = test_data.get("user_session")
+        integration = test_data.get("integration")
+        
+        if not all([user_session, integration]):
+            raise HTTPException(status_code=400, detail="Missing user_session or integration")
+        
+        test_result = await integration_auth_manager.test_integration_connection(user_session, integration)
+        
+        return {
+            "success": True,
+            "test_result": test_result
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTH_TEST_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/integration-auth/deactivate")
+async def deactivate_integration(deactivate_data: Dict[str, Any]):
+    """Deactivate an integration for a user"""
+    try:
+        user_session = deactivate_data.get("user_session")
+        integration = deactivate_data.get("integration")
+        
+        if not all([user_session, integration]):
+            raise HTTPException(status_code=400, detail="Missing user_session or integration")
+        
+        deactivated = await integration_auth_manager.deactivate_integration(user_session, integration)
+        
+        return {
+            "success": deactivated,
+            "message": f"Integration {integration} {'deactivated' if deactivated else 'not found'}"
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTH_DEACTIVATE_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/integration-auth/validate")
+async def validate_integration_credentials(validation_data: Dict[str, Any]):
+    """Validate integration credentials format"""
+    try:
+        integration = validation_data.get("integration")
+        credentials = validation_data.get("credentials", {})
+        
+        if not integration:
+            raise HTTPException(status_code=400, detail="Missing integration")
+        
+        validation_result = await integration_auth_manager.validate_credentials(integration, credentials)
+        
+        return {
+            "success": True,
+            "validation": validation_result
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTH_VALIDATE_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
