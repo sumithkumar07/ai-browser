@@ -235,6 +235,9 @@ performance_monitor = PerformanceMonitor()
 # Decorator for monitoring API endpoints
 def monitor_performance(func):
     """Decorator to monitor API endpoint performance"""
+    import functools
+    
+    @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         start_time = time.time()
         endpoint = func.__name__
