@@ -790,23 +790,47 @@ async def create_automation_task(task_data: ChatMessage):
 
 @app.post("/api/execute-automation/{task_id}")
 async def execute_automation(task_id: str, background_tasks: BackgroundTasks):
-    """Execute an automation task in the background"""
+    """Execute automation with autonomous background processing - Phase 3"""
     try:
-        # Update task status to running
+        # Verify task exists
+        task = db.automations.find_one({"id": task_id})
+        if not task:
+            raise HTTPException(status_code=404, detail="Automation task not found")
+        
+        # **PHASE 3: AUTONOMOUS BACKGROUND EXECUTION**
+        background_tasks.add_task(process_background_automation, task_id)
+        
+        # Update initial status
         db.automations.update_one(
             {"id": task_id},
-            {"$set": {"status": "running", "started_at": datetime.utcnow()}}
+            {
+                "$set": {
+                    "status": "queued",
+                    "queued_at": datetime.utcnow(),
+                    "execution_mode": "autonomous_background",
+                    "estimated_completion": datetime.utcnow().timestamp() + 
+                                          task.get("estimated_duration", 300)
+                }
+            }
         )
         
         return {
             "success": True,
             "task_id": task_id,
-            "status": "started",
-            "message": "Automation task started in background"
+            "status": "queued_for_autonomous_execution",
+            "message": "🤖 Autonomous AI agent will handle this task in the background",
+            "execution_mode": "background",
+            "autonomous_features": [
+                "Background processing", 
+                "Real-time progress updates",
+                "Autonomous decision making",
+                "Smart error recovery"
+            ],
+            "estimated_completion_time": task.get("estimated_duration", 300)
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Automation execution failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Autonomous execution failed: {str(e)}")
 
 @app.get("/api/automation-status/{task_id}")
 async def get_automation_status(task_id: str):
