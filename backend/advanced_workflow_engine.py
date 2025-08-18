@@ -420,7 +420,7 @@ class VisualWorkflowEngine:
             "user_session": user_session,
             "status": WorkflowStatus.DRAFT.value,
             "parameters": parameters,
-            "actions": [asdict(action) for action in template.actions],
+            "actions": [self._serialize_for_mongo(action) for action in template.actions],
             "created_at": datetime.now(),
             "estimated_duration": template.estimated_duration
         }
