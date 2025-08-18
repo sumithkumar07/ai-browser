@@ -9,7 +9,11 @@ import {
   MessageCircle,
   X,
   Send,
-  Globe
+  Globe,
+  Play,
+  Pause,
+  Settings,
+  Zap
 } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
