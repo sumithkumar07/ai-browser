@@ -17,6 +17,7 @@ import json
 import asyncio
 import time
 import logging
+import base64
 
 # Import our enhanced modules after loading environment
 from ai_manager import ai_manager, AIProvider
