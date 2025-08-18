@@ -49,6 +49,17 @@ function App() {
   const [automationSuggestions, setAutomationSuggestions] = useState([]);
   const [showAutomationPanel, setShowAutomationPanel] = useState(false);
 
+  // Advanced features state
+  const [isWorkflowBuilderOpen, setIsWorkflowBuilderOpen] = useState(false);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isAdvancedWorkspace, setIsAdvancedWorkspace] = useState(false);
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const [keyboardShortcuts, setKeyboardShortcuts] = useState([]);
+  const [performanceData, setPerformanceData] = useState({});
+  const [workspaceLayout, setWorkspaceLayout] = useState('default');
+  const [aiProviders, setAiProviders] = useState(['groq']);
+  const [selectedAiProvider, setSelectedAiProvider] = useState('groq');
+
   // Initialize session
   useEffect(() => {
     setSessionId(Date.now().toString());
