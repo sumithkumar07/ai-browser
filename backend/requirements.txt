@@ -21,3 +21,4 @@ selenium==4.15.2
 celery==5.3.4
 webdriver-manager==4.0.1
 psutil==7.0.0
+httpcore
