@@ -348,7 +348,7 @@ export const useDraggable = (item, onDragStart, onDragEnd) => {
 };
 
 // Enhanced text selection handler
-export const enhanceTextSelection = (onTextSelected) => {
+export const useTextSelection = (onTextSelected) => {
   useEffect(() => {
     const handleSelection = () => {
       const selection = window.getSelection();
