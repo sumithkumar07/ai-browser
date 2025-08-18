@@ -356,5 +356,12 @@ class AIManager:
             logger.error(f"Search suggestion error: {e}")
             return [user_intent]  # Return original query as fallback
 
-# Global AI manager instance
-ai_manager = AIManager()
+# Global AI manager instance (lazy initialization)
+ai_manager = None
+
+def get_ai_manager():
+    """Get or create the global AI manager instance"""
+    global ai_manager
+    if ai_manager is None:
+        ai_manager = AIManager()
+    return ai_manager
