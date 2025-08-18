@@ -15,6 +15,11 @@ import asyncio
 import time
 import logging
 
+# Import enhancement engines
+from native_browser_engine_enhanced import NativeBrowserEngine, BrowserSecurityManager, BrowserPerformanceMonitor
+from research_automation_engine import ResearchAutomationEngine, ResearchKnowledgeBase, SourceAnalyzer, IntelligentReportGenerator
+from cross_platform_integration_hub import CrossPlatformIntegrationHub, PlatformCredentialManager
+
 load_dotenv()
 
 app = FastAPI(title="AETHER Browser API - Enhanced", version="3.0.0")
