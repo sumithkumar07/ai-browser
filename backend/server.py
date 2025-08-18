@@ -44,11 +44,24 @@ db = client.aether_browser
 # Groq client
 groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# Initialize Enhancement Engines
+# Initialize ALL Enhancement Engines - PHASE 1-4 PARALLEL IMPLEMENTATION
 native_browser = NativeBrowserEngine()
 research_engine = ResearchAutomationEngine()
 platform_hub = CrossPlatformIntegrationHub()
 browser_performance = BrowserPerformanceMonitor()
+
+# NEW ENGINES - PHASE 1-3 PARALLEL IMPLEMENTATION  
+multi_ai_engine = MultiAIProviderEngine()
+shadow_workspace = ShadowWorkspaceEngine(max_concurrent_workspaces=20, max_workers=50)
+performance_engine = PerformanceOptimizationEngine(
+    OptimizationConfig(
+        level=OptimizationLevel.AGGRESSIVE,
+        enable_gpu_acceleration=True,
+        enable_compression=True,
+        enable_prefetching=True,
+        max_concurrent_requests=200
+    )
+)
 
 # Enhanced Pydantic models
 class ChatMessage(BaseModel):
