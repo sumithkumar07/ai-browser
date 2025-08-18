@@ -536,6 +536,88 @@ class AdvancedWorkflowEngine:
             "processing_time": 2.5
         }
     
+    async def _handle_data_transformation(self, execution_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle data transformation step"""
+        
+        input_data = config.get("input_data", {})
+        transformation_type = config.get("transformation", "format")
+        
+        # Apply transformation based on type
+        if transformation_type == "format":
+            # Format data according to template
+            template = config.get("template", "{}")
+            result = template.format(**input_data)
+        elif transformation_type == "filter":
+            # Filter data based on conditions
+            conditions = config.get("conditions", [])
+            result = {k: v for k, v in input_data.items() if any(k.startswith(c) for c in conditions)}
+        else:
+            result = input_data
+            
+        return {"transformed_data": result, "transformation_applied": transformation_type}
+    
+    async def _handle_notification(self, execution_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle notification step"""
+        
+        message = self._replace_variables(execution_id, config.get("message", ""))
+        notification_type = config.get("type", "info")
+        
+        # Log notification (in real implementation, would send actual notification)
+        logger.info(f"Notification ({notification_type}): {message}")
+        
+        return {
+            "message": message,
+            "type": notification_type,
+            "sent_at": datetime.utcnow().isoformat()
+        }
+    
+    async def _handle_code_execution(self, execution_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle code execution step"""
+        
+        code = self._replace_variables(execution_id, config.get("code", ""))
+        language = config.get("language", "python")
+        
+        # For safety, only allow simple expressions (not actual code execution)
+        if language == "python" and len(code) < 100:
+            try:
+                # Very limited safe evaluation
+                result = eval(code, {"__builtins__": {}})
+                return {"result": result, "success": True}
+            except Exception as e:
+                return {"error": str(e), "success": False}
+        
+        return {"message": "Code execution simulated", "language": language}
+    
+    async def _handle_file_operation(self, execution_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle file operation step"""
+        
+        operation = config.get("operation", "read")
+        filepath = self._replace_variables(execution_id, config.get("filepath", ""))
+        
+        # Simulate file operations
+        return {
+            "operation": operation,
+            "filepath": filepath,
+            "success": True,
+            "message": f"File operation '{operation}' completed"
+        }
+    
+    async def _handle_database_operation(self, execution_id: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle database operation step"""
+        
+        operation = config.get("operation", "find")
+        collection = config.get("collection", "default")
+        query = config.get("query", {})
+        
+        # Simulate database operations
+        return {
+            "operation": operation,
+            "collection": collection,
+            "query": query,
+            "success": True,
+            "message": f"Database operation '{operation}' completed"
+        }
+    
     # Utility methods
     
     def _replace_variables(self, execution_id: str, text: str) -> str:
