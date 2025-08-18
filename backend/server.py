@@ -314,7 +314,6 @@ async def browse_page_enhanced(session: BrowsingSession):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/chat")
-@monitor_performance
 async def chat_with_enhanced_ai(chat_data: ChatMessage):
     """Enhanced chat with multi-model AI support and automation detection"""
     try:
