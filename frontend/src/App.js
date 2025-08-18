@@ -557,7 +557,52 @@ function App() {
                   className={`chat-message ${message.type}`}
                 >
                   <div className={`message-bubble ${message.type}`}>
-                    <p className="leading-relaxed">{message.content}</p>
+                    <div className="leading-relaxed whitespace-pre-line">{message.content}</div>
+                    
+                    {/* Automation action buttons */}
+                    {message.message_type === 'automation_offer' && message.automation_task_id && (
+                      <div className="flex items-center space-x-2 mt-3">
+                        <button
+                          onClick={() => executeAutomation(message.automation_task_id)}
+                          className="flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                          <Play size={12} />
+                          <span>Start</span>
+                        </button>
+                        <button
+                          onClick={() => setShowAutomationPanel(true)}
+                          className="flex items-center space-x-1 px-3 py-1 bg-gray-500 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors"
+                        >
+                          <Settings size={12} />
+                          <span>Customize</span>
+                        </button>
+                        <button
+                          onClick={() => cancelAutomation(message.automation_task_id)}
+                          className="flex items-center space-x-1 px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          <X size={12} />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Automation suggestions */}
+                    {message.automation_suggestions && message.automation_suggestions.length > 0 && (
+                      <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                        <div className="text-xs font-medium text-blue-800 mb-2">💡 Quick Actions:</div>
+                        {message.automation_suggestions.slice(0, 2).map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setChatInput(suggestion.command)}
+                            className="block w-full text-left text-xs p-2 hover:bg-blue-100 rounded transition-colors mb-1 last:mb-0"
+                          >
+                            <span className="font-medium text-blue-700">{suggestion.title}</span>
+                            <span className="text-blue-600 ml-1">({suggestion.estimated_time})</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
                     <div className="text-xs opacity-60 mt-2">
                       {new Date(message.timestamp).toLocaleTimeString([], { 
                         hour: '2-digit', 
