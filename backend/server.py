@@ -49,6 +49,14 @@ from timeline_manager import initialize_timeline_manager
 from computer_vision_api import computer_vision_api
 from multi_step_reasoning_engine import multi_step_reasoning_engine
 
+# Import PHASE 1-3 ENHANCED COMPONENTS
+from advanced_workflow_builder import initialize_advanced_workflow_builder
+from cross_platform_integration_hub import initialize_cross_platform_hub
+from enhanced_browser_engine import initialize_enhanced_browser_engine
+from professional_report_generator import initialize_professional_report_generator
+from realtime_analytics_dashboard import initialize_realtime_analytics_dashboard
+from timeline_navigation_system import initialize_timeline_navigation_system
+
 # Import Phase 3 components
 from user_pattern_learning import initialize_user_pattern_learning
 
