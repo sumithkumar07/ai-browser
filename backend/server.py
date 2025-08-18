@@ -20,7 +20,8 @@ import logging
 import base64
 
 # Import our enhanced modules after loading environment
-from ai_manager import ai_manager, AIProvider
+from ai_manager import get_ai_manager, AIProvider
+ai_manager = get_ai_manager()  # Initialize AI manager
 from cache_manager import cache_manager
 from performance_monitor import performance_monitor, monitor_performance
 from automation_engine import automation_engine
