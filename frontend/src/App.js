@@ -320,6 +320,12 @@ function App() {
                   </div>
                 </div>
               )}
+              {activeAutomations.length > 0 && !isNavigating && (
+                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
+                  <Zap size={16} className="text-blue-500 animate-pulse" />
+                  <span className="text-xs text-blue-600 font-medium">{activeAutomations.length}</span>
+                </div>
+              )}
             </div>
           </form>
 
