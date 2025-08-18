@@ -1541,6 +1541,276 @@ async def get_enhanced_system_overview():
             "timestamp": datetime.utcnow().isoformat()
         }
 
+# ====================================
+# PHASE 5: VOICE COMMANDS & KEYBOARD SHORTCUTS ENDPOINTS
+# ====================================
+
+@app.post("/api/voice-command")
+async def process_voice_command(request: Dict[str, Any]):
+    """Process voice command and return execution instructions"""
+    try:
+        voice_text = request.get("voice_text", "")
+        user_session = request.get("user_session", "anonymous")
+        current_context = request.get("context", {})
+        
+        result = await voice_commands_engine.process_voice_command(
+            voice_text=voice_text,
+            user_session=user_session,
+            current_context=current_context
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Voice command processing failed: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/api/voice-commands/available")
+async def get_available_voice_commands(user_session: str = "anonymous"):
+    """Get all available voice commands"""
+    try:
+        commands = await voice_commands_engine.get_available_commands(user_session)
+        return {
+            "success": True,
+            "commands": commands
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.post("/api/voice-commands/custom")
+async def add_custom_voice_command(request: Dict[str, Any]):
+    """Add custom voice command"""
+    try:
+        success = await voice_commands_engine.add_custom_command(
+            user_session=request["user_session"],
+            command_name=request["command_name"],
+            patterns=request["patterns"],
+            action=request["action"],
+            command_type=request["command_type"],
+            parameters=request.get("parameters", {})
+        )
+        
+        return {"success": success}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/voice-commands/history/{user_session}")
+async def get_voice_command_history(user_session: str, limit: int = 20):
+    """Get voice command history for user"""
+    try:
+        history = await voice_commands_engine.get_command_history(user_session, limit)
+        return {
+            "success": True,
+            "history": [
+                {
+                    "command_text": item["voice_text"],
+                    "action": item["command"].action,
+                    "timestamp": item["timestamp"].isoformat(),
+                    "success": True
+                }
+                for item in history
+            ]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/keyboard-shortcut")
+async def process_keyboard_shortcut(request: Dict[str, Any]):
+    """Process keyboard shortcut and return execution instructions"""
+    try:
+        key_combination = request.get("key_combination", "")
+        user_session = request.get("user_session", "anonymous")
+        current_context = request.get("context", {})
+        
+        result = keyboard_shortcuts_engine.process_keyboard_shortcut(
+            key_combination=key_combination,
+            user_session=user_session,
+            current_context=current_context
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Keyboard shortcut processing failed: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/api/keyboard-shortcuts")
+async def get_keyboard_shortcuts(category: str = None, user_session: str = "anonymous"):
+    """Get keyboard shortcuts by category"""
+    try:
+        from keyboard_shortcuts_engine import ShortcutCategory
+        
+        filter_category = ShortcutCategory(category) if category else None
+        shortcuts = keyboard_shortcuts_engine.get_shortcuts_by_category(filter_category, user_session)
+        
+        return {
+            "success": True,
+            "shortcuts": shortcuts
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/keyboard-shortcuts/custom")
+async def add_custom_keyboard_shortcut(request: Dict[str, Any]):
+    """Add custom keyboard shortcut"""
+    try:
+        success = keyboard_shortcuts_engine.add_custom_shortcut(
+            user_session=request["user_session"],
+            combination=request["combination"],
+            action=request["action"],
+            category=request["category"],
+            description=request["description"],
+            parameters=request.get("parameters", {})
+        )
+        
+        return {"success": success}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.delete("/api/keyboard-shortcuts/custom/{user_session}/{shortcut_id}")
+async def remove_custom_keyboard_shortcut(user_session: str, shortcut_id: str):
+    """Remove custom keyboard shortcut"""
+    try:
+        success = keyboard_shortcuts_engine.remove_custom_shortcut(user_session, shortcut_id)
+        return {"success": success}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/keyboard-shortcuts/usage-stats")
+async def get_keyboard_shortcuts_usage(user_session: str = "anonymous"):
+    """Get keyboard shortcuts usage statistics"""
+    try:
+        stats = keyboard_shortcuts_engine.get_usage_statistics(user_session)
+        return {
+            "success": True,
+            "statistics": stats
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/shortcuts/export")
+async def export_shortcuts_config(request: Dict[str, Any]):
+    """Export shortcuts configuration"""
+    try:
+        user_session = request.get("user_session", "anonymous")
+        config = keyboard_shortcuts_engine.export_shortcuts_config(user_session)
+        
+        return {
+            "success": True,
+            "config": config
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/shortcuts/import")
+async def import_shortcuts_config(request: Dict[str, Any]):
+    """Import shortcuts configuration"""
+    try:
+        user_session = request["user_session"]
+        config = request["config"]
+        
+        success = keyboard_shortcuts_engine.import_shortcuts_config(config, user_session)
+        return {"success": success}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+# ====================================
+# ENHANCED HEALTH & MONITORING ENDPOINTS
+# ====================================
+
+@app.get("/api/enhanced/system/full-status")
+async def get_full_system_status():
+    """Get comprehensive system status including all phases"""
+    try:
+        # Get performance metrics
+        performance_report = performance_optimization_engine.get_performance_report()
+        
+        # Get automation statistics
+        automation_stats = advanced_automation_engine.get_execution_statistics()
+        
+        # Get AI performance
+        ai_stats = enhanced_ai_manager.model_performance_stats
+        
+        full_status = {
+            "system_version": "AETHER v3.0 - Full Enhancement",
+            "status": "operational",
+            "timestamp": datetime.utcnow().isoformat(),
+            "phases_status": {
+                "phase_1_ai_intelligence": {
+                    "status": "complete",
+                    "features": [
+                        "Multi-Provider AI Support",
+                        "Enhanced Response Generation",
+                        "Context-Aware Processing",
+                        "Visual Webpage Understanding"
+                    ]
+                },
+                "phase_2_automation": {
+                    "status": "complete", 
+                    "features": [
+                        "Agentic Automation System",
+                        "Background Task Processing",
+                        "Cross-Page Workflows",
+                        "Parallel Task Execution"
+                    ]
+                },
+                "phase_3_performance": {
+                    "status": "complete",
+                    "features": [
+                        "Advanced Caching Strategy",
+                        "Performance Analytics",
+                        "User Pattern Learning",
+                        "Memory Management"
+                    ]
+                },
+                "phase_4_integrations": {
+                    "status": "complete",
+                    "features": [
+                        "Custom Integration Builder",
+                        "OAuth 2.0 Support", 
+                        "Integration Health Monitoring",
+                        "API Rate Management"
+                    ]
+                },
+                "phase_5_interface": {
+                    "status": "complete",
+                    "features": [
+                        "Voice Commands Engine",
+                        "Keyboard Shortcuts System",
+                        "Accessibility Features",
+                        "Power User Tools"
+                    ]
+                }
+            },
+            "performance": performance_report,
+            "automation_stats": automation_stats,
+            "ai_performance": ai_stats,
+            "total_features": 20,
+            "completed_features": 20,
+            "completion_percentage": 100.0
+        }
+        
+        return {
+            "success": True,
+            "system_status": full_status
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
