@@ -482,6 +482,150 @@ class IntelligentMemorySystem:
             "indicators": skill_indicators
         }
     
+    def _analyze_productivity_patterns(self, patterns: List[Dict]) -> Dict[str, Any]:
+        """Analyze productivity patterns and optimization opportunities"""
+        
+        automation_patterns = [p for p in patterns if p.get("pattern_type") == "automation_preference"]
+        temporal_patterns = [p for p in patterns if p.get("pattern_type") == "temporal_activity"]
+        
+        productivity_score = 0
+        optimization_areas = []
+        
+        # Calculate automation adoption
+        automation_adoption = len(automation_patterns)
+        if automation_adoption > 10:
+            productivity_score += 30
+        elif automation_adoption > 5:
+            productivity_score += 20
+        elif automation_adoption > 0:
+            productivity_score += 10
+        else:
+            optimization_areas.append("Consider using more automation to boost productivity")
+        
+        # Calculate task completion rate
+        completed_tasks = sum(1 for p in automation_patterns if p["data"].get("success", False))
+        completion_rate = (completed_tasks / max(len(automation_patterns), 1)) * 100
+        
+        if completion_rate > 90:
+            productivity_score += 25
+        elif completion_rate > 70:
+            productivity_score += 20
+        elif completion_rate > 50:
+            productivity_score += 10
+        else:
+            optimization_areas.append("Focus on improving task completion rates")
+        
+        # Analyze time management
+        peak_hours = self._get_peak_activity_hours(temporal_patterns)
+        if len(peak_hours) <= 3:
+            productivity_score += 15
+            optimization_areas.append("Good focus - you work efficiently during specific hours")
+        else:
+            optimization_areas.append("Consider focusing work during your most productive hours")
+        
+        return {
+            "productivity_score": productivity_score,
+            "grade": self._calculate_productivity_grade(productivity_score),
+            "optimization_opportunities": optimization_areas[:3],
+            "automation_adoption": automation_adoption,
+            "task_completion_rate": completion_rate,
+            "peak_activity_hours": peak_hours
+        }
+    
+    def _infer_personality_traits(self, patterns: List[Dict]) -> Dict[str, Any]:
+        """Infer personality traits from user behavior patterns"""
+        
+        traits = {
+            "curiosity": 0,      # Based on browsing diversity
+            "efficiency": 0,     # Based on automation usage
+            "detail_oriented": 0, # Based on task complexity
+            "social": 0,         # Based on sharing/communication patterns
+            "tech_savvy": 0      # Based on technical usage
+        }
+        
+        browsing_patterns = [p for p in patterns if p.get("pattern_type") == "browsing_habit"]
+        automation_patterns = [p for p in patterns if p.get("pattern_type") == "automation_preference"]
+        chat_patterns = [p for p in patterns if p.get("pattern_type") == "chat_topic"]
+        
+        # Analyze curiosity (browsing diversity)
+        unique_domains = set()
+        for pattern in browsing_patterns:
+            domain = pattern["data"].get("domain", "")
+            if domain:
+                unique_domains.add(domain)
+        
+        traits["curiosity"] = min(len(unique_domains) / 10.0, 1.0)  # Max 1.0
+        
+        # Analyze efficiency (automation usage)
+        traits["efficiency"] = min(len(automation_patterns) / 20.0, 1.0)
+        
+        # Analyze detail orientation (complex task preference)
+        complex_tasks = sum(1 for p in automation_patterns 
+                           if p["data"].get("complexity") in ["complex", "expert"])
+        traits["detail_oriented"] = min(complex_tasks / 10.0, 1.0)
+        
+        # Analyze social behavior (sharing/communication)
+        social_actions = sum(1 for p in automation_patterns 
+                            if "social" in p["data"].get("task_type", "").lower() or
+                            "share" in p["data"].get("task_type", "").lower())
+        traits["social"] = min(social_actions / 5.0, 1.0)
+        
+        # Analyze tech savviness (technical queries/tasks)
+        technical_patterns = sum(1 for p in chat_patterns + automation_patterns
+                                if "technical" in str(p["data"]).lower() or
+                                "code" in str(p["data"]).lower())
+        traits["tech_savvy"] = min(technical_patterns / 15.0, 1.0)
+        
+        # Convert to readable descriptions
+        trait_descriptions = {}
+        for trait, score in traits.items():
+            if score > 0.8:
+                level = "Very High"
+            elif score > 0.6:
+                level = "High"
+            elif score > 0.4:
+                level = "Medium"
+            elif score > 0.2:
+                level = "Low"
+            else:
+                level = "Very Low"
+            
+            trait_descriptions[trait] = {
+                "score": score,
+                "level": level
+            }
+        
+        return trait_descriptions
+    
+    def _get_peak_activity_hours(self, temporal_patterns: List[Dict]) -> List[int]:
+        """Extract peak activity hours from temporal patterns"""
+        hour_activity = defaultdict(int)
+        
+        for pattern in temporal_patterns:
+            hour = pattern["data"].get("hour", 12)
+            hour_activity[hour] += 1
+        
+        if not hour_activity:
+            return []
+        
+        max_activity = max(hour_activity.values())
+        threshold = max_activity * 0.7  # 70% of peak activity
+        
+        return [hour for hour, activity in hour_activity.items() if activity >= threshold]
+    
+    def _calculate_productivity_grade(self, score: int) -> str:
+        """Calculate productivity grade from score"""
+        if score >= 80:
+            return "A"
+        elif score >= 70:
+            return "B"
+        elif score >= 60:
+            return "C"
+        elif score >= 50:
+            return "D"
+        else:
+            return "F"
+    
     async def predict_next_action(self, user_session: str, current_context: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Predict likely next actions based on patterns and context"""
         
