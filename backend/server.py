@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AETHER Browser API - Working", version="3.0.0")
 
-# Enhanced CORS middleware
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
