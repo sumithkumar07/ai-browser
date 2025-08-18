@@ -21,7 +21,7 @@ from multi_ai_provider_engine import MultiAIProviderEngine, AIProvider
 from shadow_workspace_engine import ShadowWorkspaceEngine, WorkspaceStatus
 from cross_platform_integration_hub import CrossPlatformIntegrationHub, PlatformCredentialManager
 from research_automation_engine import ResearchAutomationEngine, ResearchType
-from performance_optimization_engine import PerformanceOptimizationEngine, OptimizationConfig, OptimizationLevel
+from performance_optimization_engine import PerformanceOptimizationEngine, OptimizationConfig, OptimizationLevel, CacheStrategy
 
 load_dotenv()
 
