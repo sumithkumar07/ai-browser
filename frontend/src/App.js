@@ -32,6 +32,9 @@ function App() {
   const [sessionId, setSessionId] = useState('');
   const [pageTitle, setPageTitle] = useState('New Tab');
   const [isNavigating, setIsNavigating] = useState(false);
+  const [activeAutomations, setActiveAutomations] = useState([]);
+  const [automationSuggestions, setAutomationSuggestions] = useState([]);
+  const [showAutomationPanel, setShowAutomationPanel] = useState(false);
 
   // Initialize session
   useEffect(() => {
