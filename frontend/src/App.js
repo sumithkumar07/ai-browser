@@ -315,12 +315,163 @@ function App() {
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  const handleVoiceCommand = async () => {
+    if (!voiceRecording) {
+      // Start voice recording
+      try {
+        setVoiceRecording(true);
+        
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          const recognition = new SpeechRecognition();
+          
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = 'en-US';
+          
+          recognition.onresult = async (event) => {
+            const voiceText = event.results[0][0].transcript;
+            console.log('Voice command:', voiceText);
+            
+            try {
+              const response = await axios.post(`${API_BASE_URL}/api/voice-command`, {
+                voice_text: voiceText,
+                user_session: sessionId,
+                current_url: currentUrl
+              });
+              
+              if (response.data.success) {
+                const { action, url, query, message } = response.data;
+                
+                switch (action) {
+                  case 'navigate':
+                    if (url) navigateToUrl(url);
+                    break;
+                  case 'search':
+                    if (query) navigateToUrl(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
+                    break;
+                  case 'chat':
+                    if (message) {
+                      setChatInput(message);
+                      if (!isAssistantOpen) setIsAssistantOpen(true);
+                    }
+                    break;
+                  default:
+                    console.log('Voice command processed:', response.data);
+                }
+              }
+            } catch (error) {
+              console.error('Voice command processing failed:', error);
+            }
+          };
+          
+          recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            setVoiceRecording(false);
+          };
+          
+          recognition.onend = () => {
+            setVoiceRecording(false);
+          };
+          
+          recognition.start();
+        } else {
+          alert('Speech recognition not supported in this browser');
+          setVoiceRecording(false);
+        }
+      } catch (error) {
+        console.error('Voice command failed:', error);
+        setVoiceRecording(false);
+      }
+    } else {
+      // Stop voice recording
+      setVoiceRecording(false);
     }
   };
+
+  const executeKeyboardShortcut = async (shortcut) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/keyboard-shortcut`, {
+        shortcut: shortcut,
+        user_session: sessionId
+      });
+      
+      if (response.data.success) {
+        const { action } = response.data;
+        
+        switch (action) {
+          case 'home':
+            setCurrentUrl('');
+            setUrlInput('');
+            break;
+          case 'refresh':
+            if (currentUrl) navigateToUrl(currentUrl);
+            break;
+          case 'new_tab':
+            setCurrentUrl('');
+            setUrlInput('');
+            break;
+          case 'automation':
+            setShowAutomationPanel(true);
+            break;
+          case 'voice':
+            handleVoiceCommand();
+            break;
+          default:
+            console.log('Shortcut executed:', response.data);
+        }
+      }
+    } catch (error) {
+      console.error('Keyboard shortcut failed:', error);
+    }
+  };
+
+  // Enhanced keyboard shortcuts handling
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Global shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'l':
+            e.preventDefault();
+            document.querySelector('.url-bar')?.focus();
+            break;
+          case 'h':
+            e.preventDefault();
+            executeKeyboardShortcut('ctrl+h');
+            break;
+          case 'r':
+            e.preventDefault();
+            executeKeyboardShortcut('ctrl+r');
+            break;
+          case 't':
+            e.preventDefault();
+            executeKeyboardShortcut('ctrl+t');
+            break;
+          case '/':
+            e.preventDefault();
+            executeKeyboardShortcut('ctrl+/');
+            break;
+        }
+        
+        if (e.shiftKey) {
+          switch (e.key) {
+            case 'A':
+              e.preventDefault();
+              executeKeyboardShortcut('ctrl+shift+a');
+              break;
+            case 'V':
+              e.preventDefault();
+              executeKeyboardShortcut('ctrl+shift+v');
+              break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentUrl, sessionId]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-25">
