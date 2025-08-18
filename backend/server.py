@@ -730,7 +730,7 @@ async def get_workflow_templates(category: str = None):
 
 @app.post("/api/create-workflow")
 @monitor_performance  
-async def create_workflow(workflow_data: Dict[str, Any]):
+async def create_workflow_endpoint(workflow_data: Dict[str, Any]):
     """Create a new workflow from a template"""
     try:
         workflow_id = await workflow_manager.create_workflow(
