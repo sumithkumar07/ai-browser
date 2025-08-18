@@ -56,6 +56,10 @@ from user_pattern_learning import initialize_user_pattern_learning
 from custom_integration_builder import initialize_custom_integration_builder
 from integration_health_monitor import initialize_integration_health_monitor
 
+# Import Phase 5 components
+from voice_commands_engine import voice_commands_engine
+from keyboard_shortcuts_engine import keyboard_shortcuts_engine
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
