@@ -502,14 +502,27 @@ function App() {
         )}
       </div>
 
-      {/* Bottom Status Bar */}
-      <div className="bg-white border-t border-gray-200 px-4 py-2">
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="flex items-center space-x-4">
-            <span>Tabs ▼</span>
+      {/* Enhanced Status Bar */}
+      <div className="status-bar">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center space-x-6">
+            <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors">
+              <span>Tabs</span>
+              <span className="text-xs">▼</span>
+            </button>
+            {currentUrl && (
+              <div className="flex items-center space-x-2 text-gray-500">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>Secure Connection</span>
+              </div>
+            )}
           </div>
-          <div className="flex items-center space-x-4">
-            <span>© Aether</span>
+          <div className="flex items-center space-x-6 text-gray-500">
+            <span>© 2025 Aether Browser</span>
+            <div className="flex items-center space-x-1">
+              <div className="w-1 h-1 bg-primary-500 rounded-full"></div>
+              <span className="text-xs">Powered by AI</span>
+            </div>
           </div>
         </div>
       </div>
