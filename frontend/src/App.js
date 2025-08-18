@@ -391,80 +391,112 @@ function App() {
           )}
         </div>
 
-        {/* AI Assistant Sidebar */}
+        {/* Enhanced AI Assistant Sidebar */}
         {isAssistantOpen && (
-          <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-            {/* Assistant Header */}
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Aether Assistant</h3>
+          <div className="w-96 assistant-sidebar flex flex-col">
+            {/* Enhanced Assistant Header */}
+            <div className="assistant-header flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <MessageCircle size={16} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Aether Assistant</h3>
+                  <p className="text-xs text-gray-500">AI-powered browsing companion</p>
+                </div>
+              </div>
               <button
                 onClick={() => setIsAssistantOpen(false)}
-                className="p-1 rounded-lg hover:bg-gray-100"
+                className="nav-button"
+                title="Close assistant"
               >
-                <X size={20} className="text-gray-500" />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {/* Enhanced Chat Messages */}
+            <div className="assistant-messages">
               {chatMessages.length === 0 && (
-                <div className="text-center text-gray-500 mt-8">
-                  <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p className="text-lg font-medium">Hello! How can I help you?</p>
-                  <p className="text-sm mt-2">Ask me anything or get help with browsing</p>
+                <div className="text-center py-12 animate-fade-in">
+                  <div className="w-16 h-16 bg-gradient-to-br from-primary-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <MessageCircle size={32} className="text-primary-600" />
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Hello! How can I help you?</h4>
+                  <p className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
+                    Ask me anything about the web, get help with browsing, or just have a conversation.
+                  </p>
                 </div>
               )}
               
               {chatMessages.map((message) => (
                 <div
                   key={message.id}
-                  className={`chat-message ${
-                    message.type === 'user' ? 'text-right' : 'text-left'
-                  }`}
+                  className={`chat-message ${message.type}`}
                 >
-                  <div
-                    className={`inline-block max-w-[80%] p-3 rounded-lg ${
-                      message.type === 'user'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm leading-relaxed">{message.content}</p>
+                  <div className={`message-bubble ${message.type}`}>
+                    <p className="leading-relaxed">{message.content}</p>
+                    <div className="text-xs opacity-60 mt-2">
+                      {new Date(message.timestamp).toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </div>
                   </div>
                 </div>
               ))}
               
               {isLoading && (
-                <div className="text-left">
-                  <div className="inline-block bg-gray-100 text-gray-900 p-3 rounded-lg">
-                    <p className="text-sm loading-dots">Thinking...</p>
+                <div className="chat-message assistant">
+                  <div className="message-bubble assistant">
+                    <div className="flex items-center space-x-2">
+                      <div className="loading-dots">
+                        <div className="loading-dot"></div>
+                        <div className="loading-dot"></div>
+                        <div className="loading-dot"></div>
+                      </div>
+                      <span className="text-sm text-gray-600">Thinking...</span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Chat Input */}
-            <div className="p-4 border-t border-gray-200">
-              <div className="flex items-end space-x-2">
+            {/* Enhanced Chat Input */}
+            <div className="assistant-input-container">
+              <div className="flex items-end space-x-3">
                 <div className="flex-1">
                   <textarea
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type a message..."
+                    placeholder="Type your message..."
                     rows={1}
-                    className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    style={{ minHeight: '44px', maxHeight: '120px' }}
+                    className="input-primary resize-none min-h-[44px] max-h-[120px] text-sm"
+                    style={{
+                      height: 'auto',
+                      minHeight: '44px',
+                      maxHeight: '120px'
+                    }}
                   />
                 </div>
                 <button
                   onClick={sendMessage}
                   disabled={!chatInput.trim() || isLoading}
-                  className="p-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="btn-primary p-3 flex-shrink-0"
+                  title="Send message"
                 >
-                  <Send size={18} />
+                  <Send size={16} />
                 </button>
               </div>
+              
+              {currentUrl && (
+                <div className="flex items-center space-x-2 mt-3 px-3 py-2 bg-primary-50 rounded-lg">
+                  <Globe size={14} className="text-primary-600" />
+                  <span className="text-xs text-primary-700 font-medium truncate">
+                    Analyzing: {pageTitle || currentUrl}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
