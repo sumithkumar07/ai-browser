@@ -34,7 +34,7 @@ from advanced_automation_engine import advanced_automation_engine
 from intelligent_memory_system import intelligent_memory_system, IntelligentMemorySystem
 from performance_optimization_engine import performance_optimization_engine
 from enhanced_integration_manager import enhanced_integration_manager, EnhancedIntegrationManager
-from advanced_workflow_engine import advanced_workflow_engine, AdvancedWorkflowEngine
+from advanced_workflow_engine import advanced_workflow_engine, VisualWorkflowEngine
 
 # Import new Phase 1-4 modules
 from enhanced_agentic_engine import initialize_agentic_engine
@@ -93,7 +93,7 @@ workflow_manager = WorkflowManager(client)
 # Initialize all enhanced systems
 intelligent_memory_system = IntelligentMemorySystem(client)
 enhanced_integration_manager = EnhancedIntegrationManager(client)
-advanced_workflow_engine = AdvancedWorkflowEngine(client)
+advanced_workflow_engine = VisualWorkflowEngine(client)
 integration_auth_manager = IntegrationAuthManager(client)
 
 # Initialize enhanced components after mongo client is ready
@@ -112,7 +112,7 @@ def initialize_enhanced_components():
         logger.info("Enhanced Integration Manager initialized")
         
         # Initialize advanced workflow engine
-        workflow_engine = AdvancedWorkflowEngine(client)
+        workflow_engine = VisualWorkflowEngine(client)
         logger.info("Advanced Workflow Engine initialized")
         
         # Initialize enhanced systems with Phase 1-4 components
