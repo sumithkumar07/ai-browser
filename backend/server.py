@@ -119,6 +119,14 @@ def initialize_enhanced_components():
         # Initialize Phase 1-2 Agentic components
         agentic_engine = initialize_agentic_engine(client)
         timeline_manager = initialize_timeline_manager(client)
+
+        # Initialize PHASE 1-3 ENHANCED COMPONENTS
+        advanced_workflow_builder = initialize_advanced_workflow_builder(client)
+        cross_platform_hub = initialize_cross_platform_hub(client)
+        enhanced_browser_engine_new = initialize_enhanced_browser_engine(client)
+        professional_report_generator = initialize_professional_report_generator(client)
+        realtime_analytics_dashboard = initialize_realtime_analytics_dashboard(client)
+        timeline_navigation_system = initialize_timeline_navigation_system(client)
         
         # Initialize Phase 3 components  
         user_pattern_learning_engine = initialize_user_pattern_learning(client)
