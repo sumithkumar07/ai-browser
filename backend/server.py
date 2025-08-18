@@ -154,13 +154,53 @@ async def startup_event():
     """Initialize all enhanced systems on startup"""
     logger.info("🚀 Starting AETHER Enhanced Browser API...")
     
-    # Start all background engines
-    enhanced_ai_manager.start_learning_engine() if hasattr(enhanced_ai_manager, 'start_learning_engine') else None
-    advanced_automation_engine.start_background_processor()
-    intelligent_memory_system.start_learning_engine()
-    performance_optimization_engine.start_performance_engine()
-    enhanced_integration_manager.start_integration_engine()
-    advanced_workflow_engine.start_workflow_engine()
+    # Initialize all enhanced modules using the initialization system
+    try:
+        initialization_results = await initialize_all_enhanced_modules()
+        logger.info("📊 Module Initialization Results:")
+        for module_name, status in initialization_results.items():
+            logger.info(f"  {module_name}: {status}")
+        
+        # Update global instances with properly initialized modules
+        global enhanced_integration_manager, advanced_automation_engine, advanced_workflow_engine
+        
+        initialized_integration_manager = get_initialized_module('enhanced_integration_manager')
+        if initialized_integration_manager:
+            enhanced_integration_manager = initialized_integration_manager
+            
+        initialized_automation_engine = get_initialized_module('advanced_automation_engine')
+        if initialized_automation_engine:
+            advanced_automation_engine = initialized_automation_engine
+            
+        initialized_workflow_engine = get_initialized_module('advanced_workflow_engine')
+        if initialized_workflow_engine:
+            advanced_workflow_engine = initialized_workflow_engine
+    
+    except Exception as e:
+        logger.error(f"Module initialization error: {e}")
+    
+    # Start all background engines with error handling
+    try:
+        if hasattr(enhanced_ai_manager, 'start_learning_engine'):
+            enhanced_ai_manager.start_learning_engine()
+        
+        if hasattr(advanced_automation_engine, 'start_background_processor'):
+            advanced_automation_engine.start_background_processor()
+        
+        if hasattr(intelligent_memory_system, 'start_learning_engine'):
+            intelligent_memory_system.start_learning_engine()
+        
+        if hasattr(performance_optimization_engine, 'start_performance_engine'):
+            performance_optimization_engine.start_performance_engine()
+        
+        if hasattr(enhanced_integration_manager, '_initialize_background_tasks'):
+            await enhanced_integration_manager._initialize_background_tasks()
+        
+        if hasattr(advanced_workflow_engine, 'start_background_processor'):
+            advanced_workflow_engine.start_background_processor()
+            
+    except Exception as e:
+        logger.error(f"Background engine startup error: {e}")
     
     logger.info("✅ All enhanced systems initialized successfully!")
 
