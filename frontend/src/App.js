@@ -101,6 +101,7 @@ function App() {
         setPageTitle(response.data.page_data.title);
         await loadRecentTabs();
         await loadRecommendations();
+        await loadAutomationSuggestions(url);
       }
     } catch (error) {
       console.error('Navigation error:', error);
