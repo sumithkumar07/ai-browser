@@ -27,10 +27,18 @@ from workflow_manager import workflow_manager, WorkflowManager
 from integration_manager import integration_manager
 from integration_auth_manager import IntegrationAuthManager
 
+# Import all enhanced components
+from enhanced_ai_manager import enhanced_ai_manager
+from advanced_automation_engine import advanced_automation_engine
+from intelligent_memory_system import intelligent_memory_system, IntelligentMemorySystem
+from performance_optimization_engine import performance_optimization_engine
+from enhanced_integration_manager import enhanced_integration_manager, EnhancedIntegrationManager
+from advanced_workflow_engine import advanced_workflow_engine, AdvancedWorkflowEngine
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="AETHER Browser API", version="2.0.0")
+app = FastAPI(title="AETHER Browser API - Enhanced", version="3.0.0")
 
 # Enhanced CORS middleware
 app.add_middleware(
@@ -46,8 +54,13 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL, maxPoolSize=50, minPoolSize=10)
 db = client.aether_browser
 
-# Initialize managers
+# Initialize enhanced managers
 workflow_manager = WorkflowManager(client)
+
+# Initialize all enhanced systems
+intelligent_memory_system = IntelligentMemorySystem(client)
+enhanced_integration_manager = EnhancedIntegrationManager(client)
+advanced_workflow_engine = AdvancedWorkflowEngine(client)
 integration_auth_manager = IntegrationAuthManager(client)
 
 # Enhanced Pydantic models
