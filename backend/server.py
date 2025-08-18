@@ -368,7 +368,7 @@ async def browse_page(session: BrowsingSession):
 
 @app.post("/api/chat")
 async def chat_with_ai(chat_data: ChatMessage):
-    """Chat with AI assistant"""
+    """Enhanced chat with AI assistant - Phase 3: Autonomous AI"""
     try:
         session_id = chat_data.session_id or str(uuid.uuid4())
         
@@ -378,27 +378,85 @@ async def chat_with_ai(chat_data: ChatMessage):
             page_data = await get_page_content(chat_data.current_url)
             context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
         
-        # Get AI response
-        ai_response = await get_ai_response(
+        # **PHASE 3: ENHANCED AI RESPONSE WITH AUTONOMOUS CAPABILITIES**
+        ai_result = await get_ai_response(
             chat_data.message, 
             context=context,
-            session_id=session_id
+            session_id=session_id,
+            proactive=True
         )
         
-        # Store chat session
+        # Extract enhanced response data
+        ai_response = ai_result["response"] if isinstance(ai_result, dict) else ai_result
+        proactive_suggestions = ai_result.get("proactive_suggestions", []) if isinstance(ai_result, dict) else []
+        automation_opportunities = ai_result.get("automation_opportunities", []) if isinstance(ai_result, dict) else []
+        suggested_actions = ai_result.get("suggested_actions", []) if isinstance(ai_result, dict) else []
+        
+        # **PHASE 3: AUTONOMOUS TASK CREATION**
+        automation_task_id = None
+        message_type = "chat"
+        
+        # Check if this warrants automatic task creation
+        if automation_opportunities:
+            high_confidence_automations = [
+                auto for auto in automation_opportunities 
+                if auto.get("confidence", 0) > 0.7
+            ]
+            
+            if high_confidence_automations:
+                # Create automation task automatically
+                task_data = ChatMessage(
+                    message=f"Automate: {chat_data.message}",
+                    session_id=session_id,
+                    current_url=chat_data.current_url
+                )
+                
+                try:
+                    task_response = await create_automation_task(task_data)
+                    if task_response.get("success"):
+                        automation_task_id = task_response["task_id"]
+                        message_type = "automation_offer"
+                        
+                        # Enhance AI response with automation info
+                        ai_response += f"\n\n🤖 **Autonomous Assistant**: I've detected this could be automated and prepared a task for you (ID: {automation_task_id}). Would you like me to execute it?"
+                
+                except Exception as e:
+                    print(f"Auto task creation failed: {e}")
+        
+        # Store enhanced chat session
         chat_record = {
             "session_id": session_id,
             "user_message": chat_data.message,
             "ai_response": ai_response,
             "current_url": chat_data.current_url,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.utcnow(),
+            # **PHASE 3: ENHANCED CONTEXT STORAGE**
+            "proactive_suggestions": proactive_suggestions,
+            "automation_opportunities": automation_opportunities,
+            "suggested_actions": suggested_actions,
+            "message_type": message_type,
+            "automation_task_id": automation_task_id
         }
         
         db.chat_sessions.insert_one(chat_record)
         
+        # **PHASE 3: ENHANCED RESPONSE WITH AUTONOMOUS FEATURES**
         return {
             "response": ai_response,
-            "session_id": session_id
+            "session_id": session_id,
+            "message_type": message_type,
+            "automation_task_id": automation_task_id,
+            # New autonomous features
+            "proactive_suggestions": proactive_suggestions,
+            "automation_opportunities": automation_opportunities, 
+            "suggested_actions": suggested_actions,
+            "autonomous_insights": {
+                "user_patterns": analyze_user_patterns(
+                    list(db.chat_sessions.find({"session_id": session_id}).sort("timestamp", -1).limit(10))
+                ),
+                "context_analysis": context is not None,
+                "engagement_level": "high" if len(proactive_suggestions) > 0 else "normal"
+            }
         }
         
     except Exception as e:
