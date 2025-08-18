@@ -250,6 +250,16 @@ This AETHER AI-powered browser has been thoroughly tested and is ready for produ
 - AI Provider: ✅ Groq API with Llama 3.3 70B model
 - Caching System: ✅ In-memory fallback operational
 
+### 🔍 **MANUAL TESTING VERIFICATION REQUIRED**
+
+**Core Features to Manually Verify:**
+1. **Navigation & URL Bar**: Test browsing to different websites
+2. **AI Assistant Chat**: Test chat functionality with various queries
+3. **Recent Tabs**: Verify browsing history tracking
+4. **Automation Features**: Test automation task creation and execution
+5. **Recommendations**: Test AI-powered content suggestions
+6. **Cross-Feature Integration**: Test context-aware AI responses
+
 ### Future Enhancement Opportunities
 
 1. **Multi-tab Support**: Implement proper tab management with multiple concurrent browsing sessions
