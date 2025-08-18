@@ -930,22 +930,11 @@ class VisualWorkflowEngine:
     def _save_template_to_db(self, template: WorkflowTemplate):
         """Save template to database"""
         
-        template_doc = {
-            "id": template.id,
-            "name": template.name,
-            "description": template.description,
-            "category": template.category,
-            "tags": template.tags,
-            "actions": [asdict(action) for action in template.actions],
-            "estimated_duration": template.estimated_duration,
-            "complexity": template.complexity,
-            "created_at": template.created_at,
-            "usage_count": template.usage_count
-        }
+        template_data = self._serialize_for_mongo(template)
         
         self.db.workflow_templates.replace_one(
             {"id": template.id},
-            template_doc,
+            template_data,
             upsert=True
         )
     
