@@ -193,14 +193,14 @@ async def get_page_content_with_cache(url: str) -> Dict[str, Any]:
         return error_content
 
 async def get_enhanced_ai_response(message: str, context: Optional[str] = None, session_id: Optional[str] = None) -> Dict[str, Any]:
-    """Get AI response using enhanced AI manager"""
+    """Get AI response using enhanced AI manager with all advanced capabilities"""
     
-    # Get session history with extended memory (50 messages)
+    # Get extended session history (100 messages with intelligent pruning)
     session_history = []
     if session_id:
         chat_records = list(db.chat_sessions.find(
             {"session_id": session_id}
-        ).sort("timestamp", -1).limit(50))
+        ).sort("timestamp", -1).limit(100))
         
         for chat in reversed(chat_records):
             session_history.append({"role": "user", "content": chat["user_message"]})
@@ -209,38 +209,70 @@ async def get_enhanced_ai_response(message: str, context: Optional[str] = None, 
     start_time = time.time()
     
     try:
-        response, provider = await ai_manager.get_smart_response(
+        # Record user interaction for learning
+        await intelligent_memory_system.record_user_interaction(
+            session_id or "anonymous",
+            "chat",
+            {
+                "message": message,
+                "current_url": context,
+                "session_id": session_id,
+                "important": len(message) > 100 or "automate" in message.lower()
+            },
+            {"page_context": context}
+        )
+        
+        # Get enhanced AI response with all capabilities
+        ai_result = await enhanced_ai_manager.get_enhanced_ai_response(
             message=message,
             context=context,
-            session_history=session_history
+            session_history=session_history,
+            user_id=session_id
         )
         
         # Record performance metrics
         response_time = time.time() - start_time
-        performance_monitor.record_ai_provider_usage(
-            provider.value, 
-            "general",  # Could enhance to detect query type
-            response_time, 
-            True
+        performance_optimization_engine.record_ai_provider_performance(
+            ai_result["provider"],
+            ai_result["query_type"],
+            response_time,
+            not ai_result.get("cached", False),
+            ai_result.get("model", "")
+        )
+        
+        # Record API performance
+        performance_optimization_engine.record_api_performance(
+            "/api/chat", "POST", response_time, 200, session_id
         )
         
         return {
-            "response": response,
-            "provider": provider.value,
-            "response_time": response_time,
-            "cached": False
+            "response": ai_result["response"],
+            "provider": ai_result["provider"],
+            "model": ai_result.get("model", ""),
+            "query_type": ai_result.get("query_type", "general"),
+            "language": ai_result.get("language", "en"),
+            "complexity": ai_result.get("complexity", "medium"),
+            "response_time": ai_result["response_time"],
+            "cached": ai_result.get("cached", False)
         }
         
     except Exception as e:
         response_time = time.time() - start_time
-        performance_monitor.record_ai_provider_usage("unknown", "general", response_time, False)
-        performance_monitor.record_error("AI_ERROR", str(e))
         
+        # Record error metrics
+        performance_optimization_engine.record_api_performance(
+            "/api/chat", "POST", response_time, 500, session_id
+        )
+        
+        logger.error(f"Enhanced AI response failed: {e}")
+        
+        # Fallback to basic response
         return {
-            "response": f"I apologize, but I'm experiencing technical difficulties: {str(e)}",
-            "provider": "error",
+            "response": f"I apologize, but I'm experiencing technical difficulties. Please try again in a moment. Error: {str(e)[:100]}",
+            "provider": "fallback",
             "response_time": response_time,
-            "cached": False
+            "cached": False,
+            "error": True
         }
 
 async def generate_page_summary(url: str, content: str):
