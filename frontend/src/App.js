@@ -638,355 +638,183 @@ function App() {
           </div>
         </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Enhanced Browser Content */}
-        <div className={`${isAssistantOpen ? 'flex-1' : 'w-full'} flex flex-col`}>
-          {currentUrl ? (
-            <div className="flex-1 relative bg-white m-4 rounded-xl overflow-hidden shadow-md">
-              {isNavigating && (
-                <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 backdrop-blur-sm">
-                  <div className="text-center">
-                    <div className="loading-dots mb-3">
-                      <div className="loading-dot"></div>
-                      <div className="loading-dot"></div>
-                      <div className="loading-dot"></div>
-                    </div>
-                    <p className="text-gray-600 font-medium">Loading page...</p>
-                  </div>
+        {/* Advanced Workspace or Traditional Layout */}
+        {isAdvancedWorkspace ? (
+          <AdvancedWorkspaceLayout
+            currentUrl={currentUrl}
+            isLoading={isNavigating}
+            onLayoutChange={(layout) => setWorkspaceLayout(layout)}
+            sidebarContent={<SidebarContent />}
+            aiAssistantContent={<AIAssistantContent />}
+            timelineContent={<TimelineContent />}
+            performanceContent={<PerformanceContent />}
+          >
+            <BrowserContent />
+          </AdvancedWorkspaceLayout>
+        ) : (
+          <TraditionalLayout />
+        )}
+
+        {/* Advanced Feature Modals */}
+        <VisualWorkflowBuilder
+          isVisible={isWorkflowBuilderOpen}
+          onClose={() => setIsWorkflowBuilderOpen(false)}
+        />
+
+        <Timeline
+          isVisible={isTimelineOpen}
+          onClose={() => setIsTimelineOpen(false)}
+          sessionId={sessionId}
+        />
+
+        {/* Enhanced Status Bar */}
+        <div className="status-bar">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center space-x-6">
+              <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors">
+                <span>Tabs</span>
+                <span className="text-xs">▼</span>
+              </button>
+              {currentUrl && (
+                <div className="flex items-center space-x-2 text-gray-500">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Secure Connection</span>
                 </div>
               )}
-              <iframe
-                src={currentUrl}
-                className="browser-frame"
-                title={pageTitle}
-                sandbox="allow-same-origin allow-scripts allow-forms allow-navigation"
-              />
+              <div className="flex items-center space-x-2 text-gray-500">
+                <Keyboard size={12} />
+                <span className="text-xs">Shortcuts: Ctrl+L, Ctrl+H, Ctrl+R</span>
+              </div>
             </div>
-          ) : (
-            /* Enhanced Homepage */
-            <div className="welcome-container">
-              <div className="text-center mb-16 animate-fade-in">
-                <h1 className="welcome-title">AETHER</h1>
-                <p className="welcome-subtitle">AI-Powered Browser Experience</p>
+            <div className="flex items-center space-x-6 text-gray-500">
+              <span>© 2025 Aether Browser v3.0</span>
+              <div className="flex items-center space-x-1">
+                <div className="w-1 h-1 bg-primary-500 rounded-full"></div>
+                <span className="text-xs">AI Provider: {selectedAiProvider.toUpperCase()}</span>
               </div>
+              {activeAutomations.length > 0 && (
+                <div className="flex items-center space-x-1">
+                  <Zap size={12} className="text-blue-500" />
+                  <span className="text-xs">{activeAutomations.length} task{activeAutomations.length > 1 ? 's' : ''} running</span>
+                </div>
+              )}
+              {voiceRecording && (
+                <div className="flex items-center space-x-1">
+                  <Mic size={12} className="text-red-500 animate-pulse" />
+                  <span className="text-xs">Listening...</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </DragDropLayer>
+  );
 
-              {/* Enhanced Recent Tabs */}
-              <div className="w-full max-w-6xl mb-16">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-bold text-gray-900">Recent Tabs</h2>
-                  <button className="btn-secondary text-sm">
-                    View All
-                  </button>
-                </div>
-                <div className="tabs-grid">
-                  {recentTabs.length > 0 ? (
-                    recentTabs.map((tab, index) => (
-                      <div
-                        key={tab.id || index}
-                        onClick={() => handleTabClick(tab)}
-                        className="tab-card card-interactive group"
-                      >
-                        <div className="flex items-start space-x-3 h-full">
-                          <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center group-hover:bg-primary-100 transition-colors">
-                            <Globe size={20} className="text-primary-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 truncate text-sm mb-2">
-                              {tab.title || `Recent ${index + 1}`}
-                            </h3>
-                            <p className="text-xs text-gray-500 truncate">{tab.url}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <>
-                      {['Recent 1', 'Recent 2', 'Pages', 'Apps'].map((title, index) => (
-                        <div key={index} className="tab-card card-interactive group">
-                          <div className="flex items-start space-x-3 h-full">
-                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-                              <Globe size={20} className="text-gray-400" />
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
-                              <p className="text-xs text-gray-500 mt-1">No recent activity</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </div>
+  // Traditional Layout Component (existing layout)
+  function TraditionalLayout() {
+    return (
+      <>
+        {/* Main Content */}
+        <div className="flex-1 flex">
+          {/* Enhanced Browser Content */}
+          <div className={`${isAssistantOpen ? 'flex-1' : 'w-full'} flex flex-col`}>
+            <BrowserContent />
+          </div>
 
-              {/* Enhanced Recommendations */}
-              <div className="w-full max-w-6xl">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-bold text-gray-900">Recommendations</h2>
-                  <button className="btn-secondary text-sm">
-                    Refresh
-                  </button>
-                </div>
-                <div className="recommendations-grid">
-                  {recommendations.length > 0 ? (
-                    recommendations.map((rec, index) => (
-                      <div
-                        key={rec.id || index}
-                        onClick={() => handleRecommendationClick(rec)}
-                        className="recommendation-card card-interactive group"
-                      >
-                        <div className="flex items-start space-x-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Globe size={24} className="text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-primary-700 transition-colors">
-                              {rec.title}
-                            </h3>
-                            <p className="text-gray-600 text-sm leading-relaxed">{rec.description}</p>
-                            <div className="mt-3 flex items-center text-xs text-gray-400">
-                              <span>AI Recommended</span>
-                              <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
-                              <span>Trending</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <>
-                      {[
-                        {
-                          title: "Discover AI Tools",
-                          description: "Explore the latest AI-powered tools and services to enhance your productivity and creativity.",
-                          icon: "🤖"
-                        },
-                        {
-                          title: "Tech News & Updates",
-                          description: "Stay informed with the latest technology trends, product launches, and industry insights.",
-                          icon: "📰"
-                        },
-                        {
-                          title: "Learning Resources",
-                          description: "Find educational content, tutorials, and courses to expand your knowledge and skills.",
-                          icon: "📚"
-                        }
-                      ].map((item, index) => (
-                        <div key={index} className="recommendation-card card-interactive group">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center flex-shrink-0 text-xl">
-                              {item.icon}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-primary-700 transition-colors">
-                                {item.title}
-                              </h3>
-                              <p className="text-gray-600 text-sm leading-relaxed">{item.description}</p>
-                              <div className="mt-3 flex items-center text-xs text-gray-400">
-                                <span>Curated Content</span>
-                                <div className="w-1 h-1 bg-gray-300 rounded-full mx-2"></div>
-                                <span>Popular</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </div>
+          {/* Enhanced AI Assistant Sidebar */}
+          {isAssistantOpen && (
+            <div className="w-96 assistant-sidebar flex flex-col">
+              <AIAssistantContent />
             </div>
           )}
         </div>
+      </>
+    );
+  }
 
-        {/* Enhanced AI Assistant Sidebar */}
-        {isAssistantOpen && (
-          <div className="w-96 assistant-sidebar flex flex-col">
-            {/* Enhanced Assistant Header */}
-            <div className="assistant-header flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <MessageCircle size={16} className="text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">Aether Assistant</h3>
-                  <p className="text-xs text-gray-500">AI-powered browsing companion</p>
+  // Browser Content Component
+  function BrowserContent() {
+    return (
+      <>
+        {currentUrl ? (
+          <div className="flex-1 relative bg-white m-4 rounded-xl overflow-hidden shadow-md">
+            {isNavigating && (
+              <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 backdrop-blur-sm">
+                <div className="text-center">
+                  <div className="loading-dots mb-3">
+                    <div className="loading-dot"></div>
+                    <div className="loading-dot"></div>
+                    <div className="loading-dot"></div>
+                  </div>
+                  <p className="text-gray-600 font-medium">Loading page...</p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsAssistantOpen(false)}
-                className="nav-button"
-                title="Close assistant"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Enhanced Chat Messages */}
-            <div className="assistant-messages">
-              {chatMessages.length === 0 && (
-                <div className="text-center py-12 animate-fade-in">
-                  <div className="w-16 h-16 bg-gradient-to-br from-primary-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <MessageCircle size={32} className="text-primary-600" />
-                  </div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Hello! How can I help you?</h4>
-                  <p className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
-                    Ask me anything about the web, get help with browsing, or just have a conversation.
-                  </p>
-                </div>
-              )}
-              
-              {chatMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`chat-message ${message.type}`}
-                >
-                  <div className={`message-bubble ${message.type}`}>
-                    <div className="leading-relaxed whitespace-pre-line">{message.content}</div>
-                    
-                    {/* Automation action buttons */}
-                    {message.message_type === 'automation_offer' && message.automation_task_id && (
-                      <div className="flex items-center space-x-2 mt-3">
-                        <button
-                          onClick={() => executeAutomation(message.automation_task_id)}
-                          className="flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
-                        >
-                          <Play size={12} />
-                          <span>Start</span>
-                        </button>
-                        <button
-                          onClick={() => setShowAutomationPanel(true)}
-                          className="flex items-center space-x-1 px-3 py-1 bg-gray-500 text-white text-xs rounded-lg hover:bg-gray-600 transition-colors"
-                        >
-                          <Settings size={12} />
-                          <span>Customize</span>
-                        </button>
-                        <button
-                          onClick={() => cancelAutomation(message.automation_task_id)}
-                          className="flex items-center space-x-1 px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 transition-colors"
-                        >
-                          <X size={12} />
-                          <span>Cancel</span>
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* Automation suggestions */}
-                    {message.automation_suggestions && message.automation_suggestions.length > 0 && (
-                      <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-                        <div className="text-xs font-medium text-blue-800 mb-2">💡 Quick Actions:</div>
-                        {message.automation_suggestions.slice(0, 2).map((suggestion, index) => (
-                          <button
-                            key={index}
-                            onClick={() => setChatInput(suggestion.command)}
-                            className="block w-full text-left text-xs p-2 hover:bg-blue-100 rounded transition-colors mb-1 last:mb-0"
-                          >
-                            <span className="font-medium text-blue-700">{suggestion.title}</span>
-                            <span className="text-blue-600 ml-1">({suggestion.estimated_time})</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    
-                    <div className="text-xs opacity-60 mt-2">
-                      {new Date(message.timestamp).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {isLoading && (
-                <div className="chat-message assistant">
-                  <div className="message-bubble assistant">
-                    <div className="flex items-center space-x-2">
-                      <div className="loading-dots">
-                        <div className="loading-dot"></div>
-                        <div className="loading-dot"></div>
-                        <div className="loading-dot"></div>
-                      </div>
-                      <span className="text-sm text-gray-600">Thinking...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Enhanced Chat Input */}
-            <div className="assistant-input-container">
-              <div className="flex items-end space-x-3">
-                <div className="flex-1">
-                  <textarea
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type your message..."
-                    rows={1}
-                    className="input-primary resize-none min-h-[44px] max-h-[120px] text-sm"
-                    style={{
-                      height: 'auto',
-                      minHeight: '44px',
-                      maxHeight: '120px'
-                    }}
-                  />
-                </div>
-                <button
-                  onClick={sendMessage}
-                  disabled={!chatInput.trim() || isLoading}
-                  className="btn-primary p-3 flex-shrink-0"
-                  title="Send message"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-              
-              {currentUrl && (
-                <div className="flex items-center space-x-2 mt-3 px-3 py-2 bg-primary-50 rounded-lg">
-                  <Globe size={14} className="text-primary-600" />
-                  <span className="text-xs text-primary-700 font-medium truncate">
-                    Analyzing: {pageTitle || currentUrl}
-                  </span>
-                </div>
-              )}
-            </div>
+            )}
+            <iframe
+              src={currentUrl}
+              className="browser-frame"
+              title={pageTitle}
+              sandbox="allow-same-origin allow-scripts allow-forms allow-navigation"
+            />
           </div>
+        ) : (
+          <HomepageContent />
         )}
-      </div>
+      </>
+    );
+  }
 
-      {/* Enhanced Status Bar */}
-      <div className="status-bar">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center space-x-6">
-            <button className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors">
-              <span>Tabs</span>
-              <span className="text-xs">▼</span>
-            </button>
-            {currentUrl && (
-              <div className="flex items-center space-x-2 text-gray-500">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Secure Connection</span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center space-x-6 text-gray-500">
-            <span>© 2025 Aether Browser</span>
-            <div className="flex items-center space-x-1">
-              <div className="w-1 h-1 bg-primary-500 rounded-full"></div>
-              <span className="text-xs">Powered by AI</span>
+  // Homepage Content Component
+  function HomepageContent() {
+    return (
+      <div className="welcome-container">
+        <div className="text-center mb-16 animate-fade-in">
+          <h1 className="welcome-title">AETHER</h1>
+          <p className="welcome-subtitle">AI-Powered Browser Experience</p>
+          <div className="flex items-center justify-center space-x-4 mt-6">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <BarChart3 size={16} />
+              <span>Advanced Workspace Available</span>
             </div>
-            {activeAutomations.length > 0 && (
-              <div className="flex items-center space-x-1">
-                <Zap size={12} className="text-blue-500" />
-                <span className="text-xs">{activeAutomations.length} task{activeAutomations.length > 1 ? 's' : ''} running</span>
-              </div>
-            )}
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Workflow size={16} />
+              <span>Visual Workflow Builder</span>
+            </div>
           </div>
         </div>
+
+        {/* Enhanced Recent Tabs */}
+        <div className="w-full max-w-6xl mb-16">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold text-gray-900">Recent Tabs</h2>
+            <button 
+              onClick={() => setIsTimelineOpen(true)}
+              className="btn-secondary text-sm flex items-center space-x-2"
+            >
+              <Layers size={16} />
+              <span>View Timeline</span>
+            </button>
+          </div>
+          <RecentTabsGrid />
+        </div>
+
+        {/* Enhanced Recommendations */}
+        <div className="w-full max-w-6xl">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold text-gray-900">Recommendations</h2>
+            <button 
+              onClick={loadRecommendations}
+              className="btn-secondary text-sm"
+            >
+              Refresh
+            </button>
+          </div>
+          <RecommendationsGrid />
+        </div>
       </div>
-    </div>
+    );
+  }
   );
 }
 
