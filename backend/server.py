@@ -38,10 +38,22 @@ from advanced_workflow_engine import advanced_workflow_engine, AdvancedWorkflowE
 # Import new Phase 1-4 modules
 from enhanced_agentic_engine import initialize_agentic_engine
 from native_browser_engine import enhanced_browser_engine
+from enhanced_native_browser_engine import enhanced_browser_engine as enhanced_native_browser_engine
 from ai_data_extractor import ai_data_extractor
 from social_media_automation import social_media_automator
 from report_generator import advanced_report_generator
 from timeline_manager import initialize_timeline_manager
+
+# Import Phase 1 components
+from computer_vision_api import computer_vision_api
+from multi_step_reasoning_engine import multi_step_reasoning_engine
+
+# Import Phase 3 components
+from user_pattern_learning import initialize_user_pattern_learning
+
+# Import Phase 4 components
+from custom_integration_builder import initialize_custom_integration_builder
+from integration_health_monitor import initialize_integration_health_monitor
 
 # Configure logging
 logger = logging.getLogger(__name__)
