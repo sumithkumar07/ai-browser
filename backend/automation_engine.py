@@ -72,23 +72,6 @@ class AutomationEngine:
             }
         }
     
-    def get_driver(self) -> webdriver.Chrome:
-        """Get a Chrome WebDriver instance with optimal settings for automation"""
-        options = Options()
-        options.add_argument("--headless")  # Run in background
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-logging")
-        options.add_argument("--disable-web-security")
-        options.add_argument("--user-agent=AETHER Browser/2.0 (+http://aether.browser)")
-        
-        driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(30)
-        driver.implicitly_wait(10)
-        return driver
-    
     async def parse_natural_language_task(self, description: str, current_url: str = None) -> Dict[str, Any]:
         """Parse natural language task description into actionable workflow steps"""
         
