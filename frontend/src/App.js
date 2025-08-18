@@ -13,10 +13,23 @@ import {
   Play,
   Pause,
   Settings,
-  Zap
+  Zap,
+  Layout,
+  BarChart3,
+  Layers,
+  Mic,
+  MicOff,
+  Keyboard,
+  Workflow
 } from 'lucide-react';
 import axios from 'axios';
 import './App.css';
+
+// Import advanced components
+import AdvancedWorkspaceLayout from './components/AdvancedWorkspaceLayout';
+import VisualWorkflowBuilder from './components/WorkflowBuilder/VisualWorkflowBuilder';
+import Timeline from './components/Timeline/Timeline';
+import DragDropLayer from './components/DragDrop/DragDropLayer';
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
