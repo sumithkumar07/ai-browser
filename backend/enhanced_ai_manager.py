@@ -696,7 +696,7 @@ Always be helpful, accurate, and proactive in suggesting ways to enhance the use
         try:
             query_type = QueryType.SUMMARIZATION
             complexity = "medium"
-        provider, model = self.select_optimal_provider_and_model(query_type, complexity)
+            provider, model = self.select_optimal_provider_and_model(query_type, complexity)
             
             length_instructions = {
                 "short": "Provide a brief 2-3 sentence summary",
