@@ -81,6 +81,30 @@ class IntegrationRequest(BaseModel):
     api_key: str
     type: str
 
+# New Pydantic models for enhancements
+class BrowserSessionRequest(BaseModel):
+    session_id: str
+    user_profile: Optional[Dict] = None
+
+class AutomationRequest(BaseModel):
+    session_id: str
+    automation_config: Dict
+
+class ResearchRequest(BaseModel):
+    topic: str
+    depth: str = "comprehensive"
+    focus_areas: Optional[List[str]] = []
+    session_id: Optional[str] = None
+
+class PlatformConnectionRequest(BaseModel):
+    platform: str
+    credentials: Dict
+
+class CrossPlatformWorkflowRequest(BaseModel):
+    workflow_id: Optional[str] = None
+    platforms: List[str]
+    steps: List[Dict]
+
 # Enhanced helper functions
 async def get_page_content(url: str) -> Dict[str, Any]:
     """Fetch and parse web page content"""
