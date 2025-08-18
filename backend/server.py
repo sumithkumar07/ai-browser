@@ -28,6 +28,9 @@ load_dotenv()
 
 app = FastAPI(title="AETHER Browser API - Enhanced v4.0 - ALL PHASES COMPLETE", version="4.0.0")
 
+# Include enhanced endpoints router
+app.include_router(enhanced_router)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
