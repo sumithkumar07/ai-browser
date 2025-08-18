@@ -910,6 +910,23 @@ class VisualWorkflowEngine:
         </html>
         """
     
+    def _serialize_for_mongo(self, obj):
+        """Convert objects to MongoDB-compatible format"""
+        if isinstance(obj, Enum):
+            return obj.value
+        elif isinstance(obj, datetime):
+            return obj
+        elif isinstance(obj, dict):
+            return {k: self._serialize_for_mongo(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._serialize_for_mongo(item) for item in obj]
+        elif hasattr(obj, '__dict__'):
+            # Handle dataclass or object
+            data = asdict(obj) if hasattr(obj, '__dataclass_fields__') else obj.__dict__
+            return self._serialize_for_mongo(data)
+        else:
+            return obj
+    
     def _save_template_to_db(self, template: WorkflowTemplate):
         """Save template to database"""
         
