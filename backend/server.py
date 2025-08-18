@@ -17,6 +17,9 @@ import time
 from ai_manager import ai_manager, AIProvider
 from cache_manager import cache_manager
 from performance_monitor import performance_monitor, monitor_performance
+from automation_engine import automation_engine
+from workflow_manager import workflow_manager, WorkflowManager
+from integration_manager import integration_manager
 
 load_dotenv()
 
