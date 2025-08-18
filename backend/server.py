@@ -15,10 +15,13 @@ import asyncio
 import time
 import logging
 
-# Import enhancement engines
+# Import enhancement engines - ALL PHASES IMPLEMENTED IN PARALLEL
 from native_browser_engine_enhanced import NativeBrowserEngine, BrowserSecurityManager, BrowserPerformanceMonitor
-from research_automation_engine import ResearchAutomationEngine, ResearchKnowledgeBase, SourceAnalyzer, IntelligentReportGenerator
+from multi_ai_provider_engine import MultiAIProviderEngine, AIProvider
+from shadow_workspace_engine import ShadowWorkspaceEngine, WorkspaceStatus
 from cross_platform_integration_hub import CrossPlatformIntegrationHub, PlatformCredentialManager
+from research_automation_engine import ResearchAutomationEngine, ResearchType
+from performance_optimization_engine import PerformanceOptimizationEngine, OptimizationConfig, OptimizationLevel
 
 load_dotenv()
 
