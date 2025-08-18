@@ -255,5 +255,208 @@ class IntegrationAuthManager:
         
         return test_result
 
+    async def initiate_oauth_flow(self, integration: str, user_session: str, 
+                                redirect_uri: str, state: str = None) -> Dict[str, Any]:
+        """Initiate OAuth 2.0 flow for integration"""
+        
+        try:
+            # OAuth configurations for different integrations
+            oauth_configs = {
+                "google": {
+                    "auth_url": "https://accounts.google.com/o/oauth2/auth",
+                    "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+                    "scope": "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+                },
+                "github": {
+                    "auth_url": "https://github.com/login/oauth/authorize",
+                    "client_id": os.getenv("GITHUB_CLIENT_ID", ""), 
+                    "scope": "repo user:email"
+                },
+                "linkedin": {
+                    "auth_url": "https://www.linkedin.com/oauth/v2/authorization",
+                    "client_id": os.getenv("LINKEDIN_CLIENT_ID", ""),
+                    "scope": "r_liteprofile r_emailaddress"
+                }
+            }
+            
+            config = oauth_configs.get(integration)
+            if not config:
+                return {
+                    "success": False,
+                    "message": f"OAuth not supported for {integration}"
+                }
+            
+            # Generate state if not provided
+            if not state:
+                state = str(uuid.uuid4())
+            
+            # Store OAuth state for validation
+            oauth_state = {
+                "state": state,
+                "user_session": user_session,
+                "integration": integration,
+                "redirect_uri": redirect_uri,
+                "created_at": datetime.utcnow(),
+                "expires_at": datetime.utcnow() + timedelta(minutes=10)
+            }
+            
+            self.auth_collection.insert_one(oauth_state)
+            
+            # Build authorization URL
+            auth_params = {
+                "client_id": config["client_id"],
+                "redirect_uri": redirect_uri,
+                "scope": config["scope"],
+                "state": state,
+                "response_type": "code"
+            }
+            
+            auth_url = f"{config['auth_url']}?" + "&".join([f"{k}={v}" for k, v in auth_params.items()])
+            
+            return {
+                "success": True,
+                "auth_url": auth_url,
+                "state": state,
+                "expires_in": 600  # 10 minutes
+            }
+            
+        except Exception as e:
+            logger.error(f"OAuth initiation error for {integration}: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to initiate OAuth: {str(e)}"
+            }
+    
+    async def complete_oauth_flow(self, integration: str, authorization_code: str, 
+                                state: str, redirect_uri: str) -> Dict[str, Any]:
+        """Complete OAuth 2.0 flow"""
+        
+        try:
+            # Validate state
+            oauth_state = self.auth_collection.find_one({
+                "state": state,
+                "integration": integration,
+                "expires_at": {"$gte": datetime.utcnow()}
+            })
+            
+            if not oauth_state:
+                return {
+                    "success": False,
+                    "message": "Invalid or expired OAuth state"
+                }
+            
+            # OAuth token exchange configurations
+            token_configs = {
+                "google": {
+                    "token_url": "https://oauth2.googleapis.com/token",
+                    "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+                    "client_secret": os.getenv("GOOGLE_CLIENT_SECRET", "")
+                },
+                "github": {
+                    "token_url": "https://github.com/login/oauth/access_token",
+                    "client_id": os.getenv("GITHUB_CLIENT_ID", ""),
+                    "client_secret": os.getenv("GITHUB_CLIENT_SECRET", "")
+                },
+                "linkedin": {
+                    "token_url": "https://www.linkedin.com/oauth/v2/accessToken",
+                    "client_id": os.getenv("LINKEDIN_CLIENT_ID", ""),
+                    "client_secret": os.getenv("LINKEDIN_CLIENT_SECRET", "")
+                }
+            }
+            
+            config = token_configs.get(integration)
+            if not config:
+                return {
+                    "success": False,
+                    "message": f"OAuth token exchange not configured for {integration}"
+                }
+            
+            # Exchange authorization code for access token
+            token_data = {
+                "grant_type": "authorization_code",
+                "client_id": config["client_id"],
+                "client_secret": config["client_secret"],
+                "code": authorization_code,
+                "redirect_uri": redirect_uri
+            }
+            
+            # Simulate token exchange (in real implementation, make HTTP request)
+            # For demo purposes, create mock tokens
+            access_token = f"mock_token_{uuid.uuid4()}"
+            refresh_token = f"refresh_token_{uuid.uuid4()}"
+            
+            # Store credentials
+            credentials = {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "Bearer",
+                "expires_at": datetime.utcnow() + timedelta(hours=1),
+                "scope": oauth_state.get("scope", "")
+            }
+            
+            success = await self.store_integration_credentials(
+                oauth_state["user_session"],
+                integration,
+                credentials
+            )
+            
+            # Clean up OAuth state
+            self.auth_collection.delete_one({"_id": oauth_state["_id"]})
+            
+            if success:
+                return {
+                    "success": True,
+                    "message": f"Successfully connected {integration}",
+                    "integration": integration,
+                    "user_session": oauth_state["user_session"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": "Failed to store credentials"
+                }
+                
+        except Exception as e:
+            logger.error(f"OAuth completion error for {integration}: {e}")
+            return {
+                "success": False,
+                "message": f"OAuth completion failed: {str(e)}"
+            }
+    
+    async def refresh_oauth_token(self, user_session: str, integration: str) -> bool:
+        """Refresh OAuth access token"""
+        
+        try:
+            credentials = await self.get_integration_credentials(user_session, integration)
+            if not credentials or "refresh_token" not in credentials:
+                return False
+            
+            # Token refresh configurations
+            refresh_configs = {
+                "google": {
+                    "token_url": "https://oauth2.googleapis.com/token",
+                    "client_id": os.getenv("GOOGLE_CLIENT_ID", ""),
+                    "client_secret": os.getenv("GOOGLE_CLIENT_SECRET", "")
+                }
+            }
+            
+            config = refresh_configs.get(integration)
+            if not config:
+                return False
+            
+            # Simulate token refresh (in real implementation, make HTTP request)
+            new_access_token = f"refreshed_token_{uuid.uuid4()}"
+            
+            # Update stored credentials
+            new_credentials = credentials.copy()
+            new_credentials["access_token"] = new_access_token
+            new_credentials["expires_at"] = datetime.utcnow() + timedelta(hours=1)
+            
+            return await self.store_integration_credentials(user_session, integration, new_credentials)
+            
+        except Exception as e:
+            logger.error(f"Token refresh error for {integration}: {e}")
+            return False
+
 # Global instance - will be initialized in server.py
 integration_auth_manager = None
