@@ -56,6 +56,7 @@ shadow_workspace = ShadowWorkspaceEngine(max_concurrent_workspaces=20, max_worke
 performance_engine = PerformanceOptimizationEngine(
     OptimizationConfig(
         level=OptimizationLevel.AGGRESSIVE,
+        cache_strategy=CacheStrategy.ADAPTIVE,
         enable_gpu_acceleration=True,
         enable_compression=True,
         enable_prefetching=True,
