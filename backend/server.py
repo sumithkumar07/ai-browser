@@ -498,6 +498,263 @@ async def clear_browsing_history():
         performance_monitor.record_error("CLEAR_HISTORY_ERROR", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+# ====================================
+# NEW AUTOMATION & WORKFLOW ENDPOINTS
+# ====================================
+
+@app.post("/api/automate-task")
+@monitor_performance
+async def create_automation_task(task_data: ChatMessage):
+    """Create a new automation task from natural language description"""
+    try:
+        # Create automation task
+        task_id = await automation_engine.create_automation_task(
+            description=task_data.message,
+            user_session=task_data.session_id or str(uuid.uuid4()),
+            current_url=task_data.current_url
+        )
+        
+        # Get task details
+        task_status = await automation_engine.get_task_status(task_id)
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "task_details": task_status,
+            "message": f"Automation task created: {task_status['description']}"
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTOMATION_CREATE_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/execute-automation/{task_id}")
+@monitor_performance
+async def execute_automation(task_id: str, background_tasks: BackgroundTasks):
+    """Execute an automation task in the background"""
+    try:
+        # Add task execution to background
+        background_tasks.add_task(automation_engine.execute_automation_task, task_id)
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": "started",
+            "message": "Automation task started in background"
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTOMATION_EXECUTE_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/automation-status/{task_id}")
+@monitor_performance
+async def get_automation_status(task_id: str):
+    """Get current status of an automation task"""
+    try:
+        status = await automation_engine.get_task_status(task_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        return {
+            "success": True,
+            "task_status": status
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTOMATION_STATUS_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/cancel-automation/{task_id}")
+@monitor_performance
+async def cancel_automation(task_id: str):
+    """Cancel a running automation task"""
+    try:
+        cancelled = await automation_engine.cancel_task(task_id)
+        
+        if not cancelled:
+            raise HTTPException(status_code=404, detail="Task not found or already completed")
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "message": "Automation task cancelled"
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTOMATION_CANCEL_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/active-automations")
+@monitor_performance
+async def get_active_automations():
+    """Get list of all active automation tasks"""
+    try:
+        active_tasks = await automation_engine.get_active_tasks()
+        
+        return {
+            "success": True,
+            "active_tasks": active_tasks,
+            "count": len(active_tasks)
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("ACTIVE_AUTOMATIONS_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/automation-suggestions")
+@monitor_performance
+async def get_automation_suggestions(current_url: str = ""):
+    """Get AI-powered automation suggestions for current context"""
+    try:
+        suggestions = await automation_engine.suggest_automations(current_url)
+        
+        return {
+            "success": True,
+            "suggestions": suggestions,
+            "context_url": current_url
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("AUTOMATION_SUGGESTIONS_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ====================================
+# WORKFLOW MANAGEMENT ENDPOINTS
+# ====================================
+
+@app.get("/api/workflow-templates")
+@monitor_performance
+async def get_workflow_templates(category: str = None):
+    """Get available workflow templates"""
+    try:
+        templates = await workflow_manager.get_workflow_templates(category)
+        
+        return {
+            "success": True,
+            "templates": templates,
+            "category": category
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("WORKFLOW_TEMPLATES_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/create-workflow")
+@monitor_performance  
+async def create_workflow(workflow_data: Dict[str, Any]):
+    """Create a new workflow from a template"""
+    try:
+        workflow_id = await workflow_manager.create_workflow(
+            user_session=workflow_data.get("user_session", str(uuid.uuid4())),
+            template_id=workflow_data.get("template_id"),
+            parameters=workflow_data.get("parameters", {})
+        )
+        
+        workflow_status = await workflow_manager.get_workflow_status(workflow_id)
+        
+        return {
+            "success": True,
+            "workflow_id": workflow_id,
+            "workflow_details": workflow_status
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("WORKFLOW_CREATE_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow-status/{workflow_id}")
+@monitor_performance
+async def get_workflow_status(workflow_id: str):
+    """Get current status of a workflow"""
+    try:
+        status = await workflow_manager.get_workflow_status(workflow_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        return {
+            "success": True,
+            "workflow_status": status
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("WORKFLOW_STATUS_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/user-workflows/{user_session}")
+@monitor_performance
+async def get_user_workflows(user_session: str, status: str = None):
+    """Get workflows for a specific user"""
+    try:
+        workflows = await workflow_manager.get_user_workflows(user_session, status)
+        
+        return {
+            "success": True,
+            "workflows": workflows,
+            "user_session": user_session
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("USER_WORKFLOWS_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/personalized-suggestions/{user_session}")
+@monitor_performance
+async def get_personalized_suggestions(user_session: str, current_url: str = ""):
+    """Get personalized workflow suggestions"""
+    try:
+        suggestions = await workflow_manager.get_personalized_suggestions(user_session, current_url)
+        
+        return {
+            "success": True,
+            "suggestions": suggestions,
+            "personalized": True
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("PERSONALIZED_SUGGESTIONS_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ====================================
+# INTEGRATION ENDPOINTS
+# ====================================
+
+@app.get("/api/integrations")
+@monitor_performance
+async def get_available_integrations():
+    """Get list of available integrations"""
+    try:
+        integrations = await integration_manager.get_available_integrations()
+        
+        return {
+            "success": True,
+            "integrations": integrations
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("INTEGRATIONS_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/integration-action")
+@monitor_performance
+async def execute_integration_action(action_data: Dict[str, Any]):
+    """Execute an action using a specific integration"""
+    try:
+        result = await integration_manager.execute_integration_action(
+            integration_id=action_data.get("integration_id"),
+            action=action_data.get("action"),
+            parameters=action_data.get("parameters", {})
+        )
+        
+        return {
+            "success": True,
+            "integration_result": result
+        }
+        
+    except Exception as e:
+        performance_monitor.record_error("INTEGRATION_ACTION_ERROR", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
