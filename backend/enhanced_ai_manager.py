@@ -588,6 +588,103 @@ Always be helpful, accurate, and proactive in suggesting ways to enhance the use
             })
         
         return suggestions[:5]  # Return top 5 suggestions
+    
+    def start_learning_engine(self):
+        """Start the learning engine for continuous improvement"""
+        logger.info("Enhanced AI Manager learning engine started")
+        # Background learning could be implemented here
+        
+    async def get_enhanced_ai_response(self, message: str, context: Optional[str] = None, 
+                                     session_history: List[Dict] = None, user_id: str = None) -> Dict[str, Any]:
+        """Main method to get enhanced AI response - handles all the intelligence"""
+        
+        # This is the main method that should be called from server.py
+        # It combines all the enhanced features
+        
+        start_time = time.time()
+        
+        # Detect language and classify query
+        language = self.detect_language_enhanced(message)
+        query_type = self.classify_query_advanced(message, context)
+        
+        # Create cache key
+        context_hash = hashlib.md5((context or "").encode()).hexdigest()[:8]
+        cache_key = f"{message}:{query_type.value}:{context_hash}:{language}"
+        
+        # Check cache first
+        if cache_key in self.response_cache:
+            cached_result = self.response_cache[cache_key]
+            cached_result["cached"] = True
+            return cached_result
+        
+        # Determine optimal provider and model
+        provider, model, complexity = self._select_optimal_provider(query_type, message, user_id)
+        
+        # Build messages with enhanced context
+        messages = self._build_enhanced_messages(message, context, session_history, query_type, language)
+        
+        try:
+            # Get response from selected provider
+            if provider == AIProvider.GROQ:
+                response = await self._get_groq_response(messages, model, query_type)
+            elif provider == AIProvider.OPENAI and self.openai_client:
+                response = await self._get_openai_response(messages, model, query_type)
+            elif provider == AIProvider.ANTHROPIC and self.anthropic_client:
+                response = await self._get_anthropic_response(messages, model, query_type)
+            elif provider == AIProvider.GOOGLE and self.google_client:
+                response = await self._get_google_response(messages, model, query_type)
+            else:
+                # Fallback to Groq
+                response = await self._get_groq_response(messages, self.model_configs[AIProvider.GROQ]["models"]["smart"], query_type)
+                provider = AIProvider.GROQ
+                model = self.model_configs[AIProvider.GROQ]["models"]["smart"]
+            
+            response_time = time.time() - start_time
+            
+            # Update performance stats
+            self._update_performance_stats(provider.value, query_type.value, response_time, True)
+            
+            # Update user memory
+            if user_id:
+                self._update_user_memory(user_id, message, response, query_type.value)
+            
+            result = {
+                "response": response,
+                "provider": provider.value,
+                "model": model,
+                "query_type": query_type.value,
+                "language": language,
+                "complexity": complexity,
+                "response_time": response_time,
+                "cached": False
+            }
+            
+            # Cache successful responses
+            if response:
+                self.response_cache[cache_key] = result
+            
+            return result
+            
+        except Exception as e:
+            response_time = time.time() - start_time
+            
+            # Update performance stats for failure
+            self._update_performance_stats(provider.value, query_type.value, response_time, False)
+            
+            logger.error(f"Enhanced AI response failed for {provider.value}: {e}")
+            
+            # Fallback response
+            return {
+                "response": f"I apologize, but I'm experiencing technical difficulties with the AI service. Please try again in a moment.",
+                "provider": "fallback",
+                "model": "fallback",
+                "query_type": query_type.value,
+                "language": language,
+                "complexity": "simple",
+                "response_time": response_time,
+                "cached": False,
+                "error": True
+            }
 
 # Global enhanced AI manager instance
 enhanced_ai_manager = EnhancedAIManager()
