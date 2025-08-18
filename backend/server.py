@@ -49,6 +49,23 @@ class Tab(BaseModel):
     title: str
     timestamp: datetime
 
+class SummarizationRequest(BaseModel):
+    url: str
+    length: str = "medium"
+
+class SearchSuggestionRequest(BaseModel):
+    query: str
+
+class WorkflowRequest(BaseModel):
+    name: str
+    description: str
+    steps: List[Dict[str, Any]]
+
+class IntegrationRequest(BaseModel):
+    name: str
+    api_key: str
+    type: str
+
 # Helper functions
 async def get_page_content(url: str) -> Dict[str, Any]:
     """Fetch and parse web page content"""
