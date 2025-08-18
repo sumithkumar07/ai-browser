@@ -691,6 +691,12 @@ function App() {
               <div className="w-1 h-1 bg-primary-500 rounded-full"></div>
               <span className="text-xs">Powered by AI</span>
             </div>
+            {activeAutomations.length > 0 && (
+              <div className="flex items-center space-x-1">
+                <Zap size={12} className="text-blue-500" />
+                <span className="text-xs">{activeAutomations.length} task{activeAutomations.length > 1 ? 's' : ''} running</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
