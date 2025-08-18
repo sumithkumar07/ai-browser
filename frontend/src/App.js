@@ -194,6 +194,22 @@ function App() {
     };
     
     setChatMessages(prev => [...prev, newUserMessage]);
+
+    // **PHASE 1: AI-FIRST COMMAND PROCESSING** (Fellou.ai Style)
+    const processedUICommand = processAICommand(userMessage);
+    if (processedUICommand.handled) {
+      // Add AI response for UI action
+      const uiResponseMessage = {
+        id: Date.now() + 1,
+        type: 'assistant',
+        content: processedUICommand.response,
+        timestamp: new Date(),
+        message_type: 'ui_action'
+      };
+      setChatMessages(prev => [...prev, uiResponseMessage]);
+      return; // Don't send to backend for simple UI commands
+    }
+
     setIsLoading(true);
 
     try {
@@ -237,6 +253,75 @@ function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // **PHASE 1: AI-FIRST COMMAND PROCESSOR** (Like Fellou.ai)
+  const processAICommand = (message) => {
+    const lowerMessage = message.toLowerCase();
+    
+    // Workflow Builder triggers
+    if (lowerMessage.includes('workflow') || lowerMessage.includes('automation') || 
+        lowerMessage.includes('create task') || lowerMessage.includes('build workflow')) {
+      setIsWorkflowBuilderOpen(true);
+      return {
+        handled: true,
+        response: "🔧 **Workflow Builder Opened**\n\nI've opened the visual workflow builder for you. You can now create, edit, and manage automation workflows with a drag-and-drop interface."
+      };
+    }
+    
+    // Timeline triggers  
+    if (lowerMessage.includes('history') || lowerMessage.includes('timeline') || 
+        lowerMessage.includes('yesterday') || lowerMessage.includes('visited') || 
+        lowerMessage.includes('recent') || lowerMessage.includes('past')) {
+      setIsTimelineOpen(true);
+      return {
+        handled: true,
+        response: "📚 **Timeline & History Opened**\n\nHere's your browsing timeline. You can view your activity history, revisit previous sessions, and restore past states."
+      };
+    }
+    
+    // Advanced Workspace triggers
+    if (lowerMessage.includes('advanced mode') || lowerMessage.includes('workspace') || 
+        lowerMessage.includes('layout') || lowerMessage.includes('panels')) {
+      setIsAdvancedWorkspace(true);
+      return {
+        handled: true,
+        response: "🚀 **Advanced Workspace Activated**\n\nSwitched to advanced workspace layout with enhanced panels, multi-view capabilities, and professional productivity features."
+      };
+    }
+    
+    // Simple mode triggers
+    if (lowerMessage.includes('simple mode') || lowerMessage.includes('basic') || 
+        lowerMessage.includes('minimal') || lowerMessage.includes('clean')) {
+      setIsAdvancedWorkspace(false);
+      return {
+        handled: true,
+        response: "✨ **Simple Mode Activated**\n\nSwitched to clean, minimal interface for focused browsing. Less clutter, more clarity."
+      };
+    }
+    
+    // Close panels
+    if (lowerMessage.includes('close') && (lowerMessage.includes('panel') || 
+        lowerMessage.includes('workflow') || lowerMessage.includes('timeline'))) {
+      setIsWorkflowBuilderOpen(false);
+      setIsTimelineOpen(false);
+      return {
+        handled: true,
+        response: "✅ **Panels Closed**\n\nAll additional panels have been closed. Back to focused browsing mode."
+      };
+    }
+    
+    // Voice command activation
+    if (lowerMessage.includes('voice') || lowerMessage.includes('listen') || 
+        lowerMessage.includes('speak')) {
+      handleVoiceCommand();
+      return {
+        handled: true,
+        response: "🎤 **Voice Command Activated**\n\nI'm now listening for your voice commands. Speak naturally and I'll help you navigate!"
+      };
+    }
+    
+    return { handled: false };
   };
 
   const handleKeyPress = (e) => {
