@@ -39,6 +39,9 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL, maxPoolSize=50, minPoolSize=10)
 db = client.aether_browser
 
+# Initialize workflow manager
+workflow_manager = WorkflowManager(client)
+
 # Enhanced Pydantic models
 class ChatMessage(BaseModel):
     message: str
