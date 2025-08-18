@@ -233,6 +233,7 @@ async def generate_page_summary(url: str, content: str):
 async def startup_event():
     """Initialize background tasks after startup"""
     performance_monitor.start_monitoring()
+    workflow_manager.start_initialization()
 
 @app.get("/api/health")
 async def health_check():
