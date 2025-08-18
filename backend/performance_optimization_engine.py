@@ -1,1038 +1,979 @@
+"""
+PHASE 2: Advanced Performance Optimization Engine
+Real-time performance monitoring, intelligent caching, and auto-optimization
+"""
+
 import asyncio
 import time
-import psutil
 import json
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
-from collections import defaultdict, deque
 import logging
+import statistics
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass, field
+from enum import Enum
+from datetime import datetime, timedelta
+import psutil
 import threading
-from concurrent.futures import ThreadPoolExecutor
-import gc
-import weakref
+from collections import defaultdict, deque
 import hashlib
 
-logger = logging.getLogger(__name__)
+import redis
+import aiofiles
+import structlog
+from prometheus_client import Counter, Histogram, Gauge, start_http_server
 
-class PerformanceMetrics:
-    """Container for performance metrics"""
-    def __init__(self):
-        self.response_times = deque(maxlen=1000)
-        self.error_rates = deque(maxlen=100)
-        self.memory_usage = deque(maxlen=60)
-        self.cpu_usage = deque(maxlen=60)
-        self.cache_hit_rates = deque(maxlen=100)
-        self.concurrent_users = deque(maxlen=60)
-        
-        # Advanced metrics
-        self.ai_provider_performance = defaultdict(lambda: {
-            "response_times": deque(maxlen=100),
-            "success_rates": deque(maxlen=100),
-            "error_counts": 0,
-            "total_calls": 0
-        })
-        
-        self.automation_performance = defaultdict(lambda: {
-            "execution_times": deque(maxlen=50),
-            "success_rates": deque(maxlen=50),
-            "complexity_scores": deque(maxlen=50)
-        })
+# Configure logging
+logger = structlog.get_logger(__name__)
 
-class PerformanceOptimizationEngine:
-    """Advanced performance optimization and monitoring system"""
+class CacheLevel(Enum):
+    L1_MEMORY = "l1_memory"
+    L2_REDIS = "l2_redis"
+    L3_DISK = "l3_disk"
+
+class PerformanceMetric(Enum):
+    RESPONSE_TIME = "response_time"
+    THROUGHPUT = "throughput"
+    ERROR_RATE = "error_rate"
+    CPU_USAGE = "cpu_usage"
+    MEMORY_USAGE = "memory_usage"
+    CACHE_HIT_RATE = "cache_hit_rate"
+    DB_QUERY_TIME = "db_query_time"
+
+@dataclass
+class PerformanceThreshold:
+    metric: PerformanceMetric
+    warning_level: float
+    critical_level: float
+    unit: str
+
+@dataclass
+class CacheEntry:
+    key: str
+    value: Any
+    created_at: datetime
+    accessed_at: datetime
+    access_count: int = 0
+    ttl: Optional[int] = None
+    size_bytes: int = 0
+
+@dataclass
+class SystemMetrics:
+    timestamp: datetime
+    cpu_percent: float
+    memory_percent: float
+    disk_usage: float
+    network_io: Dict[str, int]
+    active_connections: int
+    response_times: List[float] = field(default_factory=list)
+
+class IntelligentCacheManager:
+    """
+    Multi-layer intelligent caching system with AI-powered optimization
+    """
     
-    def __init__(self):
-        self.metrics = PerformanceMetrics()
-        self.optimization_rules = self._initialize_optimization_rules()
-        self.performance_thresholds = self._initialize_thresholds()
+    def __init__(self, redis_client: Optional[redis.Redis] = None):
+        # L1: In-memory cache (fastest)
+        self.l1_cache: Dict[str, CacheEntry] = {}
+        self.l1_max_size = 1000
+        self.l1_max_memory = 100 * 1024 * 1024  # 100MB
         
-        # Performance optimization state
+        # L2: Redis cache (fast, persistent)
+        self.redis_client = redis_client
+        self.l2_enabled = redis_client is not None
+        
+        # L3: Disk cache (slower, large capacity)
+        self.l3_cache_dir = "/tmp/aether_cache"
+        self.l3_max_size = 10 * 1024 * 1024 * 1024  # 10GB
+        
+        # Cache statistics
+        self.stats = {
+            "l1_hits": 0,
+            "l2_hits": 0,
+            "l3_hits": 0,
+            "misses": 0,
+            "evictions": 0,
+            "promotions": 0
+        }
+        
+        # Access patterns for AI optimization
+        self.access_patterns = defaultdict(list)
+        self.hot_keys = set()
+        
+        # Background optimization
         self.optimization_enabled = True
-        self.auto_scaling_enabled = True
-        self.cache_optimization_enabled = True
+        asyncio.create_task(self._optimization_worker())
+    
+    async def get(self, key: str, context: Optional[Dict[str, Any]] = None) -> Optional[Any]:
+        """
+        Get value from cache with intelligent promotion and optimization
+        """
+        # Try L1 cache first
+        if key in self.l1_cache:
+            entry = self.l1_cache[key]
+            if not self._is_expired(entry):
+                entry.accessed_at = datetime.now()
+                entry.access_count += 1
+                self.stats["l1_hits"] += 1
+                self._record_access_pattern(key, "l1_hit", context)
+                return entry.value
+            else:
+                del self.l1_cache[key]
         
-        # Resource management
-        self.thread_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="perf_opt")
-        self.memory_manager = MemoryManager()
-        self.cache_optimizer = CacheOptimizer()
-        self.load_balancer = LoadBalancer()
-        
-        # Monitoring and alerts
-        self.alert_handlers = []
-        self.performance_alerts = deque(maxlen=50)
-        
-        # Background tasks
-        self._monitoring_task = None
-        self._optimization_task = None
-        
-    def start_performance_engine(self):
-        """Start background performance monitoring and optimization"""
-        if self._monitoring_task is None:
+        # Try L2 cache (Redis)
+        if self.l2_enabled:
             try:
-                self._monitoring_task = asyncio.create_task(self._background_monitoring())
-                self._optimization_task = asyncio.create_task(self._background_optimization())
-            except RuntimeError:
-                pass
-    
-    def _initialize_optimization_rules(self) -> Dict[str, Dict]:
-        """Initialize performance optimization rules"""
-        return {
-            "response_time": {
-                "threshold": 2.0,  # seconds
-                "action": "optimize_ai_provider_selection",
-                "priority": "high"
-            },
-            "memory_usage": {
-                "threshold": 85.0,  # percentage
-                "action": "trigger_garbage_collection",
-                "priority": "critical"
-            },
-            "cpu_usage": {
-                "threshold": 80.0,  # percentage
-                "action": "reduce_concurrent_tasks",
-                "priority": "high"
-            },
-            "error_rate": {
-                "threshold": 5.0,  # percentage
-                "action": "switch_ai_provider",
-                "priority": "critical"
-            },
-            "cache_hit_rate": {
-                "threshold": 60.0,  # percentage (minimum)
-                "action": "optimize_cache_strategy",
-                "priority": "medium"
-            }
-        }
-    
-    def _initialize_thresholds(self) -> Dict[str, float]:
-        """Initialize performance thresholds"""
-        return {
-            "excellent_response_time": 0.5,
-            "good_response_time": 1.0,
-            "acceptable_response_time": 2.0,
-            "poor_response_time": 5.0,
-            "critical_memory_usage": 90.0,
-            "high_memory_usage": 80.0,
-            "normal_memory_usage": 60.0,
-            "max_concurrent_tasks": 10,
-            "optimal_cache_hit_rate": 80.0
-        }
-    
-    async def _background_monitoring(self):
-        """Background system monitoring"""
-        while True:
-            try:
-                await asyncio.sleep(30)  # Monitor every 30 seconds
-                
-                # Collect system metrics
-                await self._collect_system_metrics()
-                
-                # Analyze performance trends
-                await self._analyze_performance_trends()
-                
-                # Check for performance issues
-                await self._check_performance_alerts()
-                
+                cached_data = await asyncio.to_thread(self.redis_client.get, key)
+                if cached_data:
+                    value = json.loads(cached_data)
+                    self.stats["l2_hits"] += 1
+                    self._record_access_pattern(key, "l2_hit", context)
+                    
+                    # Promote to L1 if frequently accessed
+                    if await self._should_promote_to_l1(key, context):
+                        await self.set(key, value, level=CacheLevel.L1_MEMORY, ttl=3600)
+                        self.stats["promotions"] += 1
+                    
+                    return value
             except Exception as e:
-                logger.error(f"Performance monitoring error: {e}")
-    
-    async def _background_optimization(self):
-        """Background performance optimization"""
-        while True:
-            try:
-                await asyncio.sleep(60)  # Optimize every minute
-                
-                if self.optimization_enabled:
-                    # Memory optimization
-                    await self._optimize_memory_usage()
-                    
-                    # Cache optimization
-                    await self._optimize_cache_performance()
-                    
-                    # AI provider optimization
-                    await self._optimize_ai_provider_selection()
-                    
-                    # Load balancing optimization
-                    await self._optimize_load_balancing()
-                
-            except Exception as e:
-                logger.error(f"Performance optimization error: {e}")
-    
-    async def _collect_system_metrics(self):
-        """Collect comprehensive system metrics"""
+                logger.warning(f"Redis cache error: {e}")
+        
+        # Try L3 cache (Disk)
         try:
-            # System resource metrics
-            cpu_percent = psutil.cpu_percent(interval=1)
-            memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            
-            # Update metrics
-            self.metrics.cpu_usage.append(cpu_percent)
-            self.metrics.memory_usage.append(memory.percent)
-            
-            # Process-specific metrics
-            process = psutil.Process()
-            process_memory = process.memory_info().rss / 1024 / 1024  # MB
-            process_cpu = process.cpu_percent()
-            
-            # Network metrics (if available)
-            try:
-                net_io = psutil.net_io_counters()
-                network_usage = {
-                    "bytes_sent": net_io.bytes_sent,
-                    "bytes_recv": net_io.bytes_recv,
-                    "packets_sent": net_io.packets_sent,
-                    "packets_recv": net_io.packets_recv
-                }
-            except:
-                network_usage = {}
-            
-            # Store comprehensive metrics
-            timestamp = datetime.utcnow()
-            comprehensive_metrics = {
-                "timestamp": timestamp,
-                "system": {
-                    "cpu_percent": cpu_percent,
-                    "memory_percent": memory.percent,
-                    "memory_available": memory.available,
-                    "disk_percent": disk.percent,
-                    "disk_free": disk.free
-                },
-                "process": {
-                    "memory_mb": process_memory,
-                    "cpu_percent": process_cpu,
-                    "num_threads": process.num_threads(),
-                    "num_fds": process.num_fds() if hasattr(process, 'num_fds') else 0
-                },
-                "network": network_usage
-            }
-            
-            # Store for trend analysis
-            if not hasattr(self, '_detailed_metrics'):
-                self._detailed_metrics = deque(maxlen=60)
-            self._detailed_metrics.append(comprehensive_metrics)
-            
+            l3_path = self._get_l3_path(key)
+            if await aiofiles.os.path.exists(l3_path):
+                async with aiofiles.open(l3_path, 'r') as f:
+                    cached_data = await f.read()
+                    cache_entry = json.loads(cached_data)
+                    
+                    if not self._is_l3_expired(cache_entry):
+                        value = cache_entry["value"]
+                        self.stats["l3_hits"] += 1
+                        self._record_access_pattern(key, "l3_hit", context)
+                        
+                        # Consider promotion based on access frequency
+                        if await self._should_promote_to_l2(key, context):
+                            await self.set(key, value, level=CacheLevel.L2_REDIS, ttl=7200)
+                            self.stats["promotions"] += 1
+                        
+                        return value
         except Exception as e:
-            logger.error(f"Error collecting system metrics: {e}")
+            logger.warning(f"L3 cache error: {e}")
+        
+        # Cache miss
+        self.stats["misses"] += 1
+        self._record_access_pattern(key, "miss", context)
+        return None
     
-    def record_api_performance(self, endpoint: str, method: str, response_time: float, 
-                              status_code: int, user_session: str = None):
-        """Record API performance metrics"""
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        ttl: Optional[int] = None,
+        level: Optional[CacheLevel] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Set value in cache with intelligent placement
+        """
+        if level is None:
+            level = await self._determine_optimal_level(key, value, context)
         
-        # Basic metrics
-        self.metrics.response_times.append(response_time)
+        value_size = len(json.dumps(value).encode('utf-8'))
         
-        # Error tracking
-        if status_code >= 400:
-            current_time = datetime.utcnow()
-            error_rate = self._calculate_current_error_rate()
-            self.metrics.error_rates.append(error_rate)
+        if level == CacheLevel.L1_MEMORY:
+            await self._ensure_l1_capacity(value_size)
+            
+            entry = CacheEntry(
+                key=key,
+                value=value,
+                created_at=datetime.now(),
+                accessed_at=datetime.now(),
+                access_count=1,
+                ttl=ttl,
+                size_bytes=value_size
+            )
+            
+            self.l1_cache[key] = entry
+            return True
         
-        # Endpoint-specific tracking
-        if not hasattr(self, '_endpoint_metrics'):
-            self._endpoint_metrics = defaultdict(lambda: {
-                "response_times": deque(maxlen=100),
-                "error_counts": 0,
-                "total_calls": 0,
-                "peak_response_time": 0,
-                "avg_response_time": 0
-            })
+        elif level == CacheLevel.L2_REDIS and self.l2_enabled:
+            try:
+                serialized = json.dumps(value)
+                ttl_seconds = ttl or 3600
+                await asyncio.to_thread(
+                    self.redis_client.setex,
+                    key,
+                    ttl_seconds,
+                    serialized
+                )
+                return True
+            except Exception as e:
+                logger.error(f"Redis set error: {e}")
+                return False
         
-        endpoint_metrics = self._endpoint_metrics[f"{method}:{endpoint}"]
-        endpoint_metrics["response_times"].append(response_time)
-        endpoint_metrics["total_calls"] += 1
+        elif level == CacheLevel.L3_DISK:
+            try:
+                l3_path = self._get_l3_path(key)
+                await aiofiles.os.makedirs(os.path.dirname(l3_path), exist_ok=True)
+                
+                cache_entry = {
+                    "value": value,
+                    "created_at": datetime.now().isoformat(),
+                    "ttl": ttl
+                }
+                
+                async with aiofiles.open(l3_path, 'w') as f:
+                    await f.write(json.dumps(cache_entry))
+                
+                return True
+            except Exception as e:
+                logger.error(f"L3 set error: {e}")
+                return False
         
-        if status_code >= 400:
-            endpoint_metrics["error_counts"] += 1
+        return False
+    
+    async def _determine_optimal_level(
+        self,
+        key: str,
+        value: Any,
+        context: Optional[Dict[str, Any]]
+    ) -> CacheLevel:
+        """
+        Use AI to determine optimal cache level
+        """
+        value_size = len(json.dumps(value).encode('utf-8'))
         
-        # Update peak and average
-        endpoint_metrics["peak_response_time"] = max(
-            endpoint_metrics["peak_response_time"], response_time
+        # Small, frequently accessed items go to L1
+        if value_size < 1024 and key in self.hot_keys:
+            return CacheLevel.L1_MEMORY
+        
+        # Medium items with moderate access go to L2
+        if value_size < 1024 * 1024 and self.l2_enabled:
+            return CacheLevel.L2_REDIS
+        
+        # Large items or infrequent access go to L3
+        return CacheLevel.L3_DISK
+    
+    async def _should_promote_to_l1(self, key: str, context: Optional[Dict[str, Any]]) -> bool:
+        """Determine if key should be promoted to L1 cache"""
+        access_history = self.access_patterns[key]
+        
+        if len(access_history) < 3:
+            return False
+        
+        # Promote if accessed frequently in last hour
+        recent_accesses = [
+            a for a in access_history 
+            if datetime.now() - a["timestamp"] < timedelta(hours=1)
+        ]
+        
+        return len(recent_accesses) >= 3
+    
+    async def _should_promote_to_l2(self, key: str, context: Optional[Dict[str, Any]]) -> bool:
+        """Determine if key should be promoted to L2 cache"""
+        access_history = self.access_patterns[key]
+        
+        if len(access_history) < 2:
+            return False
+        
+        # Promote if accessed in last 24 hours
+        recent_accesses = [
+            a for a in access_history 
+            if datetime.now() - a["timestamp"] < timedelta(hours=24)
+        ]
+        
+        return len(recent_accesses) >= 2
+    
+    async def _ensure_l1_capacity(self, new_item_size: int):
+        """Ensure L1 cache has capacity for new item"""
+        current_memory = sum(entry.size_bytes for entry in self.l1_cache.values())
+        
+        # Evict items if necessary
+        while (len(self.l1_cache) >= self.l1_max_size or 
+               current_memory + new_item_size > self.l1_max_memory):
+            
+            # Find least recently used item
+            lru_key = min(
+                self.l1_cache.keys(),
+                key=lambda k: self.l1_cache[k].accessed_at
+            )
+            
+            evicted_entry = self.l1_cache.pop(lru_key)
+            current_memory -= evicted_entry.size_bytes
+            self.stats["evictions"] += 1
+            
+            # Demote to L2 if valuable
+            if (evicted_entry.access_count > 2 and 
+                self.l2_enabled and 
+                not self._is_expired(evicted_entry)):
+                
+                await self.set(
+                    lru_key,
+                    evicted_entry.value,
+                    level=CacheLevel.L2_REDIS,
+                    ttl=7200
+                )
+    
+    def _record_access_pattern(self, key: str, access_type: str, context: Optional[Dict[str, Any]]):
+        """Record access pattern for AI optimization"""
+        pattern = {
+            "timestamp": datetime.now(),
+            "access_type": access_type,
+            "context": context or {}
+        }
+        
+        self.access_patterns[key].append(pattern)
+        
+        # Keep only recent patterns (last 1000)
+        if len(self.access_patterns[key]) > 1000:
+            self.access_patterns[key] = self.access_patterns[key][-1000:]
+        
+        # Update hot keys
+        if access_type.endswith("_hit"):
+            recent_hits = sum(
+                1 for p in self.access_patterns[key][-10:]
+                if p["access_type"].endswith("_hit")
+            )
+            
+            if recent_hits >= 7:  # 70% hit rate in last 10 accesses
+                self.hot_keys.add(key)
+    
+    async def _optimization_worker(self):
+        """Background worker for cache optimization"""
+        while self.optimization_enabled:
+            try:
+                await self._optimize_cache_placement()
+                await asyncio.sleep(300)  # Run every 5 minutes
+            except Exception as e:
+                logger.error(f"Cache optimization error: {e}")
+                await asyncio.sleep(60)
+    
+    async def _optimize_cache_placement(self):
+        """Optimize cache placement based on access patterns"""
+        
+        # Analyze access patterns
+        for key, patterns in self.access_patterns.items():
+            if len(patterns) < 10:
+                continue
+            
+            recent_patterns = patterns[-50:]  # Last 50 accesses
+            
+            hit_rate = sum(
+                1 for p in recent_patterns 
+                if p["access_type"].endswith("_hit")
+            ) / len(recent_patterns)
+            
+            access_frequency = len([
+                p for p in recent_patterns
+                if datetime.now() - p["timestamp"] < timedelta(hours=1)
+            ])
+            
+            # Promote frequently accessed items
+            if hit_rate > 0.8 and access_frequency > 10:
+                if key not in self.l1_cache and self.l2_enabled:
+                    # Try to get from L2 and promote to L1
+                    try:
+                        cached_data = await asyncio.to_thread(self.redis_client.get, key)
+                        if cached_data:
+                            value = json.loads(cached_data)
+                            await self.set(key, value, level=CacheLevel.L1_MEMORY)
+                            logger.info(f"Promoted key {key} to L1 cache")
+                    except Exception as e:
+                        logger.warning(f"Promotion error for {key}: {e}")
+    
+    def _is_expired(self, entry: CacheEntry) -> bool:
+        """Check if cache entry is expired"""
+        if entry.ttl is None:
+            return False
+        
+        age = (datetime.now() - entry.created_at).total_seconds()
+        return age > entry.ttl
+    
+    def _is_l3_expired(self, cache_entry: Dict[str, Any]) -> bool:
+        """Check if L3 cache entry is expired"""
+        ttl = cache_entry.get("ttl")
+        if ttl is None:
+            return False
+        
+        created_at = datetime.fromisoformat(cache_entry["created_at"])
+        age = (datetime.now() - created_at).total_seconds()
+        return age > ttl
+    
+    def _get_l3_path(self, key: str) -> str:
+        """Get file path for L3 cache entry"""
+        key_hash = hashlib.md5(key.encode()).hexdigest()
+        return f"{self.l3_cache_dir}/{key_hash[:2]}/{key_hash}.json"
+    
+    async def get_cache_stats(self) -> Dict[str, Any]:
+        """Get comprehensive cache statistics"""
+        total_requests = sum(self.stats.values())
+        
+        l1_size = len(self.l1_cache)
+        l1_memory = sum(entry.size_bytes for entry in self.l1_cache.values())
+        
+        return {
+            "l1_cache": {
+                "size": l1_size,
+                "memory_usage": l1_memory,
+                "max_size": self.l1_max_size,
+                "max_memory": self.l1_max_memory
+            },
+            "l2_cache": {
+                "enabled": self.l2_enabled
+            },
+            "stats": self.stats,
+            "hit_rates": {
+                "l1": self.stats["l1_hits"] / max(total_requests, 1),
+                "l2": self.stats["l2_hits"] / max(total_requests, 1),
+                "l3": self.stats["l3_hits"] / max(total_requests, 1),
+                "overall": (self.stats["l1_hits"] + self.stats["l2_hits"] + self.stats["l3_hits"]) / max(total_requests, 1)
+            },
+            "hot_keys_count": len(self.hot_keys)
+        }
+
+
+class PerformanceMonitoringSystem:
+    """
+    Real-time system performance monitoring with predictive analytics
+    """
+    
+    def __init__(self):
+        # Performance thresholds
+        self.thresholds = {
+            PerformanceMetric.RESPONSE_TIME: PerformanceThreshold(
+                PerformanceMetric.RESPONSE_TIME, 1.0, 5.0, "seconds"
+            ),
+            PerformanceMetric.CPU_USAGE: PerformanceThreshold(
+                PerformanceMetric.CPU_USAGE, 70.0, 90.0, "percent"
+            ),
+            PerformanceMetric.MEMORY_USAGE: PerformanceThreshold(
+                PerformanceMetric.MEMORY_USAGE, 75.0, 90.0, "percent"
+            ),
+            PerformanceMetric.ERROR_RATE: PerformanceThreshold(
+                PerformanceMetric.ERROR_RATE, 1.0, 5.0, "percent"
+            )
+        }
+        
+        # Metrics storage
+        self.metrics_buffer = deque(maxlen=1000)
+        self.system_metrics = deque(maxlen=100)
+        self.api_metrics = defaultdict(list)
+        
+        # Prometheus metrics
+        self.response_time_histogram = Histogram(
+            'aether_response_time_seconds',
+            'Response time in seconds',
+            buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
         )
         
-        if endpoint_metrics["response_times"]:
-            endpoint_metrics["avg_response_time"] = sum(endpoint_metrics["response_times"]) / len(endpoint_metrics["response_times"])
+        self.request_counter = Counter(
+            'aether_requests_total',
+            'Total requests',
+            ['method', 'endpoint', 'status']
+        )
         
-        # Concurrent users tracking
-        if user_session:
-            current_time = int(time.time() // 60)  # Per minute buckets
-            if not hasattr(self, '_active_users'):
-                self._active_users = defaultdict(set)
-            self._active_users[current_time].add(user_session)
-            
-            # Clean old data
-            cutoff_time = current_time - 5  # Keep 5 minutes
-            for t in list(self._active_users.keys()):
-                if t < cutoff_time:
-                    del self._active_users[t]
+        self.active_connections = Gauge(
+            'aether_active_connections',
+            'Number of active connections'
+        )
+        
+        self.system_cpu_usage = Gauge('aether_cpu_usage_percent', 'CPU usage percentage')
+        self.system_memory_usage = Gauge('aether_memory_usage_percent', 'Memory usage percentage')
+        
+        # Background monitoring
+        self.monitoring_enabled = True
+        asyncio.create_task(self._monitoring_worker())
+        
+        # Start Prometheus metrics server
+        try:
+            start_http_server(8000)
+            logger.info("Prometheus metrics server started on port 8000")
+        except Exception as e:
+            logger.warning(f"Failed to start Prometheus server: {e}")
     
-    def record_ai_provider_performance(self, provider: str, query_type: str, 
-                                     response_time: float, success: bool, model: str = None):
-        """Record AI provider performance metrics"""
+    def record_api_performance(
+        self,
+        endpoint: str,
+        method: str,
+        response_time: float,
+        status_code: int,
+        user_session: Optional[str] = None
+    ):
+        """Record API performance metrics"""
         
-        provider_metrics = self.metrics.ai_provider_performance[provider]
-        provider_metrics["response_times"].append(response_time)
-        provider_metrics["total_calls"] += 1
+        # Update Prometheus metrics
+        self.response_time_histogram.observe(response_time)
+        self.request_counter.labels(
+            method=method,
+            endpoint=endpoint,
+            status=str(status_code)
+        ).inc()
         
-        if success:
-            provider_metrics["success_rates"].append(1)
-        else:
-            provider_metrics["success_rates"].append(0)
-            provider_metrics["error_counts"] += 1
-        
-        # Model-specific tracking
-        if model:
-            if not hasattr(self, '_model_metrics'):
-                self._model_metrics = defaultdict(lambda: {
-                    "response_times": deque(maxlen=50),
-                    "success_rates": deque(maxlen=50),
-                    "usage_count": 0
-                })
-            
-            model_key = f"{provider}:{model}"
-            self._model_metrics[model_key]["response_times"].append(response_time)
-            self._model_metrics[model_key]["success_rates"].append(1 if success else 0)
-            self._model_metrics[model_key]["usage_count"] += 1
-    
-    def record_automation_performance(self, task_type: str, execution_time: float, 
-                                    success: bool, complexity: str, steps_count: int = 0):
-        """Record automation task performance"""
-        
-        automation_metrics = self.metrics.automation_performance[task_type]
-        automation_metrics["execution_times"].append(execution_time)
-        automation_metrics["success_rates"].append(1 if success else 0)
-        
-        # Complexity scoring
-        complexity_score = {"simple": 1, "medium": 2, "complex": 3, "expert": 4}.get(complexity, 2)
-        automation_metrics["complexity_scores"].append(complexity_score)
-        
-        # Steps efficiency
-        if not hasattr(self, '_automation_efficiency'):
-            self._automation_efficiency = defaultdict(lambda: {
-                "steps_per_minute": deque(maxlen=50),
-                "time_per_step": deque(maxlen=50)
-            })
-        
-        if steps_count > 0 and execution_time > 0:
-            steps_per_minute = (steps_count / execution_time) * 60
-            time_per_step = execution_time / steps_count
-            
-            efficiency_metrics = self._automation_efficiency[task_type]
-            efficiency_metrics["steps_per_minute"].append(steps_per_minute)
-            efficiency_metrics["time_per_step"].append(time_per_step)
-    
-    def record_cache_performance(self, cache_type: str, hit: bool, response_time: float = 0):
-        """Record cache performance metrics"""
-        
-        if not hasattr(self, '_cache_metrics'):
-            self._cache_metrics = defaultdict(lambda: {
-                "hits": 0,
-                "misses": 0,
-                "hit_rate": 0,
-                "avg_response_time": deque(maxlen=100)
-            })
-        
-        cache_metrics = self._cache_metrics[cache_type]
-        
-        if hit:
-            cache_metrics["hits"] += 1
-        else:
-            cache_metrics["misses"] += 1
-        
-        # Calculate hit rate
-        total = cache_metrics["hits"] + cache_metrics["misses"]
-        cache_metrics["hit_rate"] = (cache_metrics["hits"] / total) * 100 if total > 0 else 0
-        
-        if response_time > 0:
-            cache_metrics["avg_response_time"].append(response_time)
-        
-        # Update global cache hit rate
-        overall_hit_rate = self._calculate_overall_cache_hit_rate()
-        self.metrics.cache_hit_rates.append(overall_hit_rate)
-    
-    async def _analyze_performance_trends(self):
-        """Analyze performance trends and predict issues"""
-        
-        # Response time trend analysis
-        if len(self.metrics.response_times) >= 10:
-            recent_times = list(self.metrics.response_times)[-10:]
-            avg_recent = sum(recent_times) / len(recent_times)
-            
-            if avg_recent > self.performance_thresholds["acceptable_response_time"]:
-                await self._trigger_performance_alert(
-                    "high_response_time", 
-                    f"Average response time is {avg_recent:.2f}s (threshold: {self.performance_thresholds['acceptable_response_time']}s)"
-                )
-        
-        # Memory usage trend
-        if len(self.metrics.memory_usage) >= 5:
-            recent_memory = list(self.metrics.memory_usage)[-5:]
-            avg_memory = sum(recent_memory) / len(recent_memory)
-            
-            if avg_memory > self.performance_thresholds["high_memory_usage"]:
-                await self._trigger_performance_alert(
-                    "high_memory_usage",
-                    f"Memory usage is {avg_memory:.1f}% (threshold: {self.performance_thresholds['high_memory_usage']}%)"
-                )
-        
-        # Error rate analysis
-        if len(self.metrics.error_rates) >= 3:
-            recent_errors = list(self.metrics.error_rates)[-3:]
-            avg_error_rate = sum(recent_errors) / len(recent_errors)
-            
-            if avg_error_rate > 5.0:  # 5% error rate threshold
-                await self._trigger_performance_alert(
-                    "high_error_rate",
-                    f"Error rate is {avg_error_rate:.1f}% (threshold: 5.0%)"
-                )
-    
-    async def _check_performance_alerts(self):
-        """Check for immediate performance alerts"""
-        
-        # Check current system state
-        if self.metrics.memory_usage:
-            current_memory = self.metrics.memory_usage[-1]
-            if current_memory > self.performance_thresholds["critical_memory_usage"]:
-                await self._trigger_critical_alert("critical_memory", current_memory)
-        
-        if self.metrics.cpu_usage:
-            current_cpu = self.metrics.cpu_usage[-1]
-            if current_cpu > 95.0:  # Critical CPU usage
-                await self._trigger_critical_alert("critical_cpu", current_cpu)
-    
-    async def _trigger_performance_alert(self, alert_type: str, message: str):
-        """Trigger performance alert"""
-        
-        alert = {
-            "type": alert_type,
-            "message": message,
-            "timestamp": datetime.utcnow(),
-            "severity": "warning"
+        # Store detailed metrics
+        metric = {
+            "timestamp": datetime.now(),
+            "endpoint": endpoint,
+            "method": method,
+            "response_time": response_time,
+            "status_code": status_code,
+            "user_session": user_session
         }
         
-        self.performance_alerts.append(alert)
-        logger.warning(f"Performance Alert: {alert_type} - {message}")
+        self.metrics_buffer.append(metric)
+        self.api_metrics[endpoint].append(metric)
         
-        # Execute alert handlers
-        for handler in self.alert_handlers:
+        # Keep only recent metrics per endpoint
+        if len(self.api_metrics[endpoint]) > 1000:
+            self.api_metrics[endpoint] = self.api_metrics[endpoint][-1000:]
+        
+        # Check for performance issues
+        self._check_performance_thresholds(metric)
+    
+    def record_ai_provider_performance(
+        self,
+        provider: str,
+        query_type: str,
+        response_time: float,
+        success: bool,
+        model: str = ""
+    ):
+        """Record AI provider performance"""
+        
+        metric = {
+            "timestamp": datetime.now(),
+            "provider": provider,
+            "query_type": query_type,
+            "response_time": response_time,
+            "success": success,
+            "model": model
+        }
+        
+        provider_key = f"ai_provider_{provider}"
+        self.api_metrics[provider_key].append(metric)
+        
+        if len(self.api_metrics[provider_key]) > 500:
+            self.api_metrics[provider_key] = self.api_metrics[provider_key][-500:]
+    
+    async def _monitoring_worker(self):
+        """Background worker for system monitoring"""
+        while self.monitoring_enabled:
             try:
-                await handler(alert)
+                await self._collect_system_metrics()
+                await asyncio.sleep(10)  # Collect every 10 seconds
             except Exception as e:
-                logger.error(f"Alert handler error: {e}")
+                logger.error(f"System monitoring error: {e}")
+                await asyncio.sleep(30)
     
-    async def _trigger_critical_alert(self, alert_type: str, value: float):
-        """Trigger critical performance alert"""
+    async def _collect_system_metrics(self):
+        """Collect system performance metrics"""
         
-        alert = {
-            "type": alert_type,
-            "message": f"Critical {alert_type}: {value}",
-            "timestamp": datetime.utcnow(),
-            "severity": "critical"
+        # CPU and Memory
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Network I/O
+        network_io = psutil.net_io_counters()
+        
+        # Active connections (simplified)
+        active_connections = len(psutil.net_connections(kind='inet'))
+        
+        # Calculate recent response times
+        recent_metrics = [
+            m for m in self.metrics_buffer
+            if datetime.now() - m["timestamp"] < timedelta(minutes=1)
+        ]
+        
+        recent_response_times = [m["response_time"] for m in recent_metrics]
+        
+        metric = SystemMetrics(
+            timestamp=datetime.now(),
+            cpu_percent=cpu_percent,
+            memory_percent=memory.percent,
+            disk_usage=disk.percent,
+            network_io={
+                "bytes_sent": network_io.bytes_sent,
+                "bytes_recv": network_io.bytes_recv
+            },
+            active_connections=active_connections,
+            response_times=recent_response_times
+        )
+        
+        self.system_metrics.append(metric)
+        
+        # Update Prometheus metrics
+        self.system_cpu_usage.set(cpu_percent)
+        self.system_memory_usage.set(memory.percent)
+        self.active_connections.set(active_connections)
+        
+        # Check system thresholds
+        self._check_system_thresholds(metric)
+    
+    def _check_performance_thresholds(self, metric: Dict[str, Any]):
+        """Check if performance metric exceeds thresholds"""
+        
+        response_time = metric["response_time"]
+        threshold = self.thresholds[PerformanceMetric.RESPONSE_TIME]
+        
+        if response_time > threshold.critical_level:
+            logger.error(
+                f"CRITICAL: Response time {response_time:.2f}s exceeds critical threshold "
+                f"{threshold.critical_level}s for {metric['endpoint']}"
+            )
+        elif response_time > threshold.warning_level:
+            logger.warning(
+                f"WARNING: Response time {response_time:.2f}s exceeds warning threshold "
+                f"{threshold.warning_level}s for {metric['endpoint']}"
+            )
+    
+    def _check_system_thresholds(self, metric: SystemMetrics):
+        """Check if system metrics exceed thresholds"""
+        
+        # CPU usage
+        cpu_threshold = self.thresholds[PerformanceMetric.CPU_USAGE]
+        if metric.cpu_percent > cpu_threshold.critical_level:
+            logger.error(f"CRITICAL: CPU usage {metric.cpu_percent:.1f}% exceeds critical threshold")
+        elif metric.cpu_percent > cpu_threshold.warning_level:
+            logger.warning(f"WARNING: CPU usage {metric.cpu_percent:.1f}% exceeds warning threshold")
+        
+        # Memory usage
+        memory_threshold = self.thresholds[PerformanceMetric.MEMORY_USAGE]
+        if metric.memory_percent > memory_threshold.critical_level:
+            logger.error(f"CRITICAL: Memory usage {metric.memory_percent:.1f}% exceeds critical threshold")
+        elif metric.memory_percent > memory_threshold.warning_level:
+            logger.warning(f"WARNING: Memory usage {metric.memory_percent:.1f}% exceeds warning threshold")
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get comprehensive performance summary"""
+        
+        if not self.metrics_buffer:
+            return {"status": "No metrics available"}
+        
+        # Calculate summary statistics
+        recent_metrics = [
+            m for m in self.metrics_buffer
+            if datetime.now() - m["timestamp"] < timedelta(minutes=5)
+        ]
+        
+        if not recent_metrics:
+            return {"status": "No recent metrics"}
+        
+        response_times = [m["response_time"] for m in recent_metrics]
+        avg_response_time = statistics.mean(response_times)
+        p95_response_time = statistics.quantiles(response_times, n=20)[18] if len(response_times) > 10 else max(response_times)
+        
+        error_count = sum(1 for m in recent_metrics if m["status_code"] >= 400)
+        error_rate = (error_count / len(recent_metrics)) * 100
+        
+        # System metrics
+        latest_system = self.system_metrics[-1] if self.system_metrics else None
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "api_performance": {
+                "total_requests": len(recent_metrics),
+                "avg_response_time": avg_response_time,
+                "p95_response_time": p95_response_time,
+                "error_rate": error_rate,
+                "throughput": len(recent_metrics) / 5  # requests per second over 5 minutes
+            },
+            "system_performance": {
+                "cpu_percent": latest_system.cpu_percent if latest_system else 0,
+                "memory_percent": latest_system.memory_percent if latest_system else 0,
+                "disk_usage": latest_system.disk_usage if latest_system else 0,
+                "active_connections": latest_system.active_connections if latest_system else 0
+            },
+            "ai_providers": self._get_ai_provider_summary()
         }
-        
-        self.performance_alerts.append(alert)
-        logger.critical(f"CRITICAL ALERT: {alert_type} - {value}")
-        
-        # Immediate optimization actions for critical alerts
-        if alert_type == "critical_memory":
-            await self._emergency_memory_cleanup()
-        elif alert_type == "critical_cpu":
-            await self._emergency_cpu_optimization()
     
-    async def _optimize_memory_usage(self):
-        """Optimize memory usage"""
+    def _get_ai_provider_summary(self) -> Dict[str, Any]:
+        """Get AI provider performance summary"""
         
-        try:
-            current_memory = self.metrics.memory_usage[-1] if self.metrics.memory_usage else 0
-            
-            if current_memory > self.performance_thresholds["high_memory_usage"]:
-                # Force garbage collection
-                gc.collect()
-                
-                # Clear old cache entries
-                await self.cache_optimizer.optimize_memory_usage()
-                
-                # Reduce cache sizes
-                await self._reduce_cache_sizes()
-                
-                logger.info(f"Memory optimization completed. Usage was {current_memory}%")
-                
-        except Exception as e:
-            logger.error(f"Memory optimization error: {e}")
-    
-    async def _optimize_cache_performance(self):
-        """Optimize cache performance"""
+        ai_summary = {}
         
-        try:
-            overall_hit_rate = self._calculate_overall_cache_hit_rate()
-            
-            if overall_hit_rate < self.performance_thresholds["optimal_cache_hit_rate"]:
-                # Analyze cache patterns
-                cache_analysis = await self.cache_optimizer.analyze_cache_patterns()
+        for key, metrics in self.api_metrics.items():
+            if key.startswith("ai_provider_"):
+                provider = key.replace("ai_provider_", "")
                 
-                # Implement optimizations
-                await self.cache_optimizer.optimize_cache_strategy(cache_analysis)
+                recent_metrics = [
+                    m for m in metrics
+                    if datetime.now() - m["timestamp"] < timedelta(minutes=10)
+                ]
                 
-                logger.info(f"Cache optimization completed. Hit rate was {overall_hit_rate}%")
-                
-        except Exception as e:
-            logger.error(f"Cache optimization error: {e}")
-    
-    async def _optimize_ai_provider_selection(self):
-        """Optimize AI provider selection based on performance"""
-        
-        try:
-            # Analyze provider performance
-            best_performers = {}
-            
-            for provider, metrics in self.metrics.ai_provider_performance.items():
-                if metrics["response_times"] and metrics["success_rates"]:
-                    avg_response_time = sum(metrics["response_times"]) / len(metrics["response_times"])
-                    success_rate = sum(metrics["success_rates"]) / len(metrics["success_rates"])
+                if recent_metrics:
+                    response_times = [m["response_time"] for m in recent_metrics]
+                    success_rate = sum(1 for m in recent_metrics if m["success"]) / len(recent_metrics)
                     
-                    # Calculate performance score (lower is better for response time, higher for success rate)
-                    performance_score = success_rate * 100 - avg_response_time * 10
-                    best_performers[provider] = performance_score
+                    ai_summary[provider] = {
+                        "total_requests": len(recent_metrics),
+                        "avg_response_time": statistics.mean(response_times),
+                        "success_rate": success_rate,
+                        "last_used": max(m["timestamp"] for m in recent_metrics).isoformat()
+                    }
+        
+        return ai_summary
+    
+    async def get_performance_report(self) -> Dict[str, Any]:
+        """Generate detailed performance report"""
+        
+        summary = self.get_performance_summary()
+        
+        # Add trending information
+        if len(self.system_metrics) >= 2:
+            current = self.system_metrics[-1]
+            previous = self.system_metrics[-2]
             
-            if best_performers:
-                # Update provider selection preferences
-                sorted_providers = sorted(best_performers.items(), key=lambda x: x[1], reverse=True)
-                logger.info(f"AI Provider performance ranking: {sorted_providers}")
-                
-                # Store recommendations for AI manager
-                self._provider_recommendations = {
-                    "rankings": sorted_providers,
-                    "updated_at": datetime.utcnow()
-                }
-                
-        except Exception as e:
-            logger.error(f"AI provider optimization error: {e}")
-    
-    async def _optimize_load_balancing(self):
-        """Optimize load balancing"""
-        
-        try:
-            # Analyze current load distribution
-            if hasattr(self, '_active_users'):
-                current_minute = int(time.time() // 60)
-                active_users_count = len(self._active_users.get(current_minute, set()))
-                
-                self.metrics.concurrent_users.append(active_users_count)
-                
-                # Adjust concurrent task limits based on load
-                if active_users_count > 20:
-                    # High load - reduce concurrent tasks
-                    self.performance_thresholds["max_concurrent_tasks"] = 8
-                elif active_users_count < 5:
-                    # Low load - allow more concurrent tasks
-                    self.performance_thresholds["max_concurrent_tasks"] = 15
-                else:
-                    # Normal load
-                    self.performance_thresholds["max_concurrent_tasks"] = 10
-                
-        except Exception as e:
-            logger.error(f"Load balancing optimization error: {e}")
-    
-    async def _emergency_memory_cleanup(self):
-        """Emergency memory cleanup"""
-        
-        try:
-            # Force aggressive garbage collection
-            for _ in range(3):
-                gc.collect()
+            cpu_trend = current.cpu_percent - previous.cpu_percent
+            memory_trend = current.memory_percent - previous.memory_percent
             
-            # Clear all caches
-            if hasattr(self, 'cache_optimizer'):
-                await self.cache_optimizer.emergency_cache_clear()
-            
-            # Reduce all deque sizes temporarily
-            self.metrics.response_times = deque(list(self.metrics.response_times)[-100:], maxlen=200)
-            self.metrics.memory_usage = deque(list(self.metrics.memory_usage)[-30:], maxlen=30)
-            
-            logger.critical("Emergency memory cleanup completed")
-            
-        except Exception as e:
-            logger.error(f"Emergency memory cleanup error: {e}")
-    
-    async def _emergency_cpu_optimization(self):
-        """Emergency CPU optimization"""
-        
-        try:
-            # Reduce concurrent task limits
-            self.performance_thresholds["max_concurrent_tasks"] = 3
-            
-            # Pause non-critical background tasks temporarily
-            if hasattr(self, '_optimization_task'):
-                # Don't cancel the task, just reduce frequency
-                pass
-            
-            logger.critical("Emergency CPU optimization completed")
-            
-        except Exception as e:
-            logger.error(f"Emergency CPU optimization error: {e}")
-    
-    def _calculate_current_error_rate(self) -> float:
-        """Calculate current error rate"""
-        
-        if not hasattr(self, '_recent_requests'):
-            self._recent_requests = deque(maxlen=100)
-        
-        current_time = time.time()
-        # Remove old entries (older than 5 minutes)
-        while self._recent_requests and current_time - self._recent_requests[0]["timestamp"] > 300:
-            self._recent_requests.popleft()
-        
-        if not self._recent_requests:
-            return 0.0
-        
-        error_count = sum(1 for req in self._recent_requests if req["error"])
-        return (error_count / len(self._recent_requests)) * 100
-    
-    def _calculate_overall_cache_hit_rate(self) -> float:
-        """Calculate overall cache hit rate"""
-        
-        if not hasattr(self, '_cache_metrics'):
-            return 0.0
-        
-        total_hits = sum(metrics["hits"] for metrics in self._cache_metrics.values())
-        total_requests = sum(metrics["hits"] + metrics["misses"] for metrics in self._cache_metrics.values())
-        
-        return (total_hits / total_requests) * 100 if total_requests > 0 else 0.0
-    
-    def get_performance_report(self) -> Dict[str, Any]:
-        """Generate comprehensive performance report"""
-        
-        report = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "system_health": self._assess_system_health(),
-            "response_performance": self._analyze_response_performance(),
-            "resource_utilization": self._analyze_resource_utilization(),
-            "ai_provider_performance": self._analyze_ai_provider_performance(),
-            "automation_performance": self._analyze_automation_performance(),
-            "cache_performance": self._analyze_cache_performance(),
-            "alerts": list(self.performance_alerts)[-10:],  # Last 10 alerts
-            "recommendations": self._generate_performance_recommendations()
-        }
-        
-        return report
-    
-    def _assess_system_health(self) -> Dict[str, Any]:
-        """Assess overall system health"""
-        
-        health_score = 100
-        status = "healthy"
-        issues = []
-        
-        # Check response times
-        if self.metrics.response_times:
-            avg_response_time = sum(self.metrics.response_times) / len(self.metrics.response_times)
-            if avg_response_time > self.performance_thresholds["poor_response_time"]:
-                health_score -= 30
-                status = "critical"
-                issues.append(f"Poor response time: {avg_response_time:.2f}s")
-            elif avg_response_time > self.performance_thresholds["acceptable_response_time"]:
-                health_score -= 15
-                status = "degraded" if status == "healthy" else status
-                issues.append(f"Slow response time: {avg_response_time:.2f}s")
-        
-        # Check memory usage
-        if self.metrics.memory_usage:
-            current_memory = self.metrics.memory_usage[-1]
-            if current_memory > self.performance_thresholds["critical_memory_usage"]:
-                health_score -= 25
-                status = "critical"
-                issues.append(f"Critical memory usage: {current_memory:.1f}%")
-            elif current_memory > self.performance_thresholds["high_memory_usage"]:
-                health_score -= 10
-                status = "degraded" if status == "healthy" else status
-                issues.append(f"High memory usage: {current_memory:.1f}%")
-        
-        # Check error rates
-        if self.metrics.error_rates:
-            recent_error_rate = self.metrics.error_rates[-1] if self.metrics.error_rates else 0
-            if recent_error_rate > 10.0:
-                health_score -= 20
-                status = "critical"
-                issues.append(f"High error rate: {recent_error_rate:.1f}%")
-            elif recent_error_rate > 5.0:
-                health_score -= 10
-                status = "degraded" if status == "healthy" else status
-                issues.append(f"Elevated error rate: {recent_error_rate:.1f}%")
-        
-        return {
-            "status": status,
-            "health_score": max(0, health_score),
-            "issues": issues
-        }
-    
-    def add_alert_handler(self, handler):
-        """Add custom alert handler"""
-        self.alert_handlers.append(handler)
-    
-    def get_provider_recommendations(self) -> Optional[Dict[str, Any]]:
-        """Get AI provider recommendations"""
-        return getattr(self, '_provider_recommendations', None)
-    
-    def _analyze_response_performance(self) -> Dict[str, Any]:
-        """Analyze response performance metrics - FIXED MISSING METHOD"""
-        if not self.metrics.response_times:
-            return {"status": "no_data", "metrics": {}}
-        
-        response_times = list(self.metrics.response_times)
-        avg_response_time = sum(response_times) / len(response_times)
-        
-        return {
-            "average_response_time": avg_response_time,
-            "min_response_time": min(response_times),
-            "max_response_time": max(response_times),
-            "total_requests": len(response_times),
-            "performance_grade": self._calculate_performance_grade(response_times),
-            "percentiles": {
-                "p50": self._calculate_percentile(response_times, 50),
-                "p90": self._calculate_percentile(response_times, 90),
-                "p95": self._calculate_percentile(response_times, 95),
-                "p99": self._calculate_percentile(response_times, 99)
-            },
-            "trend_analysis": self._analyze_response_trend()
-        }
-    
-    def _calculate_percentile(self, data: List[float], percentile: int) -> float:
-        """Calculate percentile for response times"""
-        if not data:
-            return 0.0
-        
-        sorted_data = sorted(data)
-        index = (percentile / 100.0) * (len(sorted_data) - 1)
-        
-        if index.is_integer():
-            return sorted_data[int(index)]
-        else:
-            lower = sorted_data[int(index)]
-            upper = sorted_data[int(index) + 1]
-            return lower + (upper - lower) * (index - int(index))
-    
-    def _analyze_response_trend(self) -> Dict[str, Any]:
-        """Analyze response time trends"""
-        if len(self.metrics.response_times) < 20:
-            return {"trend": "insufficient_data"}
-        
-        # Split into two halves for comparison
-        times = list(self.metrics.response_times)
-        mid = len(times) // 2
-        first_half = times[:mid]
-        second_half = times[mid:]
-        
-        avg_first = sum(first_half) / len(first_half)
-        avg_second = sum(second_half) / len(second_half)
-        
-        # Calculate trend
-        if avg_second > avg_first * 1.1:
-            trend = "deteriorating"
-        elif avg_second < avg_first * 0.9:
-            trend = "improving"
-        else:
-            trend = "stable"
-        
-        return {
-            "trend": trend,
-            "first_half_avg": avg_first,
-            "second_half_avg": avg_second,
-            "change_percentage": ((avg_second - avg_first) / avg_first) * 100
-        }
-    
-    def _analyze_resource_utilization(self) -> Dict[str, Any]:
-        """Analyze resource utilization"""
-        return {
-            "memory": {
-                "current": self.metrics.memory_usage[-1] if self.metrics.memory_usage else 0,
-                "average": sum(self.metrics.memory_usage) / len(self.metrics.memory_usage) if self.metrics.memory_usage else 0,
-                "peak": max(self.metrics.memory_usage) if self.metrics.memory_usage else 0,
-                "trend": self._calculate_trend(list(self.metrics.memory_usage))
-            },
-            "cpu": {
-                "current": self.metrics.cpu_usage[-1] if self.metrics.cpu_usage else 0,
-                "average": sum(self.metrics.cpu_usage) / len(self.metrics.cpu_usage) if self.metrics.cpu_usage else 0,
-                "peak": max(self.metrics.cpu_usage) if self.metrics.cpu_usage else 0,
-                "trend": self._calculate_trend(list(self.metrics.cpu_usage))
-            },
-            "concurrent_users": {
-                "current": self.metrics.concurrent_users[-1] if self.metrics.concurrent_users else 0,
-                "peak": max(self.metrics.concurrent_users) if self.metrics.concurrent_users else 0,
-                "average": sum(self.metrics.concurrent_users) / len(self.metrics.concurrent_users) if self.metrics.concurrent_users else 0
+            summary["trends"] = {
+                "cpu_trend": cpu_trend,
+                "memory_trend": memory_trend,
+                "trend_direction": "improving" if cpu_trend < 0 and memory_trend < 0 else "degrading"
             }
-        }
+        
+        # Add recommendations
+        summary["recommendations"] = self._generate_performance_recommendations()
+        
+        return summary
     
-    def _calculate_trend(self, data: List[float]) -> str:
-        """Calculate trend direction for metrics"""
-        if len(data) < 5:
-            return "insufficient_data"
+    def _generate_performance_recommendations(self) -> List[str]:
+        """Generate performance optimization recommendations"""
         
-        # Simple trend calculation
-        first_quarter = data[:len(data)//4] or [0]
-        last_quarter = data[-len(data)//4:] or [0]
-        
-        avg_first = sum(first_quarter) / len(first_quarter)
-        avg_last = sum(last_quarter) / len(last_quarter)
-        
-        if avg_last > avg_first * 1.1:
-            return "increasing"
-        elif avg_last < avg_first * 0.9:
-            return "decreasing"
-        else:
-            return "stable"
-    
-    def _analyze_ai_provider_performance(self) -> Dict[str, Any]:
-        """Analyze AI provider performance"""
-        provider_analysis = {}
-        for provider, metrics in self.metrics.ai_provider_performance.items():
-            if metrics["response_times"] and metrics["success_rates"]:
-                avg_response_time = sum(metrics["response_times"]) / len(metrics["response_times"])
-                success_rate = sum(metrics["success_rates"]) / len(metrics["success_rates"]) * 100
-                
-                provider_analysis[provider] = {
-                    "average_response_time": avg_response_time,
-                    "success_rate": success_rate,
-                    "total_calls": metrics["total_calls"],
-                    "error_count": metrics["error_counts"],
-                    "performance_score": success_rate * 100 - avg_response_time * 10,
-                    "reliability": "high" if success_rate > 95 else "medium" if success_rate > 85 else "low"
-                }
-        
-        return provider_analysis
-    
-    def _analyze_automation_performance(self) -> Dict[str, Any]:
-        """Analyze automation performance"""
-        automation_analysis = {}
-        for task_type, metrics in self.metrics.automation_performance.items():
-            if metrics["execution_times"]:
-                avg_execution_time = sum(metrics["execution_times"]) / len(metrics["execution_times"])
-                success_rate = sum(metrics["success_rates"]) / len(metrics["success_rates"]) * 100 if metrics["success_rates"] else 0
-                avg_complexity = sum(metrics["complexity_scores"]) / len(metrics["complexity_scores"]) if metrics["complexity_scores"] else 0
-                
-                automation_analysis[task_type] = {
-                    "average_execution_time": avg_execution_time,
-                    "success_rate": success_rate,
-                    "total_executions": len(metrics["execution_times"]),
-                    "average_complexity": avg_complexity,
-                    "efficiency_score": (success_rate / avg_execution_time) if avg_execution_time > 0 else 0
-                }
-        
-        return automation_analysis
-    
-    def _analyze_cache_performance(self) -> Dict[str, Any]:
-        """Analyze cache performance"""
-        if not hasattr(self, '_cache_metrics'):
-            return {"overall_hit_rate": 0, "cache_types": {}}
-        
-        cache_analysis = {}
-        total_efficiency_score = 0
-        
-        for cache_type, metrics in self._cache_metrics.items():
-            total_requests = metrics["hits"] + metrics["misses"]
-            efficiency_score = (metrics["hit_rate"] / 100) * (total_requests / 1000) if total_requests > 0 else 0
-            
-            cache_analysis[cache_type] = {
-                "hit_rate": metrics["hit_rate"],
-                "total_hits": metrics["hits"],
-                "total_misses": metrics["misses"],
-                "total_requests": total_requests,
-                "efficiency_score": efficiency_score,
-                "performance_grade": "A" if metrics["hit_rate"] > 90 else "B" if metrics["hit_rate"] > 75 else "C" if metrics["hit_rate"] > 60 else "D"
-            }
-            total_efficiency_score += efficiency_score
-        
-        return {
-            "overall_hit_rate": self._calculate_overall_cache_hit_rate(),
-            "cache_types": cache_analysis,
-            "total_efficiency_score": total_efficiency_score,
-            "optimization_potential": self._calculate_cache_optimization_potential()
-        }
-    
-    def _calculate_cache_optimization_potential(self) -> float:
-        """Calculate how much cache performance can be improved"""
-        if not hasattr(self, '_cache_metrics'):
-            return 0.0
-        
-        total_potential = 0
-        for metrics in self._cache_metrics.values():
-            if metrics["hit_rate"] < 80:  # Below optimal threshold
-                potential = (80 - metrics["hit_rate"]) / 80  # Normalized potential
-                total_potential += potential
-        
-        return min(total_potential, 100.0)  # Cap at 100%
-    
-    def _generate_performance_recommendations(self) -> List[Dict[str, Any]]:
-        """Generate detailed performance recommendations"""
         recommendations = []
         
-        # Response time recommendations
-        if self.metrics.response_times:
-            avg_response_time = sum(self.metrics.response_times) / len(self.metrics.response_times)
-            if avg_response_time > 2.0:
-                recommendations.append({
-                    "type": "response_time",
-                    "priority": "high",
-                    "title": "Optimize Response Times",
-                    "description": f"Average response time is {avg_response_time:.2f}s. Consider AI provider optimization.",
-                    "actions": ["Optimize AI provider selection", "Implement response caching", "Review database queries"],
-                    "expected_improvement": "30-50% faster responses"
-                })
+        if not self.system_metrics:
+            return recommendations
+        
+        latest_system = self.system_metrics[-1]
+        
+        # CPU recommendations
+        if latest_system.cpu_percent > 80:
+            recommendations.append(
+                "High CPU usage detected. Consider implementing request rate limiting or scaling horizontally."
+            )
         
         # Memory recommendations
-        if self.metrics.memory_usage:
-            current_memory = self.metrics.memory_usage[-1]
-            if current_memory > 80:
-                recommendations.append({
-                    "type": "memory",
-                    "priority": "critical" if current_memory > 90 else "high",
-                    "title": "Optimize Memory Usage", 
-                    "description": f"Memory usage is {current_memory:.1f}%. Immediate action required.",
-                    "actions": ["Enable garbage collection", "Reduce cache sizes", "Optimize data structures"],
-                    "expected_improvement": f"Reduce memory usage to <70%"
-                })
+        if latest_system.memory_percent > 85:
+            recommendations.append(
+                "High memory usage detected. Consider optimizing cache sizes or implementing memory cleanup."
+            )
         
-        # Cache recommendations
-        cache_hit_rate = self._calculate_overall_cache_hit_rate()
-        if cache_hit_rate < 70:
-            recommendations.append({
-                "type": "cache",
-                "priority": "medium",
-                "title": "Improve Cache Strategy",
-                "description": f"Cache hit rate is {cache_hit_rate:.1f}%. Significant optimization opportunity.",
-                "actions": ["Review cache TTL settings", "Implement cache warming", "Optimize cache keys"],
-                "expected_improvement": f"Increase hit rate to >80%"
-            })
+        # Response time recommendations
+        if latest_system.response_times:
+            avg_response_time = statistics.mean(latest_system.response_times)
+            if avg_response_time > 2.0:
+                recommendations.append(
+                    "Slow response times detected. Consider optimizing database queries or implementing caching."
+                )
         
-        # AI Provider recommendations
-        provider_recommendations = self.get_provider_recommendations()
-        if provider_recommendations:
-            top_provider = provider_recommendations["rankings"][0][0] if provider_recommendations["rankings"] else None
-            if top_provider:
-                recommendations.append({
-                    "type": "ai_provider",
-                    "priority": "medium",
-                    "title": "Optimize AI Provider Usage",
-                    "description": f"Consider prioritizing {top_provider} for better performance.",
-                    "actions": [f"Route more requests to {top_provider}", "Implement intelligent provider switching"],
-                    "expected_improvement": "10-25% better AI response times"
-                })
+        # Connection recommendations
+        if latest_system.active_connections > 100:
+            recommendations.append(
+                "High number of active connections. Consider implementing connection pooling."
+            )
         
         return recommendations
-    
-    def _calculate_performance_grade(self, response_times: List[float]) -> str:
-        """Calculate performance grade based on response times"""
-        avg_time = sum(response_times) / len(response_times)
-        
-        if avg_time <= 0.5:
-            return "A+"
-        elif avg_time <= 1.0:
-            return "A"
-        elif avg_time <= 2.0:
-            return "B"
-        elif avg_time <= 3.0:
-            return "C"
-        elif avg_time <= 5.0:
-            return "D"
-        else:
-            return "F"
-    
-    async def _reduce_cache_sizes(self):
-        """Reduce cache sizes to free memory"""
-        # Reduce deque sizes
-        if hasattr(self, '_detailed_metrics'):
-            self._detailed_metrics = deque(list(self._detailed_metrics)[-30:], maxlen=30)
-        
-        # Reduce metrics sizes
-        self.metrics.response_times = deque(list(self.metrics.response_times)[-500:], maxlen=500)
-        self.metrics.memory_usage = deque(list(self.metrics.memory_usage)[-30:], maxlen=30)
 
 
-class MemoryManager:
-    """Advanced memory management"""
+class AutoOptimizationEngine:
+    """
+    Automated performance optimization based on real-time metrics
+    """
     
-    def __init__(self):
-        self.memory_pools = {}
-        self.weak_references = weakref.WeakSet()
-    
-    async def optimize_memory_usage(self):
-        """Optimize memory usage"""
-        # Force garbage collection
-        gc.collect()
+    def __init__(self, cache_manager: IntelligentCacheManager, monitor: PerformanceMonitoringSystem):
+        self.cache_manager = cache_manager
+        self.monitor = monitor
+        self.optimization_history = []
+        self.optimization_enabled = True
         
-        # Clear weak references
-        self.weak_references.clear()
+        # Optimization rules
+        self.optimization_rules = [
+            self._optimize_cache_strategy,
+            self._optimize_resource_allocation,
+            self._optimize_query_performance,
+            self._optimize_background_tasks
+        ]
         
-        # Additional memory optimization
-        logger.info("Memory optimization completed by MemoryManager")
-
-
-class CacheOptimizer:
-    """Advanced cache optimization"""
+        # Start optimization worker
+        asyncio.create_task(self._optimization_worker())
     
-    def __init__(self):
-        self.cache_patterns = defaultdict(list)
-        self.optimization_history = deque(maxlen=50)
+    async def _optimization_worker(self):
+        """Background worker for automated optimizations"""
+        while self.optimization_enabled:
+            try:
+                await self._run_optimization_cycle()
+                await asyncio.sleep(300)  # Run every 5 minutes
+            except Exception as e:
+                logger.error(f"Auto-optimization error: {e}")
+                await asyncio.sleep(60)
     
-    async def optimize_memory_usage(self):
-        """Optimize cache memory usage"""
-        # Clear old cache patterns
-        self.cache_patterns.clear()
+    async def _run_optimization_cycle(self):
+        """Run a complete optimization cycle"""
         
-        # Trigger garbage collection
-        gc.collect()
+        # Get current performance metrics
+        performance_report = await self.monitor.get_performance_report()
         
-        logger.info("Cache memory optimization completed")
+        optimizations_applied = []
+        
+        # Run optimization rules
+        for rule in self.optimization_rules:
+            try:
+                optimization = await rule(performance_report)
+                if optimization:
+                    optimizations_applied.append(optimization)
+            except Exception as e:
+                logger.error(f"Optimization rule error: {e}")
+        
+        # Record optimization history
+        if optimizations_applied:
+            self.optimization_history.append({
+                "timestamp": datetime.now(),
+                "optimizations": optimizations_applied,
+                "performance_before": performance_report
+            })
+            
+            # Keep only recent history
+            if len(self.optimization_history) > 100:
+                self.optimization_history = self.optimization_history[-100:]
+            
+            logger.info(f"Applied {len(optimizations_applied)} automatic optimizations")
     
-    async def analyze_cache_patterns(self) -> Dict[str, Any]:
-        """Analyze cache usage patterns"""
+    async def _optimize_cache_strategy(self, performance_report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Optimize caching strategy based on performance"""
+        
+        cache_stats = await self.cache_manager.get_cache_stats()
+        overall_hit_rate = cache_stats["hit_rates"]["overall"]
+        
+        # If hit rate is low, adjust cache sizes
+        if overall_hit_rate < 0.6:
+            # Increase L1 cache size if memory allows
+            system_memory = performance_report.get("system_performance", {}).get("memory_percent", 0)
+            
+            if system_memory < 70:  # Plenty of memory available
+                old_size = self.cache_manager.l1_max_size
+                self.cache_manager.l1_max_size = min(old_size * 1.2, 2000)
+                
+                return {
+                    "type": "cache_optimization",
+                    "action": "increase_l1_cache_size",
+                    "old_value": old_size,
+                    "new_value": self.cache_manager.l1_max_size,
+                    "reason": f"Low hit rate: {overall_hit_rate:.2f}"
+                }
+        
+        return None
+    
+    async def _optimize_resource_allocation(self, performance_report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Optimize resource allocation based on usage patterns"""
+        
+        system_perf = performance_report.get("system_performance", {})
+        cpu_percent = system_perf.get("cpu_percent", 0)
+        memory_percent = system_perf.get("memory_percent", 0)
+        
+        # If CPU is high but memory is low, suggest memory-for-CPU trade-offs
+        if cpu_percent > 80 and memory_percent < 60:
+            return {
+                "type": "resource_optimization",
+                "action": "increase_memory_usage_for_cpu_savings",
+                "recommendation": "Increase cache sizes to reduce CPU-intensive operations",
+                "cpu_usage": cpu_percent,
+                "memory_usage": memory_percent
+            }
+        
+        return None
+    
+    async def _optimize_query_performance(self, performance_report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Optimize database query performance"""
+        
+        api_perf = performance_report.get("api_performance", {})
+        avg_response_time = api_perf.get("avg_response_time", 0)
+        
+        # If response times are slow, suggest optimizations
+        if avg_response_time > 1.0:
+            return {
+                "type": "query_optimization",
+                "action": "suggest_query_improvements",
+                "recommendation": "Consider adding database indexes or implementing query caching",
+                "avg_response_time": avg_response_time
+            }
+        
+        return None
+    
+    async def _optimize_background_tasks(self, performance_report: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Optimize background task execution"""
+        
+        system_perf = performance_report.get("system_performance", {})
+        cpu_percent = system_perf.get("cpu_percent", 0)
+        
+        # If CPU is consistently high, reduce background task frequency
+        if cpu_percent > 85:
+            return {
+                "type": "background_task_optimization",
+                "action": "reduce_background_task_frequency",
+                "recommendation": "Temporarily reduce frequency of non-critical background tasks",
+                "cpu_usage": cpu_percent
+            }
+        
+        return None
+    
+    def get_optimization_report(self) -> Dict[str, Any]:
+        """Get optimization report"""
+        
+        if not self.optimization_history:
+            return {"status": "No optimizations performed yet"}
+        
+        recent_optimizations = [
+            opt for opt in self.optimization_history
+            if datetime.now() - opt["timestamp"] < timedelta(hours=24)
+        ]
+        
+        optimization_types = defaultdict(int)
+        for opt in recent_optimizations:
+            for optimization in opt["optimizations"]:
+                optimization_types[optimization["type"]] += 1
+        
         return {
-            "pattern_analysis": "completed",
-            "recommendations": ["increase_ttl", "warm_frequently_accessed"],
-            "optimization_opportunities": 3
-        }
-    
-    async def optimize_cache_strategy(self, analysis: Dict[str, Any]):
-        """Optimize cache strategy based on analysis"""
-        # Record optimization
-        self.optimization_history.append({
-            "timestamp": datetime.utcnow(),
-            "analysis": analysis,
-            "optimizations_applied": ["ttl_adjustment", "key_optimization"]
-        })
-        
-        logger.info("Cache strategy optimization completed")
-    
-    async def emergency_cache_clear(self):
-        """Emergency cache clearing"""
-        self.cache_patterns.clear()
-        self.optimization_history.clear()
-        gc.collect()
-        
-        logger.critical("Emergency cache clear completed")
-
-
-class LoadBalancer:
-    """Advanced load balancing"""
-    
-    def __init__(self):
-        self.load_distribution = {}
-        self.server_pools = defaultdict(list)
-    
-    async def optimize_load_distribution(self):
-        """Optimize load distribution"""
-        # Analyze current load
-        total_requests = sum(self.load_distribution.values())
-        
-        if total_requests > 0:
-            # Rebalance if needed
-            logger.info(f"Load balancing optimization completed. Total requests: {total_requests}")
-        
-        return {
-            "status": "optimized",
-            "total_requests": total_requests,
-            "distribution": self.load_distribution
+            "total_optimizations": len(self.optimization_history),
+            "recent_optimizations": len(recent_optimizations),
+            "optimization_types": dict(optimization_types),
+            "last_optimization": self.optimization_history[-1]["timestamp"].isoformat(),
+            "optimization_enabled": self.optimization_enabled
         }
 
 
-# Global performance optimization engine
-performance_optimization_engine = PerformanceOptimizationEngine()
+# Global instances
+intelligent_cache_manager = None
+performance_monitoring_system = None
+auto_optimization_engine = None
+
+def initialize_performance_systems(redis_client: Optional[redis.Redis] = None):
+    """Initialize global performance systems"""
+    global intelligent_cache_manager, performance_monitoring_system, auto_optimization_engine
+    
+    intelligent_cache_manager = IntelligentCacheManager(redis_client)
+    performance_monitoring_system = PerformanceMonitoringSystem()
+    auto_optimization_engine = AutoOptimizationEngine(
+        intelligent_cache_manager,
+        performance_monitoring_system
+    )
+    
+    logger.info("Performance optimization systems initialized")
+
+def get_cache_manager() -> IntelligentCacheManager:
+    """Get global cache manager instance"""
+    if intelligent_cache_manager is None:
+        raise RuntimeError("Performance systems not initialized")
+    return intelligent_cache_manager
+
+def get_performance_monitor() -> PerformanceMonitoringSystem:
+    """Get global performance monitor instance"""
+    if performance_monitoring_system is None:
+        raise RuntimeError("Performance systems not initialized")
+    return performance_monitoring_system
+
+def get_optimization_engine() -> AutoOptimizationEngine:
+    """Get global optimization engine instance"""
+    if auto_optimization_engine is None:
+        raise RuntimeError("Performance systems not initialized")
+    return auto_optimization_engine
