@@ -42,7 +42,6 @@ class AutomationEngine:
     def __init__(self):
         self.active_tasks: Dict[str, AutomationTask] = {}
         self.task_history: List[AutomationTask] = []
-        self.driver_pool = []
         self.max_concurrent_tasks = 3
         
         # Pre-defined automation patterns
@@ -50,22 +49,26 @@ class AutomationEngine:
             "job_application": {
                 "description": "Apply to jobs on job sites",
                 "sites": ["linkedin.com", "indeed.com", "glassdoor.com"],
-                "steps": ["search_jobs", "filter_results", "apply_to_jobs", "save_applications"]
+                "steps": ["search_jobs", "filter_results", "apply_to_jobs", "save_applications"],
+                "use_real_browser": True
             },
             "content_research": {
                 "description": "Research and collect content from multiple sources",
                 "sites": ["google.com", "scholar.google.com", "wikipedia.org"],
-                "steps": ["search_query", "collect_results", "summarize_content", "save_research"]
+                "steps": ["search_query", "collect_results", "summarize_content", "save_research"],
+                "use_real_browser": True
             },
             "social_media_posting": {
                 "description": "Post content across social media platforms",
                 "sites": ["linkedin.com", "twitter.com", "facebook.com"],
-                "steps": ["prepare_content", "post_to_platforms", "schedule_posts", "track_engagement"]
+                "steps": ["prepare_content", "post_to_platforms", "schedule_posts", "track_engagement"],
+                "use_real_browser": False  # Use API integration instead
             },
             "data_collection": {
                 "description": "Collect data from websites and export",
                 "sites": ["any"],
-                "steps": ["navigate_to_data", "extract_information", "process_data", "export_results"]
+                "steps": ["navigate_to_data", "extract_information", "process_data", "export_results"],
+                "use_real_browser": True
             }
         }
     
