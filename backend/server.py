@@ -4,6 +4,10 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
+
 from pymongo import MongoClient
 import uuid
 from datetime import datetime
@@ -14,15 +18,13 @@ import asyncio
 import time
 import logging
 
-# Import our enhanced modules
+# Import our enhanced modules after loading environment
 from ai_manager import ai_manager, AIProvider
 from cache_manager import cache_manager
 from performance_monitor import performance_monitor, monitor_performance
 from automation_engine import automation_engine
 from workflow_manager import workflow_manager, WorkflowManager
 from integration_manager import integration_manager
-
-load_dotenv()
 
 # Configure logging
 logger = logging.getLogger(__name__)
