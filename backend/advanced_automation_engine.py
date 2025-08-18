@@ -901,6 +901,37 @@ class AdvancedAutomationEngine:
                 return True
         return False
     
+    async def _handle_response_success(self, context: Dict) -> bool:
+        """Handle response success condition"""
+        try:
+            response = context.get('last_response')
+            if response:
+                return response.get('success', False) and response.get('status_code', 500) < 400
+            return False
+        except Exception:
+            return False
+    
+    async def _handle_time_exceeded(self, context: Dict) -> bool:
+        """Handle time exceeded condition"""
+        try:
+            start_time = context.get('start_time')
+            max_time = context.get('max_time', 300)  # Default 5 minutes
+            if start_time:
+                import time
+                return (time.time() - start_time) > max_time
+            return False
+        except Exception:
+            return False
+    
+    async def _handle_error_count(self, context: Dict) -> bool:
+        """Handle error count condition"""
+        try:
+            error_count = context.get('error_count', 0)
+            max_errors = context.get('max_errors', 3)
+            return error_count >= max_errors
+        except Exception:
+            return False
+    
     def get_execution_statistics(self) -> Dict[str, Any]:
         """Get detailed execution statistics"""
         return {
