@@ -62,6 +62,24 @@ function App() {
     }
   };
 
+  const loadActiveAutomations = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/active-automations`);
+      setActiveAutomations(response.data.active_tasks || []);
+    } catch (error) {
+      console.error('Failed to load active automations:', error);
+    }
+  };
+
+  const loadAutomationSuggestions = async (url) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/automation-suggestions?current_url=${encodeURIComponent(url)}`);
+      setAutomationSuggestions(response.data.suggestions || []);
+    } catch (error) {
+      console.error('Failed to load automation suggestions:', error);
+    }
+  };
+
   const navigateToUrl = async (url) => {
     if (!url) return;
     
