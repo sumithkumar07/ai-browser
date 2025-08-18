@@ -77,7 +77,6 @@ class TrinityArchitectureEngine:
             
             # Start coordination systems
             await self.coordinator.initialize()
-            await self.deep_action_processor.initialize()
             await self.hierarchical_planner.initialize()
             
             # Start processing loop
