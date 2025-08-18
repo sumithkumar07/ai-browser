@@ -152,10 +152,24 @@ function App() {
         id: Date.now() + 1,
         type: 'assistant',
         content: response.data.response,
-        timestamp: new Date()
+        timestamp: new Date(),
+        automation_task_id: response.data.automation_task_id,
+        message_type: response.data.message_type,
+        automation_suggestions: response.data.automation_suggestions
       };
 
       setChatMessages(prev => [...prev, aiMessage]);
+      
+      // Update active automations if a task was created
+      if (response.data.automation_task_id) {
+        await loadActiveAutomations();
+      }
+      
+      // Update automation suggestions if provided
+      if (response.data.automation_suggestions) {
+        setAutomationSuggestions(response.data.automation_suggestions);
+      }
+
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = {
@@ -167,6 +181,82 @@ function App() {
       setChatMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const executeAutomation = async (taskId) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/execute-automation/${taskId}`);
+      
+      // Add status message to chat
+      const statusMessage = {
+        id: Date.now(),
+        type: 'assistant',
+        content: '✅ Automation started! I\'ll work in the background and update you on progress.',
+        timestamp: new Date(),
+        message_type: 'automation_status'
+      };
+      setChatMessages(prev => [...prev, statusMessage]);
+      
+      // Reload active automations
+      await loadActiveAutomations();
+      
+      // Poll for updates
+      pollAutomationStatus(taskId);
+      
+    } catch (error) {
+      console.error('Failed to execute automation:', error);
+    }
+  };
+
+  const pollAutomationStatus = (taskId) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/automation-status/${taskId}`);
+        const status = response.data.task_status;
+        
+        if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
+          clearInterval(pollInterval);
+          
+          // Add completion message to chat
+          const completionMessage = {
+            id: Date.now(),
+            type: 'assistant',
+            content: status.status === 'completed' 
+              ? `✅ **Automation Completed!**\n\nTask: ${status.description}\nResult: Successfully completed ${status.current_step}/${status.total_steps} steps.`
+              : `⚠️ **Automation ${status.status.charAt(0).toUpperCase() + status.status.slice(1)}**\n\nTask: ${status.description}\n${status.error_message || 'Task was cancelled.'}`,
+            timestamp: new Date(),
+            message_type: 'automation_status'
+          };
+          setChatMessages(prev => [...prev, completionMessage]);
+          
+          // Reload automations
+          await loadActiveAutomations();
+        }
+      } catch (error) {
+        console.error('Failed to poll automation status:', error);
+        clearInterval(pollInterval);
+      }
+    }, 3000); // Poll every 3 seconds
+  };
+
+  const cancelAutomation = async (taskId) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/cancel-automation/${taskId}`);
+      await loadActiveAutomations();
+      
+      // Add cancellation message to chat
+      const cancelMessage = {
+        id: Date.now(),
+        type: 'assistant',
+        content: '🛑 Automation cancelled successfully.',
+        timestamp: new Date(),
+        message_type: 'automation_status'
+      };
+      setChatMessages(prev => [...prev, cancelMessage]);
+      
+    } catch (error) {
+      console.error('Failed to cancel automation:', error);
     }
   };
 
