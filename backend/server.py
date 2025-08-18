@@ -102,14 +102,19 @@ def initialize_enhanced_components():
         workflow_engine = AdvancedWorkflowEngine(client)
         logger.info("Advanced Workflow Engine initialized")
         
-        # Initialize Phase 1-4 components
+        # Initialize enhanced systems with Phase 1-4 components
+        # Initialize Phase 1-2 Agentic components
         agentic_engine = initialize_agentic_engine(client)
-        logger.info("Agentic Engine initialized")
+        timeline_manager = initialize_timeline_manager(client)
         
-        timeline_mgr = initialize_timeline_manager(client)
-        logger.info("Timeline Manager initialized")
+        # Initialize Phase 3 components  
+        user_pattern_learning_engine = initialize_user_pattern_learning(client)
         
-        logger.info("All enhanced components initialized successfully")
+        # Initialize Phase 4 components
+        custom_integration_builder = initialize_custom_integration_builder(client)
+        integration_health_monitor = initialize_integration_health_monitor(client)
+        
+        logger.info("All Phase 1-4 systems initialized successfully")
         return True
         
     except Exception as e:
