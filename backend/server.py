@@ -307,44 +307,125 @@ async def browse_page_enhanced(session: BrowsingSession):
 @app.post("/api/chat")
 @monitor_performance
 async def chat_with_enhanced_ai(chat_data: ChatMessage):
-    """Enhanced chat with multi-model AI support"""
+    """Enhanced chat with multi-model AI support and automation detection"""
     try:
         session_id = chat_data.session_id or str(uuid.uuid4())
         
-        # Get page context if URL provided
-        context = None
-        if chat_data.current_url:
-            page_data = await get_page_content_with_cache(chat_data.current_url)
-            if not page_data.get("error", False):
-                context = f"Page: {page_data['title']}\nDescription: {page_data.get('meta_description', '')}\nContent: {page_data['content'][:3000]}"
+        # Check if this is an automation command
+        automation_keywords = ["apply to", "automate", "find and", "save to", "send to", "schedule", "create workflow"]
+        is_automation_command = any(keyword in chat_data.message.lower() for keyword in automation_keywords)
         
-        # Get AI response with enhanced capabilities
-        ai_result = await get_enhanced_ai_response(
-            chat_data.message, 
-            context=context,
-            session_id=session_id
-        )
+        if is_automation_command:
+            # Handle as automation request
+            try:
+                # Create automation task
+                task_id = await automation_engine.create_automation_task(
+                    description=chat_data.message,
+                    user_session=session_id,
+                    current_url=chat_data.current_url
+                )
+                
+                # Get task details
+                task_status = await automation_engine.get_task_status(task_id)
+                
+                # Create automation response
+                automation_response = f"""🤖 **Automation Task Created**
+
+**Task:** {task_status['description']}
+**Complexity:** {task_status['complexity'].title()}
+**Estimated Time:** {task_status['estimated_duration'] // 60} minutes
+**Steps:** {task_status['total_steps']}
+
+Would you like me to start this automation? 
+
+[**▶️ Start Automation**] [**✏️ Customize**] [**❌ Cancel**]
+
+*Task ID: {task_id[:8]}*"""
+
+                # Store enhanced chat session
+                chat_record = {
+                    "session_id": session_id,
+                    "user_message": chat_data.message,
+                    "ai_response": automation_response,
+                    "ai_provider": "automation_engine",
+                    "current_url": chat_data.current_url,
+                    "response_time": 0.5,
+                    "language": chat_data.language,
+                    "automation_task_id": task_id,
+                    "message_type": "automation_offer",
+                    "timestamp": datetime.utcnow()
+                }
+                
+                db.chat_sessions.insert_one(chat_record)
+                
+                return {
+                    "response": automation_response,
+                    "session_id": session_id,
+                    "provider": "automation_engine",
+                    "response_time": 0.5,
+                    "automation_task_id": task_id,
+                    "message_type": "automation_offer"
+                }
+                
+            except Exception as automation_error:
+                logger.error(f"Automation creation failed: {automation_error}")
+                # Fall back to regular AI response
+                is_automation_command = False
         
-        # Store enhanced chat session
-        chat_record = {
-            "session_id": session_id,
-            "user_message": chat_data.message,
-            "ai_response": ai_result["response"],
-            "ai_provider": ai_result["provider"],
-            "current_url": chat_data.current_url,
-            "response_time": ai_result["response_time"],
-            "language": chat_data.language,
-            "timestamp": datetime.utcnow()
-        }
-        
-        db.chat_sessions.insert_one(chat_record)
-        
-        return {
-            "response": ai_result["response"],
-            "session_id": session_id,
-            "provider": ai_result["provider"],
-            "response_time": ai_result["response_time"]
-        }
+        if not is_automation_command:
+            # Handle as regular AI chat
+            
+            # Get page context if URL provided
+            context = None
+            if chat_data.current_url:
+                page_data = await get_page_content_with_cache(chat_data.current_url)
+                if not page_data.get("error", False):
+                    context = f"Page: {page_data['title']}\nDescription: {page_data.get('meta_description', '')}\nContent: {page_data['content'][:3000]}"
+            
+            # Get AI response with enhanced capabilities
+            ai_result = await get_enhanced_ai_response(
+                chat_data.message, 
+                context=context,
+                session_id=session_id
+            )
+            
+            # Check if we should suggest automations
+            suggestions = []
+            if chat_data.current_url:
+                suggestions = await automation_engine.suggest_automations(chat_data.current_url)
+            
+            # Add automation suggestions to response if relevant
+            enhanced_response = ai_result["response"]
+            if suggestions and len(suggestions) > 0:
+                enhanced_response += f"\n\n💡 **Quick Actions Available:**\n"
+                for i, suggestion in enumerate(suggestions[:2], 1):
+                    enhanced_response += f"\n{i}. **{suggestion['title']}** - {suggestion['description']} (~{suggestion['estimated_time']})"
+                enhanced_response += f"\n\n*Say something like \"{suggestions[0]['command']}\" to get started!*"
+            
+            # Store enhanced chat session
+            chat_record = {
+                "session_id": session_id,
+                "user_message": chat_data.message,
+                "ai_response": enhanced_response,
+                "ai_provider": ai_result["provider"],
+                "current_url": chat_data.current_url,
+                "response_time": ai_result["response_time"],
+                "language": chat_data.language,
+                "automation_suggestions": suggestions,
+                "message_type": "conversation",
+                "timestamp": datetime.utcnow()
+            }
+            
+            db.chat_sessions.insert_one(chat_record)
+            
+            return {
+                "response": enhanced_response,
+                "session_id": session_id,
+                "provider": ai_result["provider"],
+                "response_time": ai_result["response_time"],
+                "automation_suggestions": suggestions,
+                "message_type": "conversation"
+            }
         
     except Exception as e:
         performance_monitor.record_error("CHAT_ERROR", str(e))
