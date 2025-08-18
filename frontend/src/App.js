@@ -239,6 +239,57 @@ function App() {
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Smart action handler for drag & drop
+  const handleSmartAction = async ({ action, item, dropZone }) => {
+    try {
+      switch (action) {
+        case 'summarize':
+          const summaryResponse = await axios.post(`${API_BASE_URL}/api/summarize`, {
+            url: item.url || currentUrl,
+            length: 'medium'
+          });
+          
+          const summaryMessage = {
+            id: Date.now(),
+            type: 'assistant',
+            content: `📄 **Page Summary:**\n\n${summaryResponse.data.summary}`,
+            timestamp: new Date()
+          };
+          setChatMessages(prev => [...prev, summaryMessage]);
+          if (!isAssistantOpen) setIsAssistantOpen(true);
+          break;
+          
+        case 'browse':
+          if (item.url || item.content) {
+            navigateToUrl(item.url || item.content);
+          }
+          break;
+          
+        case 'chat':
+          const chatContent = item.content || item.title || 'Analyze this item';
+          setChatInput(`Tell me about: ${chatContent}`);
+          if (!isAssistantOpen) setIsAssistantOpen(true);
+          break;
+          
+        case 'create_workflow':
+          setIsWorkflowBuilderOpen(true);
+          break;
+          
+        default:
+          console.log('Smart action executed:', { action, item, dropZone });
+      }
+    } catch (error) {
+      console.error('Smart action failed:', error);
+    }
+  };
+
   const executeAutomation = async (taskId) => {
     try {
       await axios.post(`${API_BASE_URL}/api/execute-automation/${taskId}`);
