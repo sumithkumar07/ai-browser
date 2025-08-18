@@ -41,6 +41,12 @@ db = client.aether_browser
 # Groq client
 groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+# Initialize Enhancement Engines
+native_browser = NativeBrowserEngine()
+research_engine = ResearchAutomationEngine()
+platform_hub = CrossPlatformIntegrationHub()
+browser_performance = BrowserPerformanceMonitor()
+
 # Enhanced Pydantic models
 class ChatMessage(BaseModel):
     message: str
