@@ -110,7 +110,7 @@ async def get_ai_response(message: str, context: Optional[str] = None, session_i
         # Get response from Groq
         chat_completion = groq_client.chat.completions.create(
             messages=messages,
-            model="llama-3.1-70b-versatile",  # Using latest Llama model
+            model="llama-3.3-70b-versatile",  # Using latest available Llama model
             temperature=0.7,
             max_tokens=1000
         )
