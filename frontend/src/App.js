@@ -76,6 +76,14 @@ function App() {
     loadKeyboardShortcuts();
     loadPerformanceData();
     initializeVoiceCommands();
+    
+    // **PHASE 3: AUTONOMOUS AI INITIALIZATION**
+    loadProactiveSuggestions();
+    
+    // Set up proactive suggestions polling
+    const suggestionInterval = setInterval(loadProactiveSuggestions, 30000); // Every 30 seconds
+    
+    return () => clearInterval(suggestionInterval);
   }, []);
 
   // Advanced features loaders
