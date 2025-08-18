@@ -100,46 +100,218 @@ async def get_page_content(url: str) -> Dict[str, Any]:
     except Exception as e:
         return {"title": url, "content": f"Error loading page: {str(e)}", "url": url}
 
-async def get_ai_response(message: str, context: Optional[str] = None, session_id: Optional[str] = None) -> str:
-    """Get AI response using Groq API"""
+async def get_ai_response(message: str, context: Optional[str] = None, session_id: Optional[str] = None, proactive: bool = False) -> Dict[str, Any]:
+    """Enhanced AI response with autonomous capabilities - Phase 3"""
     try:
         # Get conversation history
         messages = [
             {
                 "role": "system", 
-                "content": "You are AETHER AI Assistant, an intelligent browser companion. You help users with web browsing, answer questions, and provide helpful information. Be concise but informative."
+                "content": """You are AETHER AI Assistant, an advanced autonomous browser companion with proactive capabilities. 
+
+AUTONOMOUS FEATURES:
+- Proactively suggest actions and improvements
+- Learn from user behavior patterns
+- Execute complex multi-step tasks independently
+- Provide contextual insights and recommendations
+- Monitor and optimize user workflows
+
+RESPONSE FORMAT: Always include suggestions for automation or improvements.
+Be conversational but intelligent. Think several steps ahead for the user."""
             }
         ]
         
         if session_id:
-            # Get previous messages from database
+            # Get previous messages with enhanced context
             chat_history = list(db.chat_sessions.find(
                 {"session_id": session_id}
-            ).sort("timestamp", -1).limit(10))
+            ).sort("timestamp", -1).limit(20))  # Increased history for better context
             
-            for chat in reversed(chat_history):
+            # Analyze user patterns for proactive suggestions
+            user_patterns = analyze_user_patterns(chat_history)
+            if user_patterns:
+                messages.append({
+                    "role": "system", 
+                    "content": f"User patterns detected: {user_patterns}. Use this for proactive suggestions."
+                })
+            
+            for chat in reversed(chat_history[-10:]):  # Last 10 for context
                 messages.append({"role": "user", "content": chat["user_message"]})
                 messages.append({"role": "assistant", "content": chat["ai_response"]})
         
-        # Add context if available (web page content)
+        # Add enhanced context
         if context:
             context_msg = f"Current webpage context: {context[:2000]}"
             messages.append({"role": "system", "content": context_msg})
+            
+            # **PHASE 3: PROACTIVE SUGGESTIONS**
+            suggestions = await generate_proactive_suggestions(context, session_id)
+            if suggestions:
+                messages.append({
+                    "role": "system",
+                    "content": f"Suggested proactive actions: {suggestions}"
+                })
         
         messages.append({"role": "user", "content": message})
         
-        # Get response from Groq
+        # Get response from Groq with enhanced parameters
         chat_completion = groq_client.chat.completions.create(
             messages=messages,
-            model="llama-3.3-70b-versatile",  # Using latest available Llama model
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=1500,  # Increased for more detailed responses
+            top_p=0.9
         )
         
-        return chat_completion.choices[0].message.content
+        ai_response = chat_completion.choices[0].message.content
+        
+        # **PHASE 3: AUTONOMOUS TASK DETECTION**
+        task_analysis = await analyze_for_automation(message, ai_response, context)
+        
+        # **PHASE 3: ENHANCED RESPONSE WITH PROACTIVE ELEMENTS**
+        return {
+            "response": ai_response,
+            "proactive_suggestions": task_analysis.get("suggestions", []),
+            "automation_opportunities": task_analysis.get("automations", []),
+            "learning_insights": task_analysis.get("insights", []),
+            "suggested_actions": await get_contextual_actions(context, message)
+        }
         
     except Exception as e:
-        return f"Sorry, I'm having trouble processing your request: {str(e)}"
+        return {
+            "response": f"I'm experiencing some difficulties right now. Let me try to help you anyway: {str(e)}",
+            "proactive_suggestions": [],
+            "automation_opportunities": [],
+            "learning_insights": [],
+            "suggested_actions": []
+        }
+
+# **PHASE 3: AUTONOMOUS AI HELPER FUNCTIONS**
+
+def analyze_user_patterns(chat_history: List[Dict]) -> str:
+    """Analyze user behavior patterns for proactive assistance"""
+    if not chat_history or len(chat_history) < 3:
+        return ""
+    
+    patterns = []
+    
+    # Analyze frequency of requests
+    recent_messages = [chat["user_message"].lower() for chat in chat_history[:10]]
+    
+    # Common workflow patterns
+    if any("workflow" in msg or "automate" in msg for msg in recent_messages):
+        patterns.append("frequent automation interest")
+    
+    if any("search" in msg or "find" in msg for msg in recent_messages):
+        patterns.append("search-heavy user")
+        
+    if any("help" in msg or "how" in msg for msg in recent_messages):
+        patterns.append("learning-oriented user")
+    
+    return ", ".join(patterns) if patterns else ""
+
+async def generate_proactive_suggestions(context: str, session_id: str) -> List[str]:
+    """Generate proactive suggestions based on current context"""
+    suggestions = []
+    
+    if not context:
+        return suggestions
+    
+    context_lower = context.lower()
+    
+    # Website-specific suggestions
+    if "github" in context_lower:
+        suggestions.append("I can help you automate repository tasks like cloning, issue tracking, or PR management")
+    
+    if "linkedin" in context_lower:
+        suggestions.append("Would you like me to help automate networking tasks or job application processes?")
+    
+    if "documentation" in context_lower or "docs" in context_lower:
+        suggestions.append("I can create automated summaries or extract key information from documentation")
+    
+    if "form" in context_lower:
+        suggestions.append("I can automate form filling and data entry tasks")
+    
+    # Time-based suggestions
+    current_hour = datetime.utcnow().hour
+    if 9 <= current_hour <= 17:  # Business hours
+        suggestions.append("Since it's work hours, I can help optimize your productivity workflows")
+    
+    return suggestions
+
+async def analyze_for_automation(user_message: str, ai_response: str, context: str = None) -> Dict[str, List]:
+    """Analyze conversation for automation opportunities"""
+    analysis = {
+        "suggestions": [],
+        "automations": [],
+        "insights": []
+    }
+    
+    message_lower = user_message.lower()
+    
+    # Detect repetitive tasks
+    repetitive_keywords = ["again", "repeat", "same", "every day", "always", "frequently"]
+    if any(keyword in message_lower for keyword in repetitive_keywords):
+        analysis["automations"].append({
+            "type": "repetitive_task",
+            "description": "This seems like a repetitive task - I can automate it",
+            "confidence": 0.8
+        })
+    
+    # Detect multi-step processes
+    step_keywords = ["first", "then", "next", "after", "finally", "step"]
+    if any(keyword in message_lower for keyword in step_keywords):
+        analysis["automations"].append({
+            "type": "multi_step_process", 
+            "description": "I can create a workflow for this multi-step process",
+            "confidence": 0.7
+        })
+    
+    # Learning insights
+    if "learn" in message_lower or "understand" in message_lower:
+        analysis["insights"].append("User is in learning mode - provide detailed explanations")
+    
+    if "quick" in message_lower or "fast" in message_lower:
+        analysis["insights"].append("User values efficiency - suggest shortcuts and automations")
+    
+    return analysis
+
+async def get_contextual_actions(context: str, message: str) -> List[Dict]:
+    """Get contextual actions based on current page and user intent"""
+    actions = []
+    
+    if not context:
+        return actions
+    
+    context_lower = context.lower()
+    message_lower = message.lower()
+    
+    # Page-specific actions
+    if "login" in context_lower and ("help" in message_lower or "automate" in message_lower):
+        actions.append({
+            "action": "automate_login",
+            "title": "Automate Login Process", 
+            "description": "I can help automate the login process for this site",
+            "priority": "high"
+        })
+    
+    if "shopping" in context_lower or "cart" in context_lower:
+        actions.append({
+            "action": "price_monitor",
+            "title": "Monitor Prices",
+            "description": "Set up price monitoring and alerts for items you're interested in",
+            "priority": "medium"
+        })
+    
+    if "article" in context_lower or "blog" in context_lower:
+        actions.append({
+            "action": "summarize_content",
+            "title": "Smart Summary",
+            "description": "Get an AI-powered summary of this article",
+            "priority": "high"
+        })
+    
+    return actions
 
 # ============================================
 # BASIC API ENDPOINTS (WORKING)
