@@ -20,13 +20,19 @@ import logging
 import base64
 
 # Import our enhanced modules after loading environment
-from ai_manager import get_ai_manager, AIProvider
+from ai_manager import get_ai_manager
 ai_manager = get_ai_manager()  # Initialize AI manager
+
+# Import enhanced modules with proper initialization
+from initialization_fix import module_initializer, initialize_all_enhanced_modules, get_initialized_module
 from cache_manager import cache_manager
 from performance_monitor import performance_monitor, monitor_performance
 from automation_engine import automation_engine
 from workflow_manager import workflow_manager, WorkflowManager
 from integration_manager import integration_manager
+from enhanced_integration_manager import enhanced_integration_manager, EnhancedIntegrationManager
+from advanced_automation_engine import AdvancedAutomationEngine
+from advanced_workflow_engine import AdvancedWorkflowEngine
 from integration_auth_manager import IntegrationAuthManager
 
 # Import all enhanced components
@@ -34,7 +40,6 @@ from enhanced_ai_manager import enhanced_ai_manager
 from advanced_automation_engine import advanced_automation_engine
 from intelligent_memory_system import intelligent_memory_system, IntelligentMemorySystem
 from performance_optimization_engine import performance_optimization_engine
-from enhanced_integration_manager import enhanced_integration_manager, EnhancedIntegrationManager
 from advanced_workflow_engine import advanced_workflow_engine, VisualWorkflowEngine
 
 # Import new Phase 1-4 modules
