@@ -63,6 +63,29 @@ enhanced_integration_manager = EnhancedIntegrationManager(client)
 advanced_workflow_engine = AdvancedWorkflowEngine(client)
 integration_auth_manager = IntegrationAuthManager(client)
 
+# Startup event to initialize all enhanced systems
+@app.on_event("startup")
+async def startup_event():
+    """Initialize all enhanced systems on startup"""
+    logger.info("🚀 Starting AETHER Enhanced Browser API...")
+    
+    # Start all background engines
+    enhanced_ai_manager.start_learning_engine() if hasattr(enhanced_ai_manager, 'start_learning_engine') else None
+    advanced_automation_engine.start_background_processor()
+    intelligent_memory_system.start_learning_engine()
+    performance_optimization_engine.start_performance_engine()
+    enhanced_integration_manager.start_integration_engine()
+    advanced_workflow_engine.start_workflow_engine()
+    
+    logger.info("✅ All enhanced systems initialized successfully!")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    logger.info("🔽 Shutting down AETHER Enhanced Browser API...")
+    # Close database connections and cleanup
+    client.close()
+
 # Enhanced Pydantic models
 class ChatMessage(BaseModel):
     message: str
