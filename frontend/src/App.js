@@ -797,23 +797,16 @@ function App() {
       <>
         {currentUrl ? (
           <div className="flex-1 relative bg-white m-4 rounded-xl overflow-hidden shadow-md">
-            {isNavigating && (
-              <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 backdrop-blur-sm">
-                <div className="text-center">
-                  <div className="loading-dots mb-3">
-                    <div className="loading-dot"></div>
-                    <div className="loading-dot"></div>
-                    <div className="loading-dot"></div>
-                  </div>
-                  <p className="text-gray-600 font-medium">Loading page...</p>
-                </div>
-              </div>
-            )}
-            <iframe
-              src={currentUrl}
-              className="browser-frame"
+            {/* **PHASE 2: ENHANCED BROWSER ENGINE** */}
+            <EnhancedWebView
+              url={currentUrl}
               title={pageTitle}
-              sandbox="allow-same-origin allow-scripts allow-forms allow-navigation"
+              isLoading={isNavigating}
+              onNavigate={(newUrl) => navigateToUrl(newUrl)}
+              onTitleChange={(newTitle) => setPageTitle(newTitle)}
+              onSecurityChange={(security) => console.log('Security status:', security)}
+              onPerformanceUpdate={(metrics) => console.log('Performance:', metrics)}
+              className="h-full browser-frame"
             />
           </div>
         ) : (
