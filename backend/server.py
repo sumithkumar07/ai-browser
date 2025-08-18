@@ -259,13 +259,11 @@ async def health_check():
     }
 
 @app.get("/api/performance")
-@monitor_performance
 async def get_performance_metrics():
     """Get detailed performance metrics"""
     return performance_monitor.get_performance_summary()
 
 @app.post("/api/browse")
-@monitor_performance
 async def browse_page_enhanced(session: BrowsingSession):
     """Enhanced web page fetching with caching and AI analysis"""
     try:
