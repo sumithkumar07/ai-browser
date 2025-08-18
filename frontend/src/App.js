@@ -41,6 +41,7 @@ function App() {
     setSessionId(Date.now().toString());
     loadRecentTabs();
     loadRecommendations();
+    loadActiveAutomations();
   }, []);
 
   const loadRecentTabs = async () => {
