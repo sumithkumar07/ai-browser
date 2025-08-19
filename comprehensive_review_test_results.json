@@ -1,0 +1,249 @@
+{
+  "total_tests": 26,
+  "successful_tests": 26,
+  "failed_tests": 0,
+  "success_rate": 100.0,
+  "total_time": 3.9892170429229736,
+  "concurrent_performance": {
+    "success_rate": 1.0,
+    "total_time": 0.9415152072906494,
+    "requests_per_second": 5.310588677997296
+  },
+  "assessment": "\ud83c\udf89 EXCELLENT - Production ready, all systems optimal",
+  "results": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.06618952751159668,
+      "success": true,
+      "details": "\u2713 Valid JSON response | status: operational",
+      "timestamp": "2025-08-19T16:21:01.940662"
+    },
+    {
+      "endpoint": "/browse",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.24654078483581543,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.187293"
+    },
+    {
+      "endpoint": "/chat",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.35406970977783203,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:02.541446"
+    },
+    {
+      "endpoint": "/recent-tabs",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.009085416793823242,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:02.550646"
+    },
+    {
+      "endpoint": "/recommendations",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.010710954666137695,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:02.561424"
+    },
+    {
+      "endpoint": "/clear-history",
+      "method": "DELETE",
+      "status_code": 200,
+      "response_time": 0.008073806762695312,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.569585"
+    },
+    {
+      "endpoint": "/summarize",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.2910492420196533,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.860706"
+    },
+    {
+      "endpoint": "/search-suggestions",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.0075244903564453125,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.868324"
+    },
+    {
+      "endpoint": "/create-workflow",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.010233402252197266,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.878634"
+    },
+    {
+      "endpoint": "/voice-command",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.007328033447265625,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.886040"
+    },
+    {
+      "endpoint": "/keyboard-shortcut",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.007913827896118164,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.894037"
+    },
+    {
+      "endpoint": "/automate-task",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.008428812026977539,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True | status: created",
+      "timestamp": "2025-08-19T16:21:02.902551"
+    },
+    {
+      "endpoint": "/automation-suggestions",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.007213115692138672,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.909858"
+    },
+    {
+      "endpoint": "/enhanced/system/overview",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.009306192398071289,
+      "success": true,
+      "details": "\u2713 Valid JSON response | status: enhanced_operational",
+      "timestamp": "2025-08-19T16:21:02.919236"
+    },
+    {
+      "endpoint": "/voice-commands/available",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.007106781005859375,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.926421"
+    },
+    {
+      "endpoint": "/execute-automation/32f77342-4f6d-46d5-98f0-f0013f8eab9a",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.007942438125610352,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True | status: running",
+      "timestamp": "2025-08-19T16:21:02.934501"
+    },
+    {
+      "endpoint": "/automation-status/32f77342-4f6d-46d5-98f0-f0013f8eab9a",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.008170127868652344,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.942738"
+    },
+    {
+      "endpoint": "/cancel-automation/32f77342-4f6d-46d5-98f0-f0013f8eab9a",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.010481119155883789,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True | status: cancelled",
+      "timestamp": "2025-08-19T16:21:02.953285"
+    },
+    {
+      "endpoint": "/active-automations",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.008921384811401367,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:02.962279"
+    },
+    {
+      "endpoint": "/chat",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.2856111526489258,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:03.247975"
+    },
+    {
+      "endpoint": "/chat",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.2969210147857666,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:03.544983"
+    },
+    {
+      "endpoint": "/chat",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.27983832359313965,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:03.824908"
+    },
+    {
+      "endpoint": "/browse",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.2929253578186035,
+      "success": true,
+      "details": "\u2713 Valid JSON response | success: True",
+      "timestamp": "2025-08-19T16:21:04.117944"
+    },
+    {
+      "endpoint": "/recent-tabs",
+      "method": "GET",
+      "status_code": 200,
+      "response_time": 0.009603261947631836,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:04.127626"
+    },
+    {
+      "endpoint": "/chat",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.34516310691833496,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:04.472862"
+    },
+    {
+      "endpoint": "/chat",
+      "method": "POST",
+      "status_code": 200,
+      "response_time": 0.4490542411804199,
+      "success": true,
+      "details": "\u2713 Valid JSON response",
+      "timestamp": "2025-08-19T16:21:04.921994"
+    }
+  ]
+}
