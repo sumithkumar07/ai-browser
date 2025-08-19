@@ -371,6 +371,34 @@ function App() {
               </div>
             </section>
 
+            {/* Action CTA Section */}
+            <section className="action-cta-section">
+              <div className="cta-content">
+                <h2>Express Ideas, AETHER Acts</h2>
+                <p>Deep Action — think, browse, and organize information hands-free.</p>
+                <div className="cta-examples">
+                  <div className="example-card" onClick={() => {setInputMessage("Research the latest AI trends and create a comprehensive report"); setAiAssistantExpanded(true);}}>
+                    <div className="example-icon">🔍</div>
+                    <span>"Research AI trends and create a report"</span>
+                  </div>
+                  <div className="example-card" onClick={() => {setInputMessage("Analyze website traffic data and generate insights"); setAiAssistantExpanded(true);}}>
+                    <div className="example-icon">📊</div>
+                    <span>"Analyze traffic data and generate insights"</span>
+                  </div>
+                  <div className="example-card" onClick={() => {setInputMessage("Automate social media posting workflow"); setAiAssistantExpanded(true);}}>
+                    <div className="example-icon">⚡</div>
+                    <span>"Automate social media workflow"</span>
+                  </div>
+                </div>
+                <button 
+                  className="main-cta-button"
+                  onClick={() => setAiAssistantExpanded(true)}
+                >
+                  Start Acting Now
+                </button>
+              </div>
+            </section>
+
             {/* Quick Actions */}
             <QuickActions />
 
