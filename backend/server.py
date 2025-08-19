@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 # Import enhanced components with fallback handling
 try:
-    from enhanced_server import *
+    # from enhanced_server import *  # Commented out to avoid app conflicts
     from advanced_browser_engine import AdvancedBrowserEngine
     from cache_system import AdvancedCacheSystem
     from performance_monitor import RealTimePerformanceMonitor, record_api_call, record_user_action
