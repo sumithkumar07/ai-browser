@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app - Clean initialization
 app = FastAPI(
     title="AETHER Enhanced Browser API", 
-    version="4.0.0",
-    middleware=[]  # Explicitly empty middleware list
+    version="4.0.0"
 )
 
 # Database connection
