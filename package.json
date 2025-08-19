@@ -1,0 +1,57 @@
+{
+  "name": "aether-native-browser",
+  "version": "6.0.0",
+  "description": "AETHER AI-First Browser with Native Chromium Integration",
+  "main": "public/electron.js",
+  "scripts": {
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-build": "npm run build && electron .",
+    "build-electron": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder --publish=never",
+    "start": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "test": "cd frontend && npm test",
+    "backend": "cd backend && python server.py",
+    "dev": "concurrently \"npm run backend\" \"npm run start\"",
+    "dev-electron": "concurrently \"npm run backend\" \"npm run electron-dev\""
+  },
+  "keywords": [
+    "browser",
+    "ai",
+    "chromium",
+    "automation",
+    "electron"
+  ],
+  "author": "AETHER Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.4",
+    "electron-builder": "^24.9.1",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.aether.browser",
+    "productName": "AETHER Browser",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "frontend/build/**/*",
+      "backend/**/*",
+      "public/electron.js",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
