@@ -189,6 +189,16 @@ class OptimizedPerformanceMonitor:
         if format_type == "summary":
             return "System running with enhanced optimizations"
         return '{"system": "optimized", "performance": "enhanced"}'
+    
+    def record_api_call(self, endpoint, method, response_time, status_code):
+        if endpoint not in self.api_calls:
+            self.api_calls[endpoint] = []
+        self.api_calls[endpoint].append({
+            'method': method,
+            'response_time': response_time,
+            'status_code': status_code,
+            'timestamp': datetime.utcnow().isoformat()
+        })
 
 class OptimizedAIEngine:
     async def process_intelligent_conversation(self, message, session_id=None, context=None, **kwargs):
