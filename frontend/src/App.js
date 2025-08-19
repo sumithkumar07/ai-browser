@@ -365,7 +365,7 @@ function App() {
     action();
   };
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts with enhanced accessibility
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Ctrl+Shift+P - Voice Commands
@@ -378,16 +378,52 @@ function App() {
         e.preventDefault();
         setAiVisible(!aiVisible);
       }
+      // Ctrl+T - New Tab
+      else if (e.ctrlKey && e.key === 't') {
+        e.preventDefault();
+        createNewTab();
+      }
+      // Ctrl+W - Close Tab
+      else if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        if (tabs.length > 1) {
+          closeTab(activeTab);
+        }
+      }
+      // Ctrl+R - Refresh
+      else if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        handleRefresh();
+      }
+      // Alt+Left - Go Back
+      else if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (canGoBack) handleGoBack();
+      }
+      // Alt+Right - Go Forward
+      else if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (canGoForward) handleGoForward();
+      }
+      // F12 - Show Tour
+      else if (e.key === 'F12') {
+        e.preventDefault();
+        showTour();
+      }
       // Escape - Close all panels
       else if (e.key === 'Escape') {
         setVoiceVisible(false);
+        if (shouldShowTour) hideTour();
         setWorkflowBuilder({ ...workflowBuilder, visible: false });
       }
     };
 
+    // Add event listener
     document.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [aiVisible, workflowBuilder]);
+  }, [aiVisible, workflowBuilder, canGoBack, canGoForward, activeTab, tabs.length, shouldShowTour, hideTour, showTour]);
 
   return (
     <div className="browser-app">
