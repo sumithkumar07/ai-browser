@@ -227,7 +227,12 @@ function App() {
     }
   };
 
-  const handleGoBack = () => {
+  const handleGoBack = async () => {
+    if (nativeAPI?.browserBack) {
+      const success = await nativeAPI.browserBack();
+      if (success) return;
+    }
+    
     if (canGoBack && historyIndex > 0) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
@@ -239,7 +244,12 @@ function App() {
     }
   };
 
-  const handleGoForward = () => {
+  const handleGoForward = async () => {
+    if (nativeAPI?.browserForward) {
+      const success = await nativeAPI.browserForward();
+      if (success) return;
+    }
+    
     if (canGoForward && historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
@@ -251,7 +261,12 @@ function App() {
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    if (nativeAPI?.browserRefresh) {
+      await nativeAPI.browserRefresh();
+      return;
+    }
+    
     if (currentUrl) {
       setIsLoading(true);
       setTimeout(() => setIsLoading(false), 800);
