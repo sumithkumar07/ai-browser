@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 // Advanced Features Component to utilize all backend capabilities
 const AdvancedFeatures = ({ backendUrl, currentUrl, onNavigate }) => {
