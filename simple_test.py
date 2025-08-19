@@ -2,7 +2,7 @@
 import requests
 import json
 
-BASE_URL = "https://quality-assurance-4.preview.emergentagent.com"
+BASE_URL = "https://feature-compare-dash.preview.emergentagent.com"
 
 try:
     response = requests.get(f"{BASE_URL}/api/health", timeout=10)
