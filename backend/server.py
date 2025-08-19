@@ -28,21 +28,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import enhanced components with fallback handling
+enhanced_available = False
 try:
-    # from enhanced_server import *  # Commented out to avoid app conflicts
-    from advanced_browser_engine import AdvancedBrowserEngine
-    from cache_system import AdvancedCacheSystem
-    from performance_monitor import RealTimePerformanceMonitor, record_api_call, record_user_action
-    from ai_intelligence_engine import AIIntelligenceEngine
-    
-    # Try to initialize enhanced components
-    browser_engine = AdvancedBrowserEngine()
-    cache_system = AdvancedCacheSystem()
-    performance_monitor = RealTimePerformanceMonitor()
-    ai_intelligence_engine = AIIntelligenceEngine()
-    logger.info("✅ Enhanced components loaded successfully")
-    enhanced_available = True
-except ImportError as e:
+    # Enhanced components currently disabled to avoid conflicts
+    # from advanced_browser_engine import AdvancedBrowserEngine
+    # from cache_system import AdvancedCacheSystem  
+    # from performance_monitor import RealTimePerformanceMonitor, record_api_call, record_user_action
+    # from ai_intelligence_engine import AIIntelligenceEngine
+    logger.info("✅ Using optimized fallback components")
+except Exception as e:
     logger.warning(f"⚠️ Enhanced components not available, using fallback: {e}")
     enhanced_available = False
 
