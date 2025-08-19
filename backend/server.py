@@ -142,6 +142,464 @@ async def health_check():
         }
     }
 
+# ==================== CORE BROWSER API ENDPOINTS ====================
+
+@app.post("/api/browse")
+async def browse_website(request: Dict[str, Any]):
+    """Store browsing history and analyze webpage content"""
+    try:
+        url = request.get("url")
+        title = request.get("title", "")
+        
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        # Store in browsing history
+        browse_record = {
+            "url": url,
+            "title": title,
+            "timestamp": datetime.now(),
+            "domain": url.split("//")[-1].split("/")[0] if "//" in url else url
+        }
+        
+        await db.browsing_history.insert_one(browse_record)
+        
+        return {
+            "success": True,
+            "url": url,
+            "title": title,
+            "message": "Browsing history stored successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/recent-tabs")
+async def get_recent_tabs():
+    """Get recent browsing history"""
+    try:
+        cursor = db.browsing_history.find().sort("timestamp", -1).limit(10)
+        recent_tabs = []
+        
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            recent_tabs.append(doc)
+        
+        return {"recent_tabs": recent_tabs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/recommendations")
+async def get_recommendations():
+    """Get AI-powered website recommendations"""
+    try:
+        # Get recent browsing history for context
+        cursor = db.browsing_history.find().sort("timestamp", -1).limit(5)
+        recent_sites = []
+        
+        async for doc in cursor:
+            recent_sites.append(doc["domain"])
+        
+        # Generate recommendations based on browsing history
+        recommendations = []
+        
+        if recent_sites:
+            # AI-powered recommendations based on browsing patterns
+            if any("github" in site for site in recent_sites):
+                recommendations.extend([
+                    {"title": "Stack Overflow", "url": "https://stackoverflow.com", "description": "Programming Q&A", "favicon": "📚"},
+                    {"title": "GitLab", "url": "https://gitlab.com", "description": "DevOps Platform", "favicon": "🦊"}
+                ])
+            
+            if any("google" in site for site in recent_sites):
+                recommendations.extend([
+                    {"title": "Bing", "url": "https://bing.com", "description": "Search Engine", "favicon": "🔍"},
+                    {"title": "DuckDuckGo", "url": "https://duckduckgo.com", "description": "Privacy Search", "favicon": "🦆"}
+                ])
+        
+        # Default recommendations if no history
+        if not recommendations:
+            recommendations = [
+                {"title": "Wikipedia", "url": "https://wikipedia.org", "description": "Free Encyclopedia", "favicon": "📖"},
+                {"title": "MDN Web Docs", "url": "https://developer.mozilla.org", "description": "Web Development Docs", "favicon": "🌐"},
+                {"title": "arXiv", "url": "https://arxiv.org", "description": "Research Papers", "favicon": "📄"},
+                {"title": "Hacker News", "url": "https://news.ycombinator.com", "description": "Tech News", "favicon": "🔥"}
+            ]
+        
+        return {"recommendations": recommendations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/clear-history")
+async def clear_browsing_history():
+    """Clear all browsing history"""
+    try:
+        result = await db.browsing_history.delete_many({})
+        
+        return {
+            "success": True,
+            "deleted_count": result.deleted_count,
+            "message": "Browsing history cleared successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/chat")
+async def chat_with_ai(request: Dict[str, Any]):
+    """Chat with AI assistant using Groq API"""
+    try:
+        message = request.get("message")
+        context = request.get("context", {})
+        session_id = request.get("session_id", str(uuid.uuid4()))
+        current_url = context.get("current_url", "")
+        
+        if not message:
+            raise HTTPException(status_code=400, detail="Message is required")
+        
+        if not groq_client:
+            raise HTTPException(status_code=503, detail="Groq API not available - API key not configured")
+        
+        # Build context-aware prompt
+        system_prompt = """You are AETHER, an intelligent AI assistant integrated into a web browser. You can help users browse, research, analyze web content, and perform various tasks. Be helpful, concise, and actionable."""
+        
+        user_prompt = message
+        if current_url:
+            user_prompt += f"\n\nCurrent webpage context: {current_url}"
+        
+        # Make request to Groq API
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.7,
+            max_tokens=1000
+        )
+        
+        response_content = chat_completion.choices[0].message.content
+        
+        # Store chat session
+        chat_record = {
+            "session_id": session_id,
+            "message": message,
+            "response": response_content,
+            "context": context,
+            "timestamp": datetime.now()
+        }
+        
+        await db.chat_sessions.insert_one(chat_record)
+        
+        return {
+            "response": response_content,
+            "session_id": session_id,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"Chat error: {e}")
+        return {
+            "response": "I'm sorry, I encountered an error processing your request. Please try again.",
+            "error": str(e),
+            "session_id": session_id
+        }
+
+@app.post("/api/summarize")
+async def summarize_webpage(request: Dict[str, Any]):
+    """Summarize webpage content using AI"""
+    try:
+        url = request.get("url")
+        length = request.get("length", "medium")
+        
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        if not groq_client:
+            raise HTTPException(status_code=503, detail="Groq API not available")
+        
+        # Create summarization prompt
+        prompt = f"Please provide a {length} summary of the webpage at: {url}. Focus on the main topics, key points, and important information."
+        
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a web content summarizer. Provide clear, concise summaries of web pages."},
+                {"role": "user", "content": prompt}
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.5,
+            max_tokens=500
+        )
+        
+        summary = chat_completion.choices[0].message.content
+        
+        return {
+            "summary": summary,
+            "url": url,
+            "length": length,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/search-suggestions")
+async def get_search_suggestions(request: Dict[str, Any]):
+    """Get AI-powered search suggestions"""
+    try:
+        query = request.get("query")
+        
+        if not query:
+            raise HTTPException(status_code=400, detail="Query is required")
+        
+        if not groq_client:
+            # Fallback suggestions without AI
+            suggestions = [
+                f"{query} tutorial",
+                f"{query} examples",
+                f"best {query}",
+                f"{query} vs alternatives",
+                f"how to use {query}"
+            ]
+            return {"suggestions": suggestions}
+        
+        # AI-powered suggestions
+        prompt = f"Generate 5 related search suggestions for the query: '{query}'. Return only the suggestions, one per line."
+        
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are a search suggestion generator. Provide relevant, useful search queries."},
+                {"role": "user", "content": prompt}
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.8,
+            max_tokens=200
+        )
+        
+        suggestions_text = chat_completion.choices[0].message.content
+        suggestions = [s.strip() for s in suggestions_text.split('\n') if s.strip()]
+        
+        return {
+            "suggestions": suggestions[:5],  # Limit to 5 suggestions
+            "query": query
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== AUTOMATION ENDPOINTS ====================
+
+@app.post("/api/automate-task")
+async def create_automation_task(request: Dict[str, Any]):
+    """Create a new automation task"""
+    try:
+        task_name = request.get("name", "Untitled Task")
+        task_description = request.get("description", "")
+        task_type = request.get("type", "general")
+        steps = request.get("steps", [])
+        
+        task_id = str(uuid.uuid4())
+        
+        automation_task = {
+            "task_id": task_id,
+            "name": task_name,
+            "description": task_description,
+            "type": task_type,
+            "steps": steps,
+            "status": "created",
+            "created_at": datetime.now(),
+            "progress": 0
+        }
+        
+        await db.automation_tasks.insert_one(automation_task)
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "message": "Automation task created successfully",
+            "task": {
+                "id": task_id,
+                "name": task_name,
+                "status": "created"
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/automation-suggestions")
+async def get_automation_suggestions():
+    """Get context-aware automation suggestions"""
+    try:
+        suggestions = [
+            {
+                "title": "Data Collection Workflow",
+                "description": "Automatically collect data from multiple web sources",
+                "type": "data_collection",
+                "complexity": "medium"
+            },
+            {
+                "title": "Social Media Monitor",
+                "description": "Monitor social media platforms for mentions",
+                "type": "monitoring",
+                "complexity": "high"
+            },
+            {
+                "title": "Content Summarization",
+                "description": "Automatically summarize articles and web pages",
+                "type": "content_processing",
+                "complexity": "low"
+            },
+            {
+                "title": "Price Comparison",
+                "description": "Compare prices across different e-commerce sites",
+                "type": "comparison",
+                "complexity": "medium"
+            }
+        ]
+        
+        return {"suggestions": suggestions}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/active-automations")
+async def get_active_automations():
+    """Get list of active automation tasks"""
+    try:
+        cursor = db.automation_tasks.find({"status": {"$in": ["created", "running", "paused"]}}).sort("created_at", -1)
+        
+        active_tasks = []
+        async for doc in cursor:
+            doc["_id"] = str(doc["_id"])
+            active_tasks.append(doc)
+        
+        return {"active_automations": active_tasks}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== VOICE COMMANDS ENDPOINTS ====================
+
+@app.post("/api/voice-command")
+async def process_voice_command(request: Dict[str, Any]):
+    """Process voice command input"""
+    try:
+        command = request.get("command", "").lower()
+        
+        if not command:
+            raise HTTPException(status_code=400, detail="Command is required")
+        
+        # Process common voice commands
+        if "navigate to" in command or "go to" in command:
+            # Extract URL from command
+            url = command.split("navigate to")[-1].split("go to")[-1].strip()
+            return {
+                "action": "navigate",
+                "url": url,
+                "message": f"Navigating to {url}"
+            }
+        elif "search for" in command:
+            query = command.split("search for")[-1].strip()
+            return {
+                "action": "search",
+                "query": query,
+                "message": f"Searching for {query}"
+            }
+        elif "summarize" in command:
+            return {
+                "action": "summarize",
+                "message": "Summarizing current page"
+            }
+        elif "new tab" in command:
+            return {
+                "action": "new_tab",
+                "message": "Opening new tab"
+            }
+        elif "close tab" in command:
+            return {
+                "action": "close_tab",
+                "message": "Closing current tab"
+            }
+        else:
+            return {
+                "action": "unknown",
+                "message": "I didn't understand that command. Try 'navigate to [url]' or 'search for [query]'"
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/voice-commands/available")
+async def get_available_voice_commands():
+    """Get list of available voice commands"""
+    try:
+        commands = [
+            {
+                "command": "navigate to [website]",
+                "description": "Navigate to a specific website",
+                "example": "navigate to google.com"
+            },
+            {
+                "command": "search for [query]",
+                "description": "Search for something",
+                "example": "search for AI tools"
+            },
+            {
+                "command": "summarize",
+                "description": "Summarize the current page",
+                "example": "summarize this page"
+            },
+            {
+                "command": "new tab",
+                "description": "Open a new browser tab",
+                "example": "open new tab"
+            },
+            {
+                "command": "close tab",
+                "description": "Close the current tab",
+                "example": "close this tab"
+            }
+        ]
+        
+        return {"available_commands": commands}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/keyboard-shortcut")
+async def execute_keyboard_shortcut(request: Dict[str, Any]):
+    """Execute keyboard shortcut action"""
+    try:
+        shortcut = request.get("shortcut")
+        
+        if not shortcut:
+            raise HTTPException(status_code=400, detail="Shortcut is required")
+        
+        # Map shortcuts to actions
+        shortcut_actions = {
+            "ctrl+t": {"action": "new_tab", "message": "New tab opened"},
+            "ctrl+w": {"action": "close_tab", "message": "Tab closed"},
+            "ctrl+r": {"action": "refresh", "message": "Page refreshed"},
+            "ctrl+l": {"action": "focus_address_bar", "message": "Address bar focused"},
+            "alt+left": {"action": "go_back", "message": "Navigated back"},
+            "alt+right": {"action": "go_forward", "message": "Navigated forward"},
+            "f5": {"action": "refresh", "message": "Page refreshed"},
+            "ctrl+shift+t": {"action": "reopen_tab", "message": "Tab reopened"}
+        }
+        
+        action_info = shortcut_actions.get(shortcut.lower(), {
+            "action": "unknown",
+            "message": f"Unknown shortcut: {shortcut}"
+        })
+        
+        return {
+            "shortcut": shortcut,
+            "action": action_info["action"],
+            "message": action_info["message"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ==================== PLATFORM INTEGRATION ENDPOINTS ====================
 
 @app.post("/api/platforms/connect")
