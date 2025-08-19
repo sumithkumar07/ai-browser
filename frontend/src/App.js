@@ -885,6 +885,9 @@ function App() {
   function HomepageContent() {
     return (
       <div className="welcome-container">
+        {/* Desktop Companion Detection and Integration */}
+        <DesktopCompanionDetector />
+        
         <div className="text-center mb-16 animate-fade-in">
           <h1 className="welcome-title">AETHER</h1>
           <p className="welcome-subtitle">AI-Powered Browser Experience</p>
