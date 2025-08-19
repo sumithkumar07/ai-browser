@@ -664,4 +664,5 @@ def initialize_enhanced_ai_intelligence(db_client):
         
     except Exception as e:
         logger.error(f"Failed to initialize enhanced AI intelligence: {e}")
-        return None
+        return None</content>
+    </file>
