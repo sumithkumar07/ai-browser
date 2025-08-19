@@ -391,6 +391,12 @@ function App() {
 
   return (
     <div className="browser-app">
+      {/* Onboarding Tour */}
+      <OnboardingTour 
+        isVisible={shouldShowTour}
+        onComplete={hideTour}
+      />
+
       {/* Tab Bar */}
       <div className="tab-bar">
         <div className="tabs-container">
@@ -399,8 +405,17 @@ function App() {
               key={tab.id}
               className={`tab ${tab.id === activeTab ? 'active' : ''}`}
               onClick={() => switchTab(tab.id)}
+              role="tab"
+              aria-selected={tab.id === activeTab}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  switchTab(tab.id);
+                }
+              }}
             >
-              <span className="tab-favicon">{tab.favicon}</span>
+              <span className="tab-favicon" role="img" aria-label="Tab icon">{tab.favicon}</span>
               <span className="tab-title">{tab.title}</span>
               {tabs.length > 1 && (
                 <button 
@@ -409,17 +424,26 @@ function App() {
                     e.stopPropagation();
                     closeTab(tab.id);
                   }}
+                  title={`Close ${tab.title}`}
+                  aria-label={`Close ${tab.title} tab`}
                 >
                   ×
                 </button>
               )}
             </div>
           ))}
-          <button className="new-tab-btn" onClick={createNewTab}>+</button>
+          <button 
+            className="new-tab-btn" 
+            onClick={createNewTab}
+            title="Open new tab (Ctrl+T)"
+            aria-label="Open new tab"
+          >
+            +
+          </button>
         </div>
       </div>
 
-      {/* Navigation Bar - Simplified with only essential buttons */}
+      {/* Navigation Bar - Enhanced with accessibility */}
       <div className="nav-bar">
         <div className="nav-controls">
           <button 
@@ -427,6 +451,7 @@ function App() {
             onClick={handleGoBack}
             disabled={!canGoBack}
             title="Go back (Alt+←)"
+            aria-label="Navigate back"
           >
             ←
           </button>
@@ -435,6 +460,7 @@ function App() {
             onClick={handleGoForward}
             disabled={!canGoForward}
             title="Go forward (Alt+→)"
+            aria-label="Navigate forward"
           >
             →
           </button>
@@ -442,17 +468,18 @@ function App() {
             className="nav-btn"
             onClick={handleRefresh}
             title="Refresh (Ctrl+R)"
+            aria-label="Refresh page"
           >
             {isLoading ? '⟳' : '↻'}
           </button>
         </div>
 
         <div className="address-bar">
-          <div className="security-indicator">
+          <div className="security-indicator" title={isSecure ? 'Secure connection' : 'Not secure'}>
             {isSecure ? (
-              <span className="secure" title="Secure connection">🔒</span>
+              <span className="secure" role="img" aria-label="Secure connection">🔒</span>
             ) : (
-              <span className="insecure" title="Not secure">⚠️</span>
+              <span className="insecure" role="img" aria-label="Not secure">⚠️</span>
             )}
           </div>
           
@@ -471,31 +498,43 @@ function App() {
             className="nav-btn go-btn"
             onClick={() => handleNavigate(urlInput)}
             title="Go"
+            aria-label="Navigate to URL"
           >
             →
           </button>
         </div>
 
         <div className="browser-actions">
-          {/* Voice Command Button - Only separate interface needed */}
+          {/* Voice Command Button - Enhanced with accessibility */}
           <button 
             className={`nav-btn voice-btn ${advancedFeatures.voiceListening ? 'active listening' : ''}`}
             onClick={() => setVoiceVisible(true)}
             title="Voice Commands (Ctrl+Shift+P)"
+            aria-label="Open voice commands"
+            aria-pressed={voiceVisible}
           >
             🎤
           </button>
           
-          {/* AI Assistant Button - All other features integrated here */}
+          {/* AI Assistant Button - Enhanced with accessibility */}
           <button 
             className={`ai-toggle ${aiVisible ? 'active' : ''}`}
             onClick={() => setAiVisible(!aiVisible)}
             title="AI Assistant - All Features (Ctrl+Shift+A)"
+            aria-label="Toggle AI Assistant"
+            aria-pressed={aiVisible}
           >
             🤖
           </button>
           
-          <button className="menu-btn" title="Menu">⋮</button>
+          <button 
+            className="menu-btn" 
+            title="Menu"
+            aria-label="Open menu"
+            onClick={showTour}
+          >
+            ⋮
+          </button>
         </div>
       </div>
 
@@ -506,7 +545,7 @@ function App() {
           {currentUrl ? (
             <div className="iframe-container">
               {isLoading && (
-                <div className="loading-overlay">
+                <div className="loading-overlay" role="progressbar" aria-label="Loading page">
                   <div className="loading-spinner"></div>
                   <div className="loading-text">Loading {getDomainFromUrl(currentUrl)}...</div>
                 </div>
@@ -518,27 +557,39 @@ function App() {
                 title="Web Content"
                 sandbox="allow-same-origin allow-scripts allow-forms allow-navigation allow-popups allow-popups-to-escape-sandbox"
                 onLoad={() => setIsLoading(false)}
+                aria-label={`Web content for ${getDomainFromUrl(currentUrl)}`}
               />
             </div>
           ) : (
             <div className="start-page">
               <div className="start-content">
                 <div className="aether-logo">
-                  <div className="logo-icon">⚡</div>
+                  <div className="logo-icon" role="img" aria-label="AETHER logo">⚡</div>
                   <h1>AETHER</h1>
                   <p>AI-First Browser</p>
                 </div>
                 
                 <div className="quick-access">
                   <h2>Quick Access</h2>
-                  <div className="suggestions-grid">
+                  <div className="suggestions-grid" role="grid" aria-label="Quick access websites">
                     {suggestions.map((site, index) => (
                       <div 
                         key={index}
                         className="suggestion-card"
                         onClick={() => handleNavigate(site.url)}
+                        role="gridcell"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleNavigate(site.url);
+                          }
+                        }}
+                        aria-label={`Navigate to ${site.title}`}
                       >
-                        <div className="suggestion-favicon">{site.favicon}</div>
+                        <div className="suggestion-favicon" role="img" aria-label={`${site.title} icon`}>
+                          {site.favicon}
+                        </div>
                         <div className="suggestion-title">{site.title}</div>
                       </div>
                     ))}
@@ -547,12 +598,14 @@ function App() {
 
                 <div className="ai-quick-actions">
                   <h2>AI-Powered Features</h2>
-                  <div className="actions-grid">
+                  <div className="actions-grid" role="grid" aria-label="AI-powered features">
                     {aiQuickActions.map((action, index) => (
                       <button 
                         key={index}
                         className="action-btn"
                         onClick={() => handleQuickAction(action.action)}
+                        role="gridcell"
+                        aria-label={action.text.replace(/[^\w\s]/gi, '')}
                       >
                         {action.text}
                       </button>
@@ -564,10 +617,10 @@ function App() {
                 {automationSuggestions.length > 0 && (
                   <div className="automation-suggestions">
                     <h2>Smart Automation</h2>
-                    <div className="suggestions-list">
+                    <div className="suggestions-list" role="list" aria-label="Automation suggestions">
                       {automationSuggestions.slice(0, 3).map((suggestion, index) => (
-                        <div key={index} className="suggestion-item">
-                          <span className="suggestion-icon">🔧</span>
+                        <div key={index} className="suggestion-item" role="listitem">
+                          <span className="suggestion-icon" role="img" aria-label="Automation">🔧</span>
                           <span className="suggestion-text">{suggestion}</span>
                         </div>
                       ))}
@@ -579,141 +632,22 @@ function App() {
           )}
         </div>
 
-        {/* Enhanced AI Assistant Panel - All features integrated */}
-        {aiVisible && (
-          <div className="ai-panel">
-            <div className="ai-header">
-              <div className="ai-title">
-                <span className="ai-icon">🤖</span>
-                <span>AETHER AI - All Features</span>
-              </div>
-              <button 
-                className="ai-close"
-                onClick={() => setAiVisible(false)}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="ai-content">
-              <div className="chat-messages">
-                {chatMessages.length === 0 ? (
-                  <div className="welcome-message">
-                    <div className="welcome-icon">✨</div>
-                    <h3>Your Complete AI Assistant</h3>
-                    <p>I can help with everything: browsing, research, summarization, automation, system status, workflows, and more!</p>
-                    
-                    <div className="ai-capabilities">
-                      <h4>What I can do:</h4>
-                      <div className="capabilities-grid">
-                        <div className="capability">📄 "Summarize this page"</div>
-                        <div className="capability">📊 "Show system status"</div>
-                        <div className="capability">🔧 "Create workflow"</div>
-                        <div className="capability">🔍 "Find similar sites"</div>
-                        <div className="capability">📝 "Extract key info"</div>
-                        <div className="capability">⚙️ "Automate this task"</div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  chatMessages.map((message, index) => (
-                    <div key={index} className={`message ${message.role}`}>
-                      <div className="message-content" 
-                           dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                    </div>
-                  ))
-                )}
-                
-                {aiLoading && (
-                  <div className="message assistant loading">
-                    <div className="typing-indicator">
-                      <span></span><span></span><span></span>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              <div className="ai-input-area">
-                <div className="quick-suggestions">
-                  {currentUrl ? (
-                    <>
-                      <button 
-                        className="suggestion-chip"
-                        onClick={() => {
-                          setAiInput("Summarize this page");
-                          setTimeout(() => handleAiMessage(), 100);
-                        }}
-                      >
-                        📄 Summarize
-                      </button>
-                      <button 
-                        className="suggestion-chip"
-                        onClick={() => {
-                          setAiInput("Show system status");
-                          setTimeout(() => handleAiMessage(), 100);
-                        }}
-                      >
-                        📊 Status
-                      </button>
-                      <button 
-                        className="suggestion-chip"
-                        onClick={() => {
-                          setAiInput("Create automation workflow");
-                          setTimeout(() => handleAiMessage(), 100);
-                        }}
-                      >
-                        🔧 Automate
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button 
-                        className="suggestion-chip"
-                        onClick={() => {
-                          setAiInput("Show system overview");
-                          setTimeout(() => handleAiMessage(), 100);
-                        }}
-                      >
-                        📊 System Info
-                      </button>
-                      <button 
-                        className="suggestion-chip"
-                        onClick={() => {
-                          setAiInput("What can you help me with?");
-                          setTimeout(() => handleAiMessage(), 100);
-                        }}
-                      >
-                        ❓ Help
-                      </button>
-                    </>
-                  )}
-                </div>
-                
-                <div className="ai-input-box">
-                  <input
-                    type="text"
-                    className="ai-input"
-                    value={aiInput}
-                    onChange={(e) => setAiInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAiMessage()}
-                    placeholder="Ask me anything - summarize, automate, analyze, create workflows..."
-                  />
-                  <button 
-                    className="ai-send"
-                    onClick={handleAiMessage}
-                    disabled={aiLoading || !aiInput.trim()}
-                  >
-                    {aiLoading ? '⟳' : '→'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Enhanced AI Assistant Panel */}
+        <EnhancedAIPanel
+          isVisible={aiVisible}
+          onClose={() => setAiVisible(false)}
+          chatMessages={chatMessages}
+          setChatMessages={setChatMessages}
+          aiInput={aiInput}
+          setAiInput={setAiInput}
+          aiLoading={aiLoading}
+          onSendMessage={handleAiMessage}
+          currentUrl={currentUrl}
+          sessionId={sessionId}
+        />
       </div>
 
-      {/* Voice Command Panel - Only separate interface that needs special UI */}
+      {/* Voice Command Panel - Enhanced interface */}
       <VoiceCommandPanel 
         visible={voiceVisible}
         onClose={() => setVoiceVisible(false)}
