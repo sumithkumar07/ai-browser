@@ -1,540 +1,563 @@
-"""
-Automation Agent - Specialized in task automation and workflow execution
-Handles complex multi-step automations similar to Fellou.ai's automation capabilities
-"""
 import asyncio
 import json
-from datetime import datetime
-from typing import Dict, List, Any
-from .base_agent import BaseAgent
+from typing import Dict, List, Optional, Any, Union
+from datetime import datetime, timedelta
+import uuid
+from .base_agent import BaseAgent, AgentTask, AgentCapability
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
+import time
+
+class AutomationStep:
+    def __init__(self, step_type: str, params: Dict[str, Any]):
+        self.id = str(uuid.uuid4())
+        self.type = step_type
+        self.params = params
+        self.status = "pending"
+        self.result = None
+        self.error = None
+        self.executed_at = None
+
+class AutomationWorkflow:
+    def __init__(self, name: str, description: str, steps: List[AutomationStep]):
+        self.id = str(uuid.uuid4())
+        self.name = name
+        self.description = description
+        self.steps = steps
+        self.status = "ready"
+        self.created_at = datetime.now()
+        self.executed_at = None
+        self.completed_at = None
+        self.results = {}
 
 class AutomationAgent(BaseAgent):
+    """Specialized agent for web automation and task execution"""
+    
     def __init__(self):
         super().__init__(
-            agent_type="automation",
-            capabilities=[
-                "workflow_execution",
-                "task_automation",
-                "cross_platform_integration",
-                "data_transformation", 
-                "process_optimization",
-                "conditional_logic",
-                "parallel_processing"
-            ]
+            agent_id="automation_agent",
+            name="Automation Agent",
+            description="Creates and executes web automation workflows"
         )
-        self.automation_templates = {}
-        self.active_workflows = {}
         
-    async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute automation task with advanced workflow capabilities"""
-        await self.update_status("analyzing", task)
+        # Automation configuration
+        self.driver = None
+        self.wait_timeout = 10
+        self.max_retry_attempts = 3
         
-        # 1. Analyze automation requirements
-        automation_spec = await self._analyze_automation_requirements(task)
+        # Workflow management
+        self.active_workflows: Dict[str, AutomationWorkflow] = {}
+        self.workflow_templates: Dict[str, Dict[str, Any]] = {}
         
-        # 2. Create or select automation workflow
-        workflow = await self._create_automation_workflow(automation_spec)
-        
-        # 3. Execute workflow with monitoring
-        await self.update_status("executing", task)
-        execution_result = await self._execute_workflow_with_monitoring(workflow)
-        
-        # 4. Optimize and learn from execution
-        optimization_data = await self._optimize_workflow_performance(workflow, execution_result)
-        
-        final_result = {
-            "success": execution_result.get("success", False),
-            "automation_type": automation_spec.get("type", "general"),
-            "workflow_steps": len(workflow.get("steps", [])),
-            "execution_time": execution_result.get("total_time", 0),
-            "steps_completed": execution_result.get("completed_steps", 0),
-            "optimization_suggestions": optimization_data.get("suggestions", []),
-            "performance_improvement": optimization_data.get("improvement_percentage", 0),
-            "agent_id": self.agent_id,
-            "detailed_results": execution_result
+        # Performance tracking
+        self.execution_stats = {
+            "total_workflows": 0,
+            "successful_workflows": 0,
+            "failed_workflows": 0,
+            "average_execution_time": 0.0
         }
         
-        await self.update_status("completed", task)
-        await self.learn_from_execution(task, final_result)
-        
-        return final_result
+        self._initialize_templates()
     
-    async def _analyze_automation_requirements(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze task to determine automation requirements"""
-        task_description = task.get("description", "").lower()
-        
-        automation_spec = {
-            "type": "general",
-            "complexity": "medium",
-            "platforms_required": [],
-            "data_operations": [],
-            "conditional_logic": False,
-            "parallel_execution": False,
-            "estimated_duration": 60
-        }
-        
-        # Analyze for automation patterns
-        if any(word in task_description for word in ["extract", "scrape", "collect"]):
-            automation_spec["type"] = "data_extraction"
-            automation_spec["data_operations"].append("extraction")
-        
-        if any(word in task_description for word in ["fill", "form", "submit"]):
-            automation_spec["type"] = "form_automation"
-            automation_spec["data_operations"].append("form_filling")
-        
-        if any(word in task_description for word in ["monitor", "track", "watch"]):
-            automation_spec["type"] = "monitoring"
-            automation_spec["data_operations"].append("monitoring")
-        
-        if any(word in task_description for word in ["social", "twitter", "linkedin"]):
-            automation_spec["platforms_required"].extend(["twitter", "linkedin"])
-            
-        if any(word in task_description for word in ["email", "gmail", "outlook"]):
-            automation_spec["platforms_required"].append("email")
-        
-        # Determine complexity
-        if len(automation_spec["platforms_required"]) > 2:
-            automation_spec["complexity"] = "high"
-            automation_spec["parallel_execution"] = True
-        elif "if" in task_description or "when" in task_description:
-            automation_spec["conditional_logic"] = True
-            automation_spec["complexity"] = "medium"
-        
-        return automation_spec
-    
-    async def _create_automation_workflow(self, spec: Dict[str, Any]) -> Dict[str, Any]:
-        """Create detailed automation workflow based on specifications"""
-        workflow = {
-            "id": f"workflow_{datetime.utcnow().timestamp()}",
-            "type": spec["type"],
-            "steps": [],
-            "parallel_branches": [],
-            "conditional_paths": {},
-            "error_handling": {},
-            "optimization_flags": []
-        }
-        
-        # Create workflow steps based on automation type
-        if spec["type"] == "data_extraction":
-            workflow["steps"] = await self._create_data_extraction_steps(spec)
-        elif spec["type"] == "form_automation":
-            workflow["steps"] = await self._create_form_automation_steps(spec)
-        elif spec["type"] == "monitoring":
-            workflow["steps"] = await self._create_monitoring_steps(spec)
-        else:
-            workflow["steps"] = await self._create_general_automation_steps(spec)
-        
-        # Add parallel execution if applicable
-        if spec["parallel_execution"]:
-            workflow["parallel_branches"] = await self._create_parallel_branches(workflow["steps"])
-        
-        # Add conditional logic if needed
-        if spec["conditional_logic"]:
-            workflow["conditional_paths"] = await self._create_conditional_paths(workflow["steps"])
-        
-        # Add error handling
-        workflow["error_handling"] = await self._create_error_handling(workflow)
-        
-        return workflow
-    
-    async def _create_data_extraction_steps(self, spec: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Create steps for data extraction automation"""
-        return [
-            {
-                "id": "navigate_to_source",
-                "type": "navigation",
-                "description": "Navigate to data source",
-                "estimated_time": 5,
-                "retry_attempts": 3
-            },
-            {
-                "id": "analyze_page_structure",
-                "type": "analysis",
-                "description": "Analyze page structure for data elements",
-                "estimated_time": 3,
-                "retry_attempts": 2
-            },
-            {
-                "id": "extract_data",
-                "type": "extraction",
-                "description": "Extract target data elements",
-                "estimated_time": 10,
-                "retry_attempts": 3
-            },
-            {
-                "id": "validate_data",
-                "type": "validation",
-                "description": "Validate extracted data quality",
-                "estimated_time": 2,
-                "retry_attempts": 1
-            },
-            {
-                "id": "format_output",
-                "type": "transformation",
-                "description": "Format data for output",
-                "estimated_time": 3,
-                "retry_attempts": 2
-            }
-        ]
-    
-    async def _create_form_automation_steps(self, spec: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Create steps for form automation"""
-        return [
-            {
-                "id": "locate_form",
-                "type": "form_detection",
-                "description": "Locate target form on page",
-                "estimated_time": 3,
-                "retry_attempts": 3
-            },
-            {
-                "id": "prepare_data",
-                "type": "data_preparation",
-                "description": "Prepare form data for submission",
-                "estimated_time": 2,
-                "retry_attempts": 1
-            },
-            {
-                "id": "fill_form_fields",
-                "type": "form_filling",
-                "description": "Fill form fields with data",
-                "estimated_time": 8,
-                "retry_attempts": 3
-            },
-            {
-                "id": "validate_form",
-                "type": "form_validation",
-                "description": "Validate form before submission",
-                "estimated_time": 2,
-                "retry_attempts": 2
-            },
-            {
-                "id": "submit_form",
-                "type": "form_submission",
-                "description": "Submit completed form",
-                "estimated_time": 5,
-                "retry_attempts": 3
-            }
-        ]
-    
-    async def _create_monitoring_steps(self, spec: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Create steps for monitoring automation"""
-        return [
-            {
-                "id": "setup_monitoring_targets",
-                "type": "setup",
-                "description": "Setup monitoring targets and parameters",
-                "estimated_time": 5,
-                "retry_attempts": 2
-            },
-            {
-                "id": "baseline_capture",
-                "type": "data_capture",
-                "description": "Capture baseline data for comparison",
-                "estimated_time": 3,
-                "retry_attempts": 2
-            },
-            {
-                "id": "continuous_monitoring",
-                "type": "monitoring_loop",
-                "description": "Execute continuous monitoring loop",
-                "estimated_time": 300,  # 5 minutes
-                "retry_attempts": 1
-            },
-            {
-                "id": "change_detection",
-                "type": "analysis",
-                "description": "Detect and analyze changes",
-                "estimated_time": 5,
-                "retry_attempts": 2
-            },
-            {
-                "id": "notification_handling",
-                "type": "notification",
-                "description": "Handle notifications and alerts",
-                "estimated_time": 2,
-                "retry_attempts": 3
-            }
-        ]
-    
-    async def _create_general_automation_steps(self, spec: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Create general automation steps"""
-        return [
-            {
-                "id": "task_initialization",
-                "type": "initialization",
-                "description": "Initialize automation task",
-                "estimated_time": 2,
-                "retry_attempts": 1
-            },
-            {
-                "id": "execute_main_logic",
-                "type": "execution",
-                "description": "Execute main automation logic",
-                "estimated_time": 30,
-                "retry_attempts": 3
-            },
-            {
-                "id": "result_compilation",
-                "type": "compilation",
-                "description": "Compile and format results",
-                "estimated_time": 5,
-                "retry_attempts": 2
-            }
-        ]
-    
-    async def _execute_workflow_with_monitoring(self, workflow: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute workflow with comprehensive monitoring"""
-        execution_result = {
-            "success": True,
-            "completed_steps": 0,
-            "failed_steps": 0,
-            "total_time": 0,
-            "step_results": [],
-            "performance_metrics": {},
-            "error_log": []
-        }
-        
-        start_time = datetime.utcnow()
-        
+    async def initialize(self) -> bool:
+        """Initialize the automation agent"""
         try:
-            # Execute parallel branches if available
-            if workflow.get("parallel_branches"):
-                execution_result = await self._execute_parallel_workflow(workflow, execution_result)
-            else:
-                # Sequential execution
-                execution_result = await self._execute_sequential_workflow(workflow, execution_result)
+            # Initialize browser driver
+            await self._setup_browser_driver()
             
-            execution_result["total_time"] = (datetime.utcnow() - start_time).total_seconds()
+            self.logger.info("Automation agent initialized successfully")
+            return True
             
         except Exception as e:
-            execution_result["success"] = False
-            execution_result["error_log"].append({
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            })
-        
-        return execution_result
+            self.logger.error(f"Failed to initialize automation agent: {e}")
+            return False
     
-    async def _execute_sequential_workflow(self, workflow: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute workflow steps sequentially"""
-        
-        for step in workflow["steps"]:
-            step_start_time = datetime.utcnow()
+    async def _setup_browser_driver(self):
+        """Set up Selenium WebDriver"""
+        try:
+            chrome_options = Options()
+            chrome_options.add_argument("--headless")  # Run in headless mode
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-web-security")
+            chrome_options.add_argument("--disable-features=VizDisplayCompositor")
             
-            try:
-                # Execute individual step
-                step_result = await self._execute_automation_step(step)
-                
-                step_execution_time = (datetime.utcnow() - step_start_time).total_seconds()
-                step_result["execution_time"] = step_execution_time
-                
-                result["step_results"].append(step_result)
-                
-                if step_result["success"]:
-                    result["completed_steps"] += 1
-                else:
-                    result["failed_steps"] += 1
-                    
-                    # Check if this is a critical failure
-                    if step.get("critical", False):
-                        result["success"] = False
-                        break
-                
-            except Exception as e:
-                result["failed_steps"] += 1
-                result["error_log"].append({
-                    "step_id": step["id"],
-                    "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                
-                if step.get("critical", False):
-                    result["success"] = False
-                    break
-        
-        return result
-    
-    async def _execute_parallel_workflow(self, workflow: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute workflow with parallel branches"""
-        
-        parallel_tasks = []
-        
-        for branch in workflow["parallel_branches"]:
-            task = self._execute_workflow_branch(branch)
-            parallel_tasks.append(task)
-        
-        # Execute all branches in parallel
-        branch_results = await asyncio.gather(*parallel_tasks, return_exceptions=True)
-        
-        # Compile results from all branches
-        for i, branch_result in enumerate(branch_results):
-            if isinstance(branch_result, Exception):
-                result["error_log"].append({
-                    "branch_id": i,
-                    "error": str(branch_result),
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                result["failed_steps"] += 1
-            else:
-                result["step_results"].extend(branch_result.get("step_results", []))
-                result["completed_steps"] += branch_result.get("completed_steps", 0)
-                result["failed_steps"] += branch_result.get("failed_steps", 0)
-        
-        return result
-    
-    async def _execute_workflow_branch(self, branch: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Execute a single workflow branch"""
-        branch_result = {
-            "step_results": [],
-            "completed_steps": 0,
-            "failed_steps": 0
-        }
-        
-        for step in branch:
-            try:
-                step_result = await self._execute_automation_step(step)
-                branch_result["step_results"].append(step_result)
-                
-                if step_result["success"]:
-                    branch_result["completed_steps"] += 1
-                else:
-                    branch_result["failed_steps"] += 1
-                    
-            except Exception as e:
-                branch_result["failed_steps"] += 1
-                branch_result["step_results"].append({
-                    "step_id": step["id"],
-                    "success": False,
-                    "error": str(e)
-                })
-        
-        return branch_result
-    
-    async def _execute_automation_step(self, step: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a single automation step"""
-        
-        # Simulate step execution (replace with actual implementation)
-        step_type = step.get("type", "unknown")
-        estimated_time = step.get("estimated_time", 1)
-        
-        # Simulate work by waiting
-        await asyncio.sleep(min(estimated_time / 10, 2))  # Scaled down for demo
-        
-        # Simulate success/failure based on step type
-        success_probability = {
-            "navigation": 0.95,
-            "analysis": 0.90, 
-            "extraction": 0.85,
-            "form_filling": 0.88,
-            "validation": 0.92,
-            "execution": 0.80
-        }.get(step_type, 0.85)
-        
-        import random
-        success = random.random() < success_probability
-        
-        return {
-            "step_id": step["id"],
-            "step_type": step_type,
-            "success": success,
-            "message": f"Step {step['id']} {'completed' if success else 'failed'}",
-            "data": {"result": f"Automation step {step['id']} result"} if success else {},
-            "execution_time": estimated_time / 10
-        }
-    
-    async def _optimize_workflow_performance(self, workflow: Dict[str, Any], execution_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze workflow performance and suggest optimizations"""
-        
-        optimization_data = {
-            "current_performance": {},
-            "suggestions": [],
-            "improvement_percentage": 0,
-            "optimization_opportunities": []
-        }
-        
-        # Analyze execution performance
-        total_time = execution_result.get("total_time", 0)
-        success_rate = execution_result.get("completed_steps", 0) / max(len(workflow.get("steps", [])), 1)
-        
-        optimization_data["current_performance"] = {
-            "execution_time": total_time,
-            "success_rate": success_rate,
-            "efficiency_score": success_rate * (60 / max(total_time, 1))  # Steps per minute weighted by success
-        }
-        
-        # Generate optimization suggestions
-        if total_time > 60:  # If execution took more than 1 minute
-            optimization_data["suggestions"].append("Consider implementing parallel execution for independent steps")
-            optimization_data["optimization_opportunities"].append("parallel_execution")
-        
-        if success_rate < 0.9:  # If success rate is below 90%
-            optimization_data["suggestions"].append("Add more robust error handling and retry logic")
-            optimization_data["optimization_opportunities"].append("error_handling")
-        
-        # Calculate potential improvement
-        if optimization_data["optimization_opportunities"]:
-            optimization_data["improvement_percentage"] = len(optimization_data["optimization_opportunities"]) * 15
-        
-        return optimization_data
-    
-    async def _create_parallel_branches(self, steps: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
-        """Create parallel execution branches from sequential steps"""
-        branches = []
-        current_branch = []
-        
-        for step in steps:
-            step_type = step.get("type", "")
+            self.driver = webdriver.Chrome(options=chrome_options)
+            self.driver.implicitly_wait(self.wait_timeout)
             
-            # Steps that can run in parallel with others
-            if step_type in ["analysis", "validation", "data_preparation"]:
-                if len(current_branch) < 2:  # Max 2 steps per parallel branch
-                    current_branch.append(step)
-                else:
-                    branches.append(current_branch)
-                    current_branch = [step]
-            else:
-                # Steps that must run sequentially
-                if current_branch:
-                    branches.append(current_branch)
-                    current_branch = []
-                branches.append([step])  # Single step branch
-        
-        if current_branch:
-            branches.append(current_branch)
-        
-        return branches
+            self.logger.info("Browser driver initialized")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to setup browser driver: {e}")
+            raise
     
-    async def _create_conditional_paths(self, steps: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Create conditional execution paths"""
-        return {
-            "conditions": [
-                {
-                    "condition": "success_rate > 0.8",
-                    "true_path": "continue_normal_execution",
-                    "false_path": "activate_error_recovery"
-                },
-                {
-                    "condition": "execution_time > 300",
-                    "true_path": "optimize_performance",
-                    "false_path": "continue_normal_execution"
-                }
-            ]
-        }
-    
-    async def _create_error_handling(self, workflow: Dict[str, Any]) -> Dict[str, Any]:
-        """Create comprehensive error handling for workflow"""
-        return {
-            "retry_strategy": "exponential_backoff",
-            "max_retries": 3,
-            "fallback_actions": [
-                "log_error_and_continue",
-                "attempt_alternative_method", 
-                "escalate_to_human_operator"
-            ],
-            "recovery_procedures": {
-                "navigation_failure": "refresh_page_and_retry",
-                "extraction_failure": "try_alternative_selectors",
-                "form_submission_failure": "validate_and_resubmit"
+    def _initialize_templates(self):
+        """Initialize common automation templates"""
+        self.workflow_templates = {
+            "form_fill": {
+                "name": "Form Filling Template",
+                "description": "Automate form filling with provided data",
+                "steps": [
+                    {"type": "navigate", "description": "Navigate to form URL"},
+                    {"type": "fill_form", "description": "Fill form fields"},
+                    {"type": "submit", "description": "Submit the form"}
+                ]
+            },
+            "data_extraction": {
+                "name": "Data Extraction Template",
+                "description": "Extract data from web pages",
+                "steps": [
+                    {"type": "navigate", "description": "Navigate to target page"},
+                    {"type": "wait_for_load", "description": "Wait for page to load"},
+                    {"type": "extract_data", "description": "Extract specified data"},
+                    {"type": "save_data", "description": "Save extracted data"}
+                ]
+            },
+            "social_media_posting": {
+                "name": "Social Media Posting Template",
+                "description": "Post content to social media platforms",
+                "steps": [
+                    {"type": "navigate", "description": "Navigate to social platform"},
+                    {"type": "login", "description": "Login to account"},
+                    {"type": "create_post", "description": "Create new post"},
+                    {"type": "add_content", "description": "Add text/media content"},
+                    {"type": "publish", "description": "Publish the post"}
+                ]
+            },
+            "price_monitoring": {
+                "name": "Price Monitoring Template",
+                "description": "Monitor product prices across websites",
+                "steps": [
+                    {"type": "navigate", "description": "Navigate to product page"},
+                    {"type": "extract_price", "description": "Extract current price"},
+                    {"type": "compare_price", "description": "Compare with previous price"},
+                    {"type": "send_alert", "description": "Send alert if price changed"}
+                ]
             }
         }
+    
+    async def execute_task(self, task: AgentTask) -> Dict[str, Any]:
+        """Execute an automation task"""
+        task_type = task.type
+        
+        if task_type == "create_workflow":
+            return await self._create_workflow(task)
+        elif task_type == "execute_workflow":
+            return await self._execute_workflow(task)
+        elif task_type == "create_from_template":
+            return await self._create_from_template(task)
+        elif task_type == "batch_automation":
+            return await self._batch_automation(task)
+        elif task_type == "schedule_automation":
+            return await self._schedule_automation(task)
+        else:
+            return {"error": f"Unknown automation task type: {task_type}"}
+    
+    async def get_capabilities(self) -> List[AgentCapability]:
+        """Return automation agent capabilities"""
+        return [
+            AgentCapability(
+                name="Workflow Creation",
+                description="Create custom automation workflows",
+                input_types=["create_workflow"],
+                output_types=["workflow_definition"],
+                estimated_time=3.0,
+                success_rate=0.95
+            ),
+            AgentCapability(
+                name="Workflow Execution",
+                description="Execute automation workflows on web pages",
+                input_types=["execute_workflow"],
+                output_types=["execution_result"],
+                estimated_time=10.0,
+                success_rate=0.85
+            ),
+            AgentCapability(
+                name="Template-Based Creation",
+                description="Create workflows from predefined templates",
+                input_types=["create_from_template"],
+                output_types=["workflow_definition"],
+                estimated_time=2.0,
+                success_rate=0.98
+            ),
+            AgentCapability(
+                name="Batch Automation",
+                description="Execute multiple automation tasks in sequence",
+                input_types=["batch_automation"],
+                output_types=["batch_result"],
+                estimated_time=30.0,
+                success_rate=0.80
+            ),
+            AgentCapability(
+                name="Scheduled Automation",
+                description="Schedule automation workflows for future execution",
+                input_types=["schedule_automation"],
+                output_types=["schedule_result"],
+                estimated_time=1.0,
+                success_rate=0.95
+            )
+        ]
+    
+    async def _create_workflow(self, task: AgentTask) -> Dict[str, Any]:
+        """Create a new automation workflow"""
+        try:
+            workflow_config = task.payload
+            
+            name = workflow_config.get("name", "Untitled Workflow")
+            description = workflow_config.get("description", "")
+            step_definitions = workflow_config.get("steps", [])
+            
+            # Create automation steps
+            steps = []
+            for step_def in step_definitions:
+                step = AutomationStep(
+                    step_type=step_def["type"],
+                    params=step_def.get("params", {})
+                )
+                steps.append(step)
+            
+            # Create workflow
+            workflow = AutomationWorkflow(
+                name=name,
+                description=description,
+                steps=steps
+            )
+            
+            self.active_workflows[workflow.id] = workflow
+            
+            return {
+                "workflow_id": workflow.id,
+                "name": workflow.name,
+                "steps": len(workflow.steps),
+                "status": "created",
+                "success": True
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Workflow creation failed: {e}")
+            return {"error": str(e), "success": False}
+    
+    async def _create_from_template(self, task: AgentTask) -> Dict[str, Any]:
+        """Create workflow from template"""
+        try:
+            template_name = task.payload.get("template")
+            customization = task.payload.get("customization", {})
+            
+            if template_name not in self.workflow_templates:
+                return {"error": f"Template '{template_name}' not found", "success": False}
+            
+            template = self.workflow_templates[template_name]
+            
+            # Create workflow from template
+            workflow_config = {
+                "name": customization.get("name", template["name"]),
+                "description": customization.get("description", template["description"]),
+                "steps": []
+            }
+            
+            # Convert template steps to automation steps
+            for step_template in template["steps"]:
+                step_config = {
+                    "type": step_template["type"],
+                    "params": customization.get(step_template["type"], {})
+                }
+                workflow_config["steps"].append(step_config)
+            
+            # Create the workflow
+            create_task = AgentTask(
+                id=str(uuid.uuid4()),
+                type="create_workflow",
+                description="Create workflow from template",
+                priority=task.priority,
+                payload=workflow_config,
+                created_at=datetime.now()
+            )
+            
+            return await self._create_workflow(create_task)
+            
+        except Exception as e:
+            self.logger.error(f"Template workflow creation failed: {e}")
+            return {"error": str(e), "success": False}
+    
+    async def _execute_workflow(self, task: AgentTask) -> Dict[str, Any]:
+        """Execute an automation workflow"""
+        try:
+            workflow_id = task.payload.get("workflow_id")
+            execution_context = task.payload.get("context", {})
+            
+            if workflow_id not in self.active_workflows:
+                return {"error": f"Workflow '{workflow_id}' not found", "success": False}
+            
+            workflow = self.active_workflows[workflow_id]
+            workflow.status = "running"
+            workflow.executed_at = datetime.now()
+            
+            execution_results = []
+            
+            # Execute each step
+            for step in workflow.steps:
+                try:
+                    step.status = "running"
+                    
+                    # Execute step based on type
+                    step_result = await self._execute_step(step, execution_context)
+                    
+                    step.result = step_result
+                    step.status = "completed"
+                    step.executed_at = datetime.now()
+                    
+                    execution_results.append({
+                        "step_id": step.id,
+                        "type": step.type,
+                        "status": "completed",
+                        "result": step_result
+                    })
+                    
+                    # Update context with step results
+                    execution_context[f"step_{step.id}_result"] = step_result
+                    
+                except Exception as e:
+                    step.status = "failed"
+                    step.error = str(e)
+                    
+                    execution_results.append({
+                        "step_id": step.id,
+                        "type": step.type,
+                        "status": "failed",
+                        "error": str(e)
+                    })
+                    
+                    # Stop execution on failure (can be configurable)
+                    break
+            
+            # Finalize workflow
+            workflow.status = "completed" if all(step.status == "completed" for step in workflow.steps) else "failed"
+            workflow.completed_at = datetime.now()
+            workflow.results = execution_results
+            
+            # Update stats
+            self.execution_stats["total_workflows"] += 1
+            if workflow.status == "completed":
+                self.execution_stats["successful_workflows"] += 1
+            else:
+                self.execution_stats["failed_workflows"] += 1
+            
+            execution_time = (workflow.completed_at - workflow.executed_at).total_seconds()
+            
+            return {
+                "workflow_id": workflow.id,
+                "status": workflow.status,
+                "execution_time": execution_time,
+                "steps_completed": len([s for s in workflow.steps if s.status == "completed"]),
+                "total_steps": len(workflow.steps),
+                "results": execution_results,
+                "success": workflow.status == "completed"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Workflow execution failed: {e}")
+            return {"error": str(e), "success": False}
+    
+    async def _execute_step(self, step: AutomationStep, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a single automation step"""
+        step_type = step.type
+        params = step.params
+        
+        if step_type == "navigate":
+            return await self._step_navigate(params, context)
+        elif step_type == "click":
+            return await self._step_click(params, context)
+        elif step_type == "type":
+            return await self._step_type(params, context)
+        elif step_type == "wait":
+            return await self._step_wait(params, context)
+        elif step_type == "extract_text":
+            return await self._step_extract_text(params, context)
+        elif step_type == "extract_attribute":
+            return await self._step_extract_attribute(params, context)
+        elif step_type == "fill_form":
+            return await self._step_fill_form(params, context)
+        elif step_type == "submit":
+            return await self._step_submit(params, context)
+        elif step_type == "scroll":
+            return await self._step_scroll(params, context)
+        elif step_type == "screenshot":
+            return await self._step_screenshot(params, context)
+        else:
+            raise Exception(f"Unknown step type: {step_type}")
+    
+    async def _step_navigate(self, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Navigate to URL"""
+        url = params.get("url")
+        if not url:
+            raise Exception("No URL provided for navigation")
+        
+        self.driver.get(url)
+        await asyncio.sleep(2)  # Wait for page to load
+        
+        return {
+            "action": "navigate",
+            "url": url,
+            "current_url": self.driver.current_url,
+            "title": self.driver.title
+        }
+    
+    async def _step_click(self, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Click on element"""
+        selector = params.get("selector")
+        if not selector:
+            raise Exception("No selector provided for click")
+        
+        element = WebDriverWait(self.driver, self.wait_timeout).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+        )
+        
+        element.click()
+        await asyncio.sleep(1)
+        
+        return {
+            "action": "click",
+            "selector": selector,
+            "element_text": element.text
+        }
+    
+    async def _step_type(self, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Type text into element"""
+        selector = params.get("selector")
+        text = params.get("text", "")
+        
+        if not selector:
+            raise Exception("No selector provided for typing")
+        
+        element = WebDriverWait(self.driver, self.wait_timeout).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+        )
+        
+        element.clear()
+        element.send_keys(text)
+        
+        return {
+            "action": "type",
+            "selector": selector,
+            "text": text
+        }
+    
+    async def _step_wait(self, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Wait for condition or time"""
+        wait_type = params.get("type", "time")
+        
+        if wait_type == "time":
+            duration = params.get("duration", 1)
+            await asyncio.sleep(duration)
+            return {"action": "wait", "type": "time", "duration": duration}
+        
+        elif wait_type == "element":
+            selector = params.get("selector")
+            timeout = params.get("timeout", self.wait_timeout)
+            
+            element = WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+            )
+            
+            return {"action": "wait", "type": "element", "selector": selector, "found": True}
+        
+        else:
+            raise Exception(f"Unknown wait type: {wait_type}")
+    
+    async def _step_extract_text(self, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract text from element"""
+        selector = params.get("selector")
+        if not selector:
+            raise Exception("No selector provided for text extraction")
+        
+        element = WebDriverWait(self.driver, self.wait_timeout).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+        )
+        
+        text = element.text
+        
+        return {
+            "action": "extract_text",
+            "selector": selector,
+            "text": text
+        }
+    
+    async def _step_fill_form(self, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Fill form with provided data"""
+        form_data = params.get("data", {})
+        
+        filled_fields = []
+        
+        for field_name, value in form_data.items():
+            try:
+                # Try different selector strategies
+                selectors = [
+                    f"input[name='{field_name}']",
+                    f"input[id='{field_name}']",
+                    f"textarea[name='{field_name}']",
+                    f"select[name='{field_name}']"
+                ]
+                
+                element_found = False
+                for selector in selectors:
+                    try:
+                        element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                        
+                        if element.tag_name == "select":
+                            # Handle select elements
+                            from selenium.webdriver.support.ui import Select
+                            select = Select(element)
+                            select.select_by_visible_text(str(value))
+                        else:
+                            # Handle input/textarea elements
+                            element.clear()
+                            element.send_keys(str(value))
+                        
+                        filled_fields.append({
+                            "field": field_name,
+                            "selector": selector,
+                            "value": str(value)
+                        })
+                        element_found = True
+                        break
+                        
+                    except Exception:
+                        continue
+                
+                if not element_found:
+                    self.logger.warning(f"Could not find form field: {field_name}")
+                    
+            except Exception as e:
+                self.logger.error(f"Error filling field {field_name}: {e}")
+        
+        return {
+            "action": "fill_form",
+            "filled_fields": filled_fields,
+            "total_fields": len(form_data)
+        }
+    
+    async def _step_screenshot(self, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Take screenshot"""
+        filename = params.get("filename", f"screenshot_{int(time.time())}.png")
+        
+        screenshot_path = f"/tmp/{filename}"
+        self.driver.save_screenshot(screenshot_path)
+        
+        return {
+            "action": "screenshot",
+            "filename": filename,
+            "path": screenshot_path
+        }
+    
+    async def shutdown(self):
+        """Shutdown the automation agent"""
+        if self.driver:
+            self.driver.quit()
+            self.driver = None
+        
+        await super().shutdown()
+        self.logger.info("Automation agent shut down")

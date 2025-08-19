@@ -1,279 +1,461 @@
-"""
-Coordination Agent - Orchestrates multi-agent collaborations
-Implements Fellou.ai's Deep Action (ADA) style coordination
-"""
 import asyncio
-from typing import Dict, List, Any
-from .base_agent import BaseAgent
+from typing import Dict, List, Optional, Any, Tuple
+from datetime import datetime
+import uuid
+import logging
+from .base_agent import BaseAgent, AgentTask, TaskPriority, AgentCapability, AgentStatus
+
+class ExecutionPlan(BaseModel):
+    id: str
+    description: str
+    steps: List[Dict[str, Any]]
+    dependencies: Dict[str, List[str]]
+    estimated_time: float
+    priority: TaskPriority
+    created_at: datetime
 
 class CoordinationAgent(BaseAgent):
+    """Coordinates and orchestrates multiple agents for complex tasks"""
+    
     def __init__(self):
         super().__init__(
-            agent_type="coordinator",
-            capabilities=[
-                "task_decomposition",
-                "agent_selection", 
-                "workflow_orchestration",
-                "result_compilation",
-                "parallel_coordination"
-            ]
+            agent_id="coordinator",
+            name="Coordination Agent",
+            description="Orchestrates multi-agent workflows and task distribution"
         )
-        self.available_agents = {}
-        self.active_workflows = {}
+        
+        # Agent registry
+        self.registered_agents: Dict[str, BaseAgent] = {}
+        self.agent_capabilities: Dict[str, List[AgentCapability]] = {}
+        
+        # Task management
+        self.pending_tasks: List[AgentTask] = []
+        self.execution_plans: Dict[str, ExecutionPlan] = {}
+        
+        # Workflow management
+        self.active_workflows: Dict[str, Dict[str, Any]] = {}
+        
+        # Performance tracking
+        self.task_routing_history: List[Dict[str, Any]] = []
+        
+    async def initialize(self) -> bool:
+        """Initialize the coordination agent"""
+        try:
+            await self.update_memory("initialization_time", datetime.now().isoformat())
+            self.logger.info("Coordination Agent initialized")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to initialize coordination agent: {e}")
+            return False
     
-    def register_agent(self, agent: BaseAgent):
-        """Register an agent for coordination"""
-        self.available_agents[agent.agent_id] = agent
-    
-    async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Coordinate execution of complex multi-agent tasks"""
-        await self.update_status("analyzing", task)
-        
-        # 1. Analyze task complexity and decompose
-        subtasks = await self._decompose_task(task)
-        
-        # 2. Create execution plan with agent assignments
-        execution_plan = await self._create_execution_plan(subtasks)
-        
-        # 3. Execute plan with parallel agent coordination
-        await self.update_status("executing", task)
-        results = await self._execute_coordinated_plan(execution_plan)
-        
-        # 4. Compile and optimize final result
-        final_result = await self._compile_results(results, task)
-        
-        await self.update_status("completed", task)
-        await self.learn_from_execution(task, final_result)
-        
-        return final_result
-    
-    async def _decompose_task(self, task: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Decompose complex task into manageable subtasks"""
-        task_description = task.get("description", "")
-        complexity = task.get("complexity", "medium")
-        
-        # Analyze task for decomposition patterns
-        subtasks = []
-        
-        if "research" in task_description.lower():
-            subtasks.append({
-                "id": f"{task['id']}_research",
-                "type": "research",
-                "description": f"Research phase: {task_description}",
-                "assigned_agent_type": "research",
-                "priority": 1
-            })
-        
-        if "automate" in task_description.lower() or "workflow" in task_description.lower():
-            subtasks.append({
-                "id": f"{task['id']}_automation", 
-                "type": "automation",
-                "description": f"Automation phase: {task_description}",
-                "assigned_agent_type": "automation",
-                "priority": 2
-            })
-        
-        if "analyze" in task_description.lower() or "data" in task_description.lower():
-            subtasks.append({
-                "id": f"{task['id']}_analysis",
-                "type": "analysis", 
-                "description": f"Analysis phase: {task_description}",
-                "assigned_agent_type": "analysis",
-                "priority": 3
-            })
-        
-        # Default subtask if no specific patterns found
-        if not subtasks:
-            subtasks.append({
-                "id": f"{task['id']}_general",
-                "type": "general_execution",
-                "description": task_description,
-                "assigned_agent_type": "automation",
-                "priority": 1
-            })
-        
-        return subtasks
-    
-    async def _create_execution_plan(self, subtasks: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Create optimized execution plan with agent assignments"""
-        execution_phases = []
-        current_phase = []
-        
-        # Group subtasks into parallel execution phases
-        for subtask in sorted(subtasks, key=lambda x: x.get("priority", 1)):
-            # Check if subtask can run in parallel with current phase
-            can_parallelize = await self._can_run_in_parallel(subtask, current_phase)
+    async def register_agent(self, agent: BaseAgent) -> bool:
+        """Register a new agent with the coordinator"""
+        try:
+            agent.coordinator = self
+            self.registered_agents[agent.agent_id] = agent
             
-            if can_parallelize and len(current_phase) < 3:  # Max 3 parallel tasks
-                current_phase.append(subtask)
-            else:
-                # Start new phase
-                if current_phase:
-                    execution_phases.append(current_phase)
-                current_phase = [subtask]
-        
-        # Add final phase
-        if current_phase:
-            execution_phases.append(current_phase)
-        
-        return {
-            "phases": execution_phases,
-            "estimated_duration": self._estimate_execution_time(execution_phases),
-            "agent_requirements": self._calculate_agent_requirements(execution_phases)
-        }
+            # Get agent capabilities
+            capabilities = await agent.get_capabilities()
+            self.agent_capabilities[agent.agent_id] = capabilities
+            
+            self.logger.info(f"Registered agent: {agent.name} ({agent.agent_id})")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to register agent {agent.agent_id}: {e}")
+            return False
     
-    async def _execute_coordinated_plan(self, execution_plan: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Execute the coordinated plan with multiple agents"""
-        all_results = []
-        
-        for phase_idx, phase in enumerate(execution_plan["phases"]):
-            phase_results = []
-            
-            # Execute subtasks in parallel within each phase
-            phase_tasks = []
-            for subtask in phase:
-                # Find appropriate agent for subtask
-                agent = await self._select_agent_for_task(subtask)
-                if agent:
-                    task_coroutine = agent.execute(subtask)
-                    phase_tasks.append(task_coroutine)
-                else:
-                    # Fallback to coordination agent handling
-                    phase_results.append({
-                        "subtask_id": subtask["id"],
-                        "success": False,
-                        "error": "No suitable agent available"
-                    })
-            
-            # Execute phase tasks in parallel
-            if phase_tasks:
-                parallel_results = await asyncio.gather(*phase_tasks, return_exceptions=True)
+    async def unregister_agent(self, agent_id: str) -> bool:
+        """Unregister an agent"""
+        try:
+            if agent_id in self.registered_agents:
+                agent = self.registered_agents[agent_id]
+                await agent.shutdown()
+                del self.registered_agents[agent_id]
                 
-                for i, result in enumerate(parallel_results):
-                    if isinstance(result, Exception):
-                        phase_results.append({
-                            "subtask_id": phase[i]["id"],
-                            "success": False,
-                            "error": str(result)
-                        })
-                    else:
-                        phase_results.append(result)
+                if agent_id in self.agent_capabilities:
+                    del self.agent_capabilities[agent_id]
+                
+                self.logger.info(f"Unregistered agent: {agent_id}")
+                return True
+            return False
             
-            all_results.extend(phase_results)
-            
-            # Brief pause between phases for system stability
-            if phase_idx < len(execution_plan["phases"]) - 1:
-                await asyncio.sleep(0.1)
-        
-        return all_results
+        except Exception as e:
+            self.logger.error(f"Failed to unregister agent {agent_id}: {e}")
+            return False
     
-    async def _select_agent_for_task(self, subtask: Dict[str, Any]) -> BaseAgent:
-        """Select the best available agent for a subtask"""
-        required_agent_type = subtask.get("assigned_agent_type", "automation")
+    async def execute_task(self, task: AgentTask) -> Dict[str, Any]:
+        """Execute a coordination task"""
+        if task.type == "complex_workflow":
+            return await self._execute_complex_workflow(task)
+        elif task.type == "task_distribution":
+            return await self._distribute_tasks(task)
+        elif task.type == "agent_optimization":
+            return await self._optimize_agent_allocation(task)
+        else:
+            return {"error": f"Unknown coordination task type: {task.type}"}
+    
+    async def get_capabilities(self) -> List[AgentCapability]:
+        """Return coordination agent capabilities"""
+        return [
+            AgentCapability(
+                name="Complex Workflow Execution",
+                description="Orchestrate multi-step workflows across multiple agents",
+                input_types=["complex_workflow"],
+                output_types=["workflow_result"],
+                estimated_time=10.0,
+                success_rate=0.95
+            ),
+            AgentCapability(
+                name="Task Distribution",
+                description="Distribute tasks optimally across available agents",
+                input_types=["task_distribution"],
+                output_types=["distribution_result"],
+                estimated_time=2.0,
+                success_rate=0.98
+            ),
+            AgentCapability(
+                name="Agent Optimization",
+                description="Analyze and optimize agent performance and allocation",
+                input_types=["agent_optimization"],
+                output_types=["optimization_result"],
+                estimated_time=5.0,
+                success_rate=0.90
+            )
+        ]
+    
+    async def create_execution_plan(self, task_description: str, 
+                                  requirements: Dict[str, Any]) -> ExecutionPlan:
+        """Create an execution plan for a complex task"""
         
-        # Find agents of the required type that are available
-        suitable_agents = []
-        for agent in self.available_agents.values():
-            if (agent.agent_type == required_agent_type and 
-                agent.status in ["idle", "available"] and
-                await agent.can_handle_task(subtask)):
-                suitable_agents.append(agent)
+        plan_id = str(uuid.uuid4())
         
-        if not suitable_agents:
-            return None
+        # Analyze task and break it down
+        steps = await self._analyze_and_decompose_task(task_description, requirements)
         
-        # Select agent with best performance metrics for this task type
-        best_agent = max(suitable_agents, key=lambda a: self._calculate_agent_score(a, subtask))
+        # Identify dependencies between steps
+        dependencies = await self._identify_dependencies(steps)
+        
+        # Estimate total execution time
+        estimated_time = await self._estimate_execution_time(steps)
+        
+        # Determine priority
+        priority = TaskPriority(requirements.get("priority", TaskPriority.MEDIUM.value))
+        
+        plan = ExecutionPlan(
+            id=plan_id,
+            description=task_description,
+            steps=steps,
+            dependencies=dependencies,
+            estimated_time=estimated_time,
+            priority=priority,
+            created_at=datetime.now()
+        )
+        
+        self.execution_plans[plan_id] = plan
+        
+        self.logger.info(f"Created execution plan {plan_id} with {len(steps)} steps")
+        return plan
+    
+    async def _analyze_and_decompose_task(self, description: str, 
+                                        requirements: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Break down complex task into manageable steps"""
+        
+        # Simple task decomposition logic (can be enhanced with ML)
+        steps = []
+        
+        # Analyze task type
+        if "research" in description.lower():
+            steps.extend([
+                {
+                    "id": f"step_{len(steps) + 1}",
+                    "type": "web_research",
+                    "description": "Gather relevant information from web sources",
+                    "agent_type": "research_agent",
+                    "estimated_time": 5.0,
+                    "inputs": {"query": description}
+                },
+                {
+                    "id": f"step_{len(steps) + 1}",
+                    "type": "analyze_data",
+                    "description": "Analyze and synthesize gathered information",
+                    "agent_type": "analysis_agent",
+                    "estimated_time": 3.0,
+                    "inputs": {"data_source": "step_1"}
+                }
+            ])
+        
+        if "automation" in description.lower():
+            steps.extend([
+                {
+                    "id": f"step_{len(steps) + 1}",
+                    "type": "create_automation",
+                    "description": "Create automation workflow",
+                    "agent_type": "automation_agent",
+                    "estimated_time": 4.0,
+                    "inputs": {"task_description": description}
+                },
+                {
+                    "id": f"step_{len(steps) + 1}",
+                    "type": "test_automation",
+                    "description": "Test and validate automation",
+                    "agent_type": "automation_agent",
+                    "estimated_time": 2.0,
+                    "inputs": {"workflow_source": f"step_{len(steps)}"}
+                }
+            ])
+        
+        if "analysis" in description.lower():
+            steps.append({
+                "id": f"step_{len(steps) + 1}",
+                "type": "deep_analysis",
+                "description": "Perform comprehensive analysis",
+                "agent_type": "analysis_agent",
+                "estimated_time": 6.0,
+                "inputs": {"analysis_target": requirements.get("target")}
+            })
+        
+        # Default fallback
+        if not steps:
+            steps.append({
+                "id": "step_1",
+                "type": "general_task",
+                "description": description,
+                "agent_type": "general_agent",
+                "estimated_time": 3.0,
+                "inputs": requirements
+            })
+        
+        return steps
+    
+    async def _identify_dependencies(self, steps: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """Identify dependencies between execution steps"""
+        dependencies = {}
+        
+        for i, step in enumerate(steps):
+            step_id = step["id"]
+            deps = []
+            
+            # Check if step depends on previous steps
+            if "inputs" in step:
+                for input_key, input_value in step["inputs"].items():
+                    if isinstance(input_value, str) and input_value.startswith("step_"):
+                        deps.append(input_value)
+            
+            # Sequential dependency (each step depends on previous by default)
+            if i > 0:
+                prev_step_id = steps[i-1]["id"]
+                if prev_step_id not in deps:
+                    deps.append(prev_step_id)
+            
+            dependencies[step_id] = deps
+        
+        return dependencies
+    
+    async def _estimate_execution_time(self, steps: List[Dict[str, Any]]) -> float:
+        """Estimate total execution time for steps"""
+        total_time = 0.0
+        
+        # Simple sequential estimation (can be enhanced for parallel execution)
+        for step in steps:
+            total_time += step.get("estimated_time", 3.0)
+        
+        # Add coordination overhead (10%)
+        total_time *= 1.1
+        
+        return total_time
+    
+    async def find_best_agent_for_task(self, task: AgentTask) -> Optional[BaseAgent]:
+        """Find the best available agent for a task"""
+        best_agent = None
+        best_score = 0.0
+        
+        for agent_id, agent in self.registered_agents.items():
+            if agent.status == AgentStatus.IDLE:
+                score = await agent.can_handle_task(task)
+                
+                # Adjust score based on agent performance history
+                agent_stats = await agent.get_status()
+                performance_multiplier = min(agent_stats["success_rate"] + 0.5, 1.0)
+                adjusted_score = score * performance_multiplier
+                
+                if adjusted_score > best_score:
+                    best_score = adjusted_score
+                    best_agent = agent
+        
         return best_agent
     
-    def _calculate_agent_score(self, agent: BaseAgent, subtask: Dict[str, Any]) -> float:
-        """Calculate agent suitability score for a subtask"""
-        base_score = 0.5
+    async def assign_task_to_agent(self, task: AgentTask, agent_id: Optional[str] = None) -> bool:
+        """Assign a task to a specific agent or find the best one"""
         
-        # Performance history bonus
-        metrics = agent.get_performance_metrics()
-        success_rate_bonus = metrics["success_rate"] * 0.3
-        
-        # Task type experience bonus
-        task_type = subtask.get("type", "unknown")
-        if task_type in agent.learning_data:
-            experience_bonus = min(len(agent.learning_data[task_type]) / 10, 0.2)
+        if agent_id and agent_id in self.registered_agents:
+            agent = self.registered_agents[agent_id]
         else:
-            experience_bonus = 0
+            agent = await self.find_best_agent_for_task(task)
         
-        return base_score + success_rate_bonus + experience_bonus
+        if not agent:
+            self.logger.warning(f"No available agent found for task {task.id}")
+            return False
+        
+        success = await agent.start_task(task)
+        
+        if success:
+            # Record routing decision for learning
+            routing_record = {
+                "task_id": task.id,
+                "task_type": task.type,
+                "assigned_agent": agent.agent_id,
+                "timestamp": datetime.now().isoformat(),
+                "success": None  # Will be updated when task completes
+            }
+            self.task_routing_history.append(routing_record)
+            
+            self.logger.info(f"Assigned task {task.id} to agent {agent.agent_id}")
+        
+        return success
     
-    async def _can_run_in_parallel(self, subtask: Dict[str, Any], current_phase: List[Dict[str, Any]]) -> bool:
-        """Check if subtask can run in parallel with current phase tasks"""
-        if not current_phase:
-            return True
+    async def _execute_complex_workflow(self, task: AgentTask) -> Dict[str, Any]:
+        """Execute a complex multi-agent workflow"""
+        workflow_id = str(uuid.uuid4())
         
-        # Check for dependencies or conflicts
-        subtask_type = subtask.get("type", "")
+        try:
+            # Create execution plan
+            plan = await self.create_execution_plan(
+                task.description,
+                task.payload
+            )
+            
+            # Initialize workflow state
+            workflow_state = {
+                "id": workflow_id,
+                "plan_id": plan.id,
+                "status": "running",
+                "completed_steps": [],
+                "failed_steps": [],
+                "step_results": {},
+                "start_time": datetime.now(),
+                "end_time": None
+            }
+            
+            self.active_workflows[workflow_id] = workflow_state
+            
+            # Execute steps
+            for step in plan.steps:
+                # Check dependencies
+                dependencies_met = await self._check_step_dependencies(
+                    step, plan.dependencies, workflow_state
+                )
+                
+                if not dependencies_met:
+                    self.logger.error(f"Dependencies not met for step {step['id']}")
+                    workflow_state["failed_steps"].append(step["id"])
+                    continue
+                
+                # Create task for step
+                step_task = AgentTask(
+                    id=str(uuid.uuid4()),
+                    type=step["type"],
+                    description=step["description"],
+                    priority=plan.priority,
+                    payload=step.get("inputs", {}),
+                    created_at=datetime.now()
+                )
+                
+                # Execute step
+                success = await self.assign_task_to_agent(step_task)
+                
+                if success:
+                    # Wait for completion (simplified - should handle async better)
+                    await self._wait_for_task_completion(step_task, timeout=30)
+                    
+                    if step_task.status == "completed":
+                        workflow_state["completed_steps"].append(step["id"])
+                        workflow_state["step_results"][step["id"]] = step_task.result
+                    else:
+                        workflow_state["failed_steps"].append(step["id"])
+                else:
+                    workflow_state["failed_steps"].append(step["id"])
+            
+            # Finalize workflow
+            workflow_state["end_time"] = datetime.now()
+            workflow_state["status"] = "completed" if not workflow_state["failed_steps"] else "partial"
+            
+            return {
+                "workflow_id": workflow_id,
+                "status": workflow_state["status"],
+                "completed_steps": len(workflow_state["completed_steps"]),
+                "failed_steps": len(workflow_state["failed_steps"]),
+                "results": workflow_state["step_results"],
+                "execution_time": (workflow_state["end_time"] - workflow_state["start_time"]).total_seconds()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Workflow execution failed: {e}")
+            return {"error": str(e), "workflow_id": workflow_id}
+    
+    async def _check_step_dependencies(self, step: Dict[str, Any], 
+                                     dependencies: Dict[str, List[str]],
+                                     workflow_state: Dict[str, Any]) -> bool:
+        """Check if step dependencies are satisfied"""
+        step_id = step["id"]
+        required_deps = dependencies.get(step_id, [])
         
-        for phase_task in current_phase:
-            phase_task_type = phase_task.get("type", "")
-            
-            # Research and analysis can usually run in parallel
-            if (subtask_type in ["research", "analysis"] and 
-                phase_task_type in ["research", "analysis"]):
-                return True
-            
-            # Automation tasks might conflict
-            if subtask_type == "automation" and phase_task_type == "automation":
+        for dep_id in required_deps:
+            if dep_id not in workflow_state["completed_steps"]:
                 return False
         
         return True
     
-    def _estimate_execution_time(self, execution_phases: List[List[Dict[str, Any]]]) -> float:
-        """Estimate total execution time for the plan"""
-        total_time = 0
+    async def _wait_for_task_completion(self, task: AgentTask, timeout: int = 30):
+        """Wait for task completion with timeout"""
+        start_time = datetime.now()
         
-        for phase in execution_phases:
-            # Phase time is max of individual subtask times (parallel execution)
-            phase_time = 0
-            for subtask in phase:
-                estimated_subtask_time = subtask.get("estimated_duration", 30)  # Default 30 seconds
-                phase_time = max(phase_time, estimated_subtask_time)
-            
-            total_time += phase_time
-        
-        return total_time
+        while task.status in ["pending", "running"]:
+            if (datetime.now() - start_time).seconds > timeout:
+                break
+            await asyncio.sleep(1)
     
-    def _calculate_agent_requirements(self, execution_phases: List[List[Dict[str, Any]]]) -> Dict[str, int]:
-        """Calculate agent requirements for the execution plan"""
-        requirements = {}
+    async def task_completed(self, task: AgentTask, agent: BaseAgent):
+        """Handle task completion notification from agent"""
+        # Update routing history
+        for record in self.task_routing_history:
+            if record["task_id"] == task.id:
+                record["success"] = True
+                break
         
-        for phase in execution_phases:
-            for subtask in phase:
-                agent_type = subtask.get("assigned_agent_type", "automation")
-                requirements[agent_type] = requirements.get(agent_type, 0) + 1
-        
-        return requirements
+        self.logger.info(f"Task {task.id} completed by agent {agent.agent_id}")
     
-    async def _compile_results(self, results: List[Dict[str, Any]], original_task: Dict[str, Any]) -> Dict[str, Any]:
-        """Compile individual agent results into final coordinated result"""
-        successful_results = [r for r in results if r.get("success", False)]
-        failed_results = [r for r in results if not r.get("success", False)]
+    async def task_failed(self, task: AgentTask, agent: BaseAgent, error: str):
+        """Handle task failure notification from agent"""
+        # Update routing history
+        for record in self.task_routing_history:
+            if record["task_id"] == task.id:
+                record["success"] = False
+                record["error"] = error
+                break
         
-        # Aggregate data from successful results
-        compiled_data = {}
-        for result in successful_results:
-            if "data" in result:
-                compiled_data.update(result["data"])
+        self.logger.error(f"Task {task.id} failed on agent {agent.agent_id}: {error}")
+    
+    async def route_message(self, sender_id: str, recipient_id: str, message: Dict[str, Any]):
+        """Route message between agents"""
+        if recipient_id in self.registered_agents:
+            recipient = self.registered_agents[recipient_id]
+            await recipient.receive_message(sender_id, message)
+        else:
+            self.logger.warning(f"Cannot route message: recipient {recipient_id} not found")
+    
+    async def get_system_status(self) -> Dict[str, Any]:
+        """Get overall system status"""
+        agent_statuses = {}
         
-        # Generate summary
-        summary = f"Multi-agent coordination completed: {len(successful_results)}/{len(results)} subtasks successful"
+        for agent_id, agent in self.registered_agents.items():
+            agent_statuses[agent_id] = await agent.get_status()
         
         return {
-            "success": len(successful_results) > len(failed_results),
-            "agent_coordination": True,
-            "total_subtasks": len(results),
-            "successful_subtasks": len(successful_results),
-            "failed_subtasks": len(failed_results),
-            "compiled_data": compiled_data,
-            "summary": summary,
-            "coordination_agent_id": self.agent_id,
-            "execution_time": sum(r.get("execution_time", 0) for r in results),
-            "detailed_results": results
+            "coordinator_status": await self.get_status(),
+            "registered_agents": len(self.registered_agents),
+            "active_workflows": len(self.active_workflows),
+            "execution_plans": len(self.execution_plans),
+            "agent_statuses": agent_statuses,
+            "routing_history_size": len(self.task_routing_history)
         }

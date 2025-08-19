@@ -1,369 +1,501 @@
-"""
-Research Agent - Specialized in deep research and data gathering
-Implements advanced research capabilities similar to Fellou.ai's research functions
-"""
-import asyncio
 import aiohttp
-from typing import Dict, List, Any
-from .base_agent import BaseAgent
+import asyncio
+from typing import Dict, List, Optional, Any
+from datetime import datetime
+import json
+from bs4 import BeautifulSoup
+from .base_agent import BaseAgent, AgentTask, AgentCapability
+import re
+import urllib.parse
 
 class ResearchAgent(BaseAgent):
+    """Specialized agent for web research and information gathering"""
+    
     def __init__(self):
         super().__init__(
-            agent_type="research",
-            capabilities=[
-                "web_research",
-                "data_extraction", 
-                "content_analysis",
-                "source_validation",
-                "trend_analysis",
-                "competitive_research"
-            ]
+            agent_id="research_agent",
+            name="Research Agent",
+            description="Conducts web research, gathers information, and analyzes content"
         )
-        self.research_sources = [
-            "google_search",
-            "academic_papers", 
-            "news_sources",
-            "social_media",
-            "company_websites",
-            "government_data"
+        
+        # Research configuration
+        self.max_search_results = 20
+        self.max_content_length = 50000
+        self.timeout = 30
+        
+        # Search engines and APIs
+        self.search_engines = {
+            "google": "https://www.googleapis.com/customsearch/v1",
+            "bing": "https://api.bing.microsoft.com/v7.0/search",
+            "duckduckgo": "https://api.duckduckgo.com/"
+        }
+        
+        # Content extraction patterns
+        self.content_patterns = {
+            "article": [
+                "article", "main", ".content", ".article-content",
+                ".post-content", ".entry-content"
+            ],
+            "text": ["p", "div", "span", "section"],
+            "headings": ["h1", "h2", "h3", "h4", "h5", "h6"],
+            "links": ["a[href]"],
+            "images": ["img[src]"]
+        }
+        
+    async def initialize(self) -> bool:
+        """Initialize the research agent"""
+        try:
+            # Test connectivity to search engines
+            async with aiohttp.ClientSession() as session:
+                test_url = "https://httpbin.org/get"
+                async with session.get(test_url, timeout=5) as response:
+                    if response.status == 200:
+                        self.logger.info("Research agent initialized successfully")
+                        return True
+            
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize research agent: {e}")
+            return False
+    
+    async def execute_task(self, task: AgentTask) -> Dict[str, Any]:
+        """Execute a research task"""
+        task_type = task.type
+        
+        if task_type == "web_search":
+            return await self._perform_web_search(task)
+        elif task_type == "content_analysis":
+            return await self._analyze_content(task)
+        elif task_type == "url_scraping":
+            return await self._scrape_urls(task)
+        elif task_type == "deep_research":
+            return await self._deep_research(task)
+        elif task_type == "competitor_analysis":
+            return await self._competitor_analysis(task)
+        else:
+            return {"error": f"Unknown research task type: {task_type}"}
+    
+    async def get_capabilities(self) -> List[AgentCapability]:
+        """Return research agent capabilities"""
+        return [
+            AgentCapability(
+                name="Web Search",
+                description="Search the web for information on specific topics",
+                input_types=["web_search"],
+                output_types=["search_results"],
+                estimated_time=5.0,
+                success_rate=0.95
+            ),
+            AgentCapability(
+                name="Content Analysis",
+                description="Analyze web content for insights and patterns",
+                input_types=["content_analysis"],
+                output_types=["analysis_report"],
+                estimated_time=8.0,
+                success_rate=0.90
+            ),
+            AgentCapability(
+                name="URL Scraping",
+                description="Extract content and data from specific URLs",
+                input_types=["url_scraping"],
+                output_types=["scraped_data"],
+                estimated_time=3.0,
+                success_rate=0.85
+            ),
+            AgentCapability(
+                name="Deep Research",
+                description="Comprehensive research combining multiple sources",
+                input_types=["deep_research"],
+                output_types=["research_report"],
+                estimated_time=15.0,
+                success_rate=0.88
+            ),
+            AgentCapability(
+                name="Competitor Analysis",
+                description="Analyze competitors and market landscape",
+                input_types=["competitor_analysis"],
+                output_types=["competitor_report"],
+                estimated_time=20.0,
+                success_rate=0.85
+            )
         ]
     
-    async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute research task with comprehensive data gathering"""
-        await self.update_status("researching", task)
-        
-        research_query = task.get("description", "")
-        research_depth = task.get("depth", "medium")
-        focus_areas = task.get("focus_areas", [])
-        
-        # 1. Generate research strategy
-        strategy = await self._create_research_strategy(research_query, research_depth, focus_areas)
-        
-        # 2. Execute parallel research across multiple sources
-        research_results = await self._execute_parallel_research(strategy)
-        
-        # 3. Analyze and synthesize findings
-        synthesized_data = await self._synthesize_research_data(research_results)
-        
-        # 4. Generate insights and recommendations
-        insights = await self._generate_research_insights(synthesized_data, research_query)
-        
-        final_result = {
-            "success": True,
-            "research_query": research_query,
-            "research_strategy": strategy,
-            "data_sources": len(research_results),
-            "synthesized_data": synthesized_data,
-            "insights": insights,
-            "confidence_score": self._calculate_confidence_score(research_results),
-            "agent_id": self.agent_id,
-            "execution_time": 0  # Will be updated by caller
-        }
-        
-        await self.update_status("completed", task)
-        return final_result
-    
-    async def _create_research_strategy(self, query: str, depth: str, focus_areas: List[str]) -> Dict[str, Any]:
-        """Create comprehensive research strategy"""
-        strategy = {
-            "primary_query": query,
-            "depth_level": depth,
-            "focus_areas": focus_areas,
-            "research_methods": [],
-            "sources_to_explore": [],
-            "estimated_time": 0
-        }
-        
-        # Determine research methods based on query type
-        query_lower = query.lower()
-        
-        if any(word in query_lower for word in ["market", "industry", "business"]):
-            strategy["research_methods"].extend([
-                "market_analysis",
-                "competitor_research", 
-                "industry_trends"
-            ])
-            strategy["sources_to_explore"].extend([
-                "company_websites",
-                "news_sources",
-                "market_reports"
-            ])
-        
-        if any(word in query_lower for word in ["technical", "technology", "development"]):
-            strategy["research_methods"].extend([
-                "technical_documentation",
-                "code_repositories",
-                "developer_forums"
-            ])
-            strategy["sources_to_explore"].extend([
-                "github",
-                "stackoverflow", 
-                "technical_blogs"
-            ])
-        
-        if any(word in query_lower for word in ["academic", "research", "study"]):
-            strategy["research_methods"].extend([
-                "academic_search",
-                "paper_analysis",
-                "citation_tracking"
-            ])
-            strategy["sources_to_explore"].extend([
-                "academic_papers",
-                "research_databases"
-            ])
-        
-        # Set default if no specific patterns found
-        if not strategy["research_methods"]:
-            strategy["research_methods"] = ["general_web_research", "content_analysis"]
-            strategy["sources_to_explore"] = ["google_search", "news_sources"]
-        
-        # Estimate time based on depth
-        time_multipliers = {"quick": 1, "medium": 2, "deep": 4}
-        base_time = 60  # 60 seconds base
-        strategy["estimated_time"] = base_time * time_multipliers.get(depth, 2)
-        
-        return strategy
-    
-    async def _execute_parallel_research(self, strategy: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Execute research across multiple sources in parallel"""
-        research_tasks = []
-        
-        for source in strategy["sources_to_explore"][:5]:  # Limit to 5 parallel sources
-            task = self._research_single_source(strategy["primary_query"], source)
-            research_tasks.append(task)
-        
-        # Execute research tasks in parallel
-        research_results = await asyncio.gather(*research_tasks, return_exceptions=True)
-        
-        # Filter out exceptions and format results
-        valid_results = []
-        for i, result in enumerate(research_results):
-            if isinstance(result, Exception):
-                valid_results.append({
-                    "source": strategy["sources_to_explore"][i],
-                    "success": False,
-                    "error": str(result),
-                    "data": {}
-                })
-            else:
-                valid_results.append(result)
-        
-        return valid_results
-    
-    async def _research_single_source(self, query: str, source: str) -> Dict[str, Any]:
-        """Research a single source for the given query"""
+    async def _perform_web_search(self, task: AgentTask) -> Dict[str, Any]:
+        """Perform web search for given query"""
         try:
-            if source == "google_search":
-                return await self._google_search_research(query)
-            elif source == "news_sources":
-                return await self._news_research(query)
-            elif source == "company_websites":
-                return await self._company_research(query)
-            elif source == "github":
-                return await self._github_research(query)
-            elif source == "stackoverflow":
-                return await self._stackoverflow_research(query)
-            else:
-                return await self._general_web_research(query, source)
-        
-        except Exception as e:
+            query = task.payload.get("query", "")
+            max_results = task.payload.get("max_results", self.max_search_results)
+            
+            if not query:
+                return {"error": "No search query provided"}
+            
+            # Use DuckDuckGo instant answer API (no key required)
+            search_results = await self._search_duckduckgo(query, max_results)
+            
+            # Fallback to direct web scraping if API fails
+            if not search_results:
+                search_results = await self._search_fallback(query, max_results)
+            
+            # Analyze and rank results
+            ranked_results = await self._rank_search_results(search_results, query)
+            
             return {
-                "source": source,
-                "success": False,
-                "error": str(e),
-                "data": {}
+                "query": query,
+                "total_results": len(ranked_results),
+                "results": ranked_results,
+                "search_time": datetime.now().isoformat(),
+                "success": True
             }
-    
-    async def _google_search_research(self, query: str) -> Dict[str, Any]:
-        """Simulate Google search research (replace with actual API)"""
-        # Simulate research data
-        return {
-            "source": "google_search",
-            "success": True,
-            "data": {
-                "search_results": [
-                    {
-                        "title": f"Research result for {query}",
-                        "url": f"https://example.com/research/{query.replace(' ', '-')}",
-                        "snippet": f"Comprehensive information about {query} including key insights and trends.",
-                        "relevance_score": 0.85
-                    }
-                ],
-                "total_results": 1,
-                "search_time": 0.5
-            }
-        }
-    
-    async def _news_research(self, query: str) -> Dict[str, Any]:
-        """Research news sources for the query"""
-        return {
-            "source": "news_sources",
-            "success": True,
-            "data": {
-                "news_articles": [
-                    {
-                        "headline": f"Latest developments in {query}",
-                        "source": "Tech News Daily",
-                        "published_date": "2025-01-18",
-                        "summary": f"Recent news and updates about {query}",
-                        "credibility_score": 0.80
-                    }
-                ],
-                "total_articles": 1
-            }
-        }
-    
-    async def _company_research(self, query: str) -> Dict[str, Any]:
-        """Research company websites and business information"""
-        return {
-            "source": "company_websites",
-            "success": True,
-            "data": {
-                "company_info": [
-                    {
-                        "company_name": f"{query} Company",
-                        "description": f"Leading company in {query} industry",
-                        "website": f"https://{query.replace(' ', '')}.com",
-                        "key_products": [f"{query} solution"],
-                        "market_position": "Strong"
-                    }
-                ]
-            }
-        }
-    
-    async def _github_research(self, query: str) -> Dict[str, Any]:
-        """Research GitHub repositories and code"""
-        return {
-            "source": "github", 
-            "success": True,
-            "data": {
-                "repositories": [
-                    {
-                        "name": f"{query.replace(' ', '-')}-project",
-                        "stars": 1250,
-                        "forks": 340,
-                        "language": "Python",
-                        "description": f"Open source implementation of {query}",
-                        "activity_score": 0.75
-                    }
-                ]
-            }
-        }
-    
-    async def _stackoverflow_research(self, query: str) -> Dict[str, Any]:
-        """Research StackOverflow for technical questions/answers"""
-        return {
-            "source": "stackoverflow",
-            "success": True, 
-            "data": {
-                "questions": [
-                    {
-                        "title": f"How to implement {query}",
-                        "answers": 15,
-                        "views": 50000,
-                        "votes": 125,
-                        "accepted_answer": True,
-                        "difficulty": "intermediate"
-                    }
-                ]
-            }
-        }
-    
-    async def _general_web_research(self, query: str, source: str) -> Dict[str, Any]:
-        """General web research fallback"""
-        return {
-            "source": source,
-            "success": True,
-            "data": {
-                "general_findings": f"Research data from {source} about {query}",
-                "relevance": 0.70,
-                "data_points": 5
-            }
-        }
-    
-    async def _synthesize_research_data(self, research_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Synthesize research data from multiple sources"""
-        successful_sources = [r for r in research_results if r.get("success", False)]
-        
-        synthesized = {
-            "total_sources": len(research_results),
-            "successful_sources": len(successful_sources),
-            "data_quality_score": len(successful_sources) / len(research_results) if research_results else 0,
-            "key_findings": [],
-            "trending_topics": [],
-            "source_diversity": len(set(r.get("source", "") for r in successful_sources))
-        }
-        
-        # Extract key findings from each source
-        for result in successful_sources:
-            source = result.get("source", "unknown")
-            data = result.get("data", {})
             
-            if source == "google_search" and "search_results" in data:
-                for search_result in data["search_results"]:
-                    synthesized["key_findings"].append({
-                        "source": source,
-                        "finding": search_result.get("snippet", ""),
-                        "relevance": search_result.get("relevance_score", 0.5)
-                    })
-            
-            elif source == "news_sources" and "news_articles" in data:
-                for article in data["news_articles"]:
-                    synthesized["key_findings"].append({
-                        "source": source,
-                        "finding": article.get("summary", ""),
-                        "credibility": article.get("credibility_score", 0.5)
-                    })
-        
-        return synthesized
+        except Exception as e:
+            self.logger.error(f"Web search failed: {e}")
+            return {"error": str(e), "success": False}
     
-    async def _generate_research_insights(self, synthesized_data: Dict[str, Any], original_query: str) -> Dict[str, Any]:
-        """Generate insights and recommendations from research data"""
-        insights = {
-            "summary": f"Research analysis for: {original_query}",
-            "confidence_level": "medium",
-            "key_insights": [],
-            "recommendations": [],
-            "data_gaps": [],
-            "further_research": []
+    async def _search_duckduckgo(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+        """Search using DuckDuckGo instant answer API"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                params = {
+                    "q": query,
+                    "format": "json",
+                    "no_html": "1",
+                    "skip_disambig": "1"
+                }
+                
+                url = "https://api.duckduckgo.com/"
+                async with session.get(url, params=params, timeout=self.timeout) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        results = []
+                        
+                        # Process related topics
+                        for topic in data.get("RelatedTopics", [])[:max_results]:
+                            if isinstance(topic, dict) and "FirstURL" in topic:
+                                results.append({
+                                    "title": topic.get("Text", "").split(" - ")[0],
+                                    "url": topic["FirstURL"],
+                                    "description": topic.get("Text", ""),
+                                    "source": "duckduckgo"
+                                })
+                        
+                        return results
+            
+            return []
+            
+        except Exception as e:
+            self.logger.error(f"DuckDuckGo search failed: {e}")
+            return []
+    
+    async def _search_fallback(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+        """Fallback search by scraping search engine results"""
+        try:
+            # Use Google search (scraping)
+            search_url = f"https://www.google.com/search?q={urllib.parse.quote(query)}&num={max_results}"
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(search_url, headers=headers, timeout=self.timeout) as response:
+                    if response.status == 200:
+                        html = await response.text()
+                        soup = BeautifulSoup(html, 'html.parser')
+                        
+                        results = []
+                        
+                        # Extract search results
+                        for result in soup.find_all('div', class_='g')[:max_results]:
+                            title_elem = result.find('h3')
+                            link_elem = result.find('a')
+                            desc_elem = result.find('span', class_='st') or result.find('div', class_='s')
+                            
+                            if title_elem and link_elem:
+                                results.append({
+                                    "title": title_elem.get_text(),
+                                    "url": link_elem.get('href', ''),
+                                    "description": desc_elem.get_text() if desc_elem else "",
+                                    "source": "google_scrape"
+                                })
+                        
+                        return results
+            
+            return []
+            
+        except Exception as e:
+            self.logger.error(f"Fallback search failed: {e}")
+            return []
+    
+    async def _rank_search_results(self, results: List[Dict[str, Any]], 
+                                 query: str) -> List[Dict[str, Any]]:
+        """Rank search results by relevance"""
+        try:
+            query_words = set(query.lower().split())
+            
+            for result in results:
+                score = 0
+                title = result.get("title", "").lower()
+                description = result.get("description", "").lower()
+                
+                # Title relevance (higher weight)
+                title_matches = len(query_words.intersection(set(title.split())))
+                score += title_matches * 3
+                
+                # Description relevance
+                desc_matches = len(query_words.intersection(set(description.split())))
+                score += desc_matches * 1
+                
+                # URL relevance
+                url = result.get("url", "").lower()
+                url_matches = len(query_words.intersection(set(url.split('/'))))
+                score += url_matches * 0.5
+                
+                result["relevance_score"] = score
+            
+            # Sort by relevance score
+            ranked_results = sorted(results, key=lambda x: x.get("relevance_score", 0), reverse=True)
+            
+            return ranked_results
+            
+        except Exception as e:
+            self.logger.error(f"Result ranking failed: {e}")
+            return results
+    
+    async def _scrape_urls(self, task: AgentTask) -> Dict[str, Any]:
+        """Scrape content from specific URLs"""
+        try:
+            urls = task.payload.get("urls", [])
+            if isinstance(urls, str):
+                urls = [urls]
+            
+            scraped_data = []
+            
+            async with aiohttp.ClientSession() as session:
+                for url in urls:
+                    try:
+                        data = await self._scrape_single_url(session, url)
+                        scraped_data.append(data)
+                    except Exception as e:
+                        scraped_data.append({
+                            "url": url,
+                            "error": str(e),
+                            "success": False
+                        })
+            
+            return {
+                "total_urls": len(urls),
+                "successful_scrapes": len([d for d in scraped_data if d.get("success", False)]),
+                "scraped_data": scraped_data,
+                "success": True
+            }
+            
+        except Exception as e:
+            self.logger.error(f"URL scraping failed: {e}")
+            return {"error": str(e), "success": False}
+    
+    async def _scrape_single_url(self, session: aiohttp.ClientSession, url: str) -> Dict[str, Any]:
+        """Scrape content from a single URL"""
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         
-        # Analyze data quality and generate insights
-        data_quality = synthesized_data.get("data_quality_score", 0)
-        
-        if data_quality >= 0.8:
-            insights["confidence_level"] = "high"
-            insights["key_insights"].append("Comprehensive data available from multiple reliable sources")
-        elif data_quality >= 0.5:
-            insights["confidence_level"] = "medium"
-            insights["key_insights"].append("Moderate data availability with some limitations")
-        else:
-            insights["confidence_level"] = "low"
-            insights["data_gaps"].append("Limited reliable data available")
-        
-        # Generate recommendations based on findings
-        if synthesized_data.get("successful_sources", 0) > 0:
-            insights["recommendations"].append("Consider cross-referencing findings with additional sources")
-            insights["recommendations"].append("Monitor for updates as new information becomes available")
-        
-        # Suggest further research areas
-        if synthesized_data.get("source_diversity", 0) < 3:
-            insights["further_research"].append("Expand research to include more diverse sources")
-        
-        return insights
+        async with session.get(url, headers=headers, timeout=self.timeout) as response:
+            if response.status == 200:
+                html = await response.text()
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # Extract content
+                content = self._extract_content(soup)
+                
+                return {
+                    "url": url,
+                    "title": soup.title.string if soup.title else "",
+                    "content": content,
+                    "meta": self._extract_metadata(soup),
+                    "links": self._extract_links(soup),
+                    "images": self._extract_images(soup),
+                    "success": True,
+                    "scraped_at": datetime.now().isoformat()
+                }
+            else:
+                raise Exception(f"HTTP {response.status}: {response.reason}")
     
-    def _calculate_confidence_score(self, research_results: List[Dict[str, Any]]) -> float:
-        """Calculate overall confidence score for research results"""
-        if not research_results:
-            return 0.0
+    def _extract_content(self, soup: BeautifulSoup) -> str:
+        """Extract main content from HTML"""
+        # Try to find main content area
+        content_selectors = [
+            'article', 'main', '.content', '.article-content',
+            '.post-content', '.entry-content', '#content', '#main'
+        ]
         
-        successful_results = [r for r in research_results if r.get("success", False)]
-        success_rate = len(successful_results) / len(research_results)
+        for selector in content_selectors:
+            element = soup.select_one(selector)
+            if element:
+                return element.get_text(strip=True)
         
-        # Factor in source diversity and data quality
-        unique_sources = len(set(r.get("source", "") for r in successful_results))
-        source_diversity_bonus = min(unique_sources / 5.0, 0.2)  # Max 20% bonus
+        # Fallback to body content
+        body = soup.find('body')
+        if body:
+            # Remove script and style elements
+            for script in body(["script", "style"]):
+                script.decompose()
+            
+            return body.get_text(strip=True)[:self.max_content_length]
         
-        confidence = (success_rate * 0.8) + source_diversity_bonus
-        return min(confidence, 1.0)
+        return ""
+    
+    def _extract_metadata(self, soup: BeautifulSoup) -> Dict[str, str]:
+        """Extract metadata from HTML"""
+        metadata = {}
+        
+        # Meta tags
+        for meta in soup.find_all('meta'):
+            name = meta.get('name') or meta.get('property')
+            content = meta.get('content')
+            
+            if name and content:
+                metadata[name] = content
+        
+        # Title
+        title = soup.find('title')
+        if title:
+            metadata['title'] = title.string
+        
+        return metadata
+    
+    def _extract_links(self, soup: BeautifulSoup) -> List[str]:
+        """Extract links from HTML"""
+        links = []
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            if href.startswith('http'):
+                links.append(href)
+        
+        return list(set(links))  # Remove duplicates
+    
+    def _extract_images(self, soup: BeautifulSoup) -> List[str]:
+        """Extract image URLs from HTML"""
+        images = []
+        for img in soup.find_all('img', src=True):
+            src = img['src']
+            if src.startswith('http'):
+                images.append(src)
+        
+        return list(set(images))  # Remove duplicates
+    
+    async def _deep_research(self, task: AgentTask) -> Dict[str, Any]:
+        """Perform comprehensive research on a topic"""
+        try:
+            topic = task.payload.get("topic", "")
+            depth = task.payload.get("depth", "medium")  # shallow, medium, deep
+            
+            if not topic:
+                return {"error": "No research topic provided"}
+            
+            research_report = {
+                "topic": topic,
+                "depth": depth,
+                "started_at": datetime.now().isoformat(),
+                "sources": [],
+                "key_findings": [],
+                "summary": "",
+                "related_topics": []
+            }
+            
+            # Phase 1: Initial search
+            search_results = await self._perform_web_search(
+                AgentTask(
+                    id="search_1",
+                    type="web_search",
+                    description=f"Search for {topic}",
+                    priority=task.priority,
+                    payload={"query": topic, "max_results": 10},
+                    created_at=datetime.now()
+                )
+            )
+            
+            if search_results.get("success"):
+                # Phase 2: Scrape top results
+                top_urls = [result["url"] for result in search_results["results"][:5]]
+                
+                scraped_data = await self._scrape_urls(
+                    AgentTask(
+                        id="scrape_1",
+                        type="url_scraping",
+                        description="Scrape top search results",
+                        priority=task.priority,
+                        payload={"urls": top_urls},
+                        created_at=datetime.now()
+                    )
+                )
+                
+                if scraped_data.get("success"):
+                    research_report["sources"] = scraped_data["scraped_data"]
+                    
+                    # Phase 3: Analyze content for key findings
+                    research_report["key_findings"] = await self._extract_key_findings(
+                        scraped_data["scraped_data"]
+                    )
+                    
+                    # Phase 4: Generate summary
+                    research_report["summary"] = await self._generate_research_summary(
+                        research_report["key_findings"]
+                    )
+            
+            research_report["completed_at"] = datetime.now().isoformat()
+            
+            return {
+                "research_report": research_report,
+                "success": True
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Deep research failed: {e}")
+            return {"error": str(e), "success": False}
+    
+    async def _extract_key_findings(self, scraped_data: List[Dict[str, Any]]) -> List[str]:
+        """Extract key findings from scraped content"""
+        findings = []
+        
+        for data in scraped_data:
+            if data.get("success") and data.get("content"):
+                content = data["content"]
+                
+                # Simple key finding extraction (can be enhanced with NLP)
+                sentences = content.split('.')
+                
+                # Look for sentences with key indicators
+                key_indicators = [
+                    "research shows", "study found", "according to",
+                    "statistics show", "data indicates", "important",
+                    "significant", "key", "main", "primary"
+                ]
+                
+                for sentence in sentences:
+                    sentence = sentence.strip()
+                    if len(sentence) > 50 and any(indicator in sentence.lower() for indicator in key_indicators):
+                        findings.append(sentence)
+                
+                # Limit findings per source
+                if len(findings) >= 20:
+                    break
+        
+        return findings[:10]  # Return top 10 findings
+    
+    async def _generate_research_summary(self, key_findings: List[str]) -> str:
+        """Generate a summary from key findings"""
+        if not key_findings:
+            return "No significant findings identified."
+        
+        # Simple summary generation (can be enhanced with AI)
+        summary_parts = [
+            "Research Summary:",
+            f"Based on analysis of multiple sources, {len(key_findings)} key findings were identified:",
+        ]
+        
+        for i, finding in enumerate(key_findings[:5], 1):
+            summary_parts.append(f"{i}. {finding}")
+        
+        return "\n".join(summary_parts)
