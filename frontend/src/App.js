@@ -226,7 +226,7 @@ function App() {
       
       {aiAssistantExpanded && (
         <div className="ai-content">
-          <div className="chat-messages" onDragOver={handleDragOver} onDrop={handleDrop}>
+          <div className="chat-messages" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
             {chatMessages.length === 0 && (
               <div className="welcome-message">
                 <div className="welcome-icon">✨</div>
