@@ -20,6 +20,10 @@ import SimplifiedInterface from './components/SimplifiedInterface';
 import NativeBrowserEngine from './components/NativeBrowserEngine';
 
 function App() {
+  // AETHER v6.0 - Enhanced with native Chromium and Fellou.ai-style interface
+  const [interfaceMode, setInterfaceMode] = useState('fellou'); // 'fellou' or 'traditional'
+  const [nativeAPI, setNativeAPI] = useState(null);
+  
   // Browser state
   const [currentUrl, setCurrentUrl] = useState('');
   const [urlInput, setUrlInput] = useState('https://example.com');
@@ -32,7 +36,7 @@ function App() {
   ]);
   const [activeTab, setActiveTab] = useState(1);
 
-  // AI Assistant state - Enhanced with all capabilities
+  // AI Assistant state - Enhanced with proactive capabilities
   const [aiVisible, setAiVisible] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [aiInput, setAiInput] = useState('');
@@ -43,7 +47,7 @@ function App() {
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   
-  // Advanced Features State - Simplified
+  // Advanced Features State - Simplified for Fellou mode
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [workflowBuilder, setWorkflowBuilder] = useState({ visible: false, workflows: [] });
   const [automationSuggestions, setAutomationSuggestions] = useState([]);
@@ -61,6 +65,14 @@ function App() {
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
   const iframeRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  // Initialize native API if available (Electron app)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.nativeAPI) {
+      setNativeAPI(window.nativeAPI);
+      console.log('🔥 Native Chromium API detected');
+    }
+  }, []);
 
   // Initialize advanced features
   const advancedFeatures = AdvancedFeatures({ 
