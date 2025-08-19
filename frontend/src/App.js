@@ -677,6 +677,13 @@ function App() {
                   </div>
                 </div>
 
+                {/* Enhanced Capabilities Showcase */}
+                <EnhancedCapabilities 
+                  backendUrl={backendUrl}
+                  currentUrl={currentUrl}
+                  sessionId={sessionId}
+                />
+
                 {/* Show automation suggestions if available */}
                 {automationSuggestions.length > 0 && (
                   <div className="automation-suggestions">
