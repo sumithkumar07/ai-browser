@@ -1,148 +1,237 @@
 {
   "test_summary": {
     "total_endpoints": 29,
-    "successful": 0,
-    "failed": 29,
-    "success_rate": 0.0,
-    "total_time": 0.37862467765808105,
+    "successful": 21,
+    "failed": 8,
+    "success_rate": 72.41379310344827,
+    "total_time": 3.6398556232452393,
     "test_results": {
       "core_browser_apis": {
         "browse": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "success": true,
+            "url": "https://example.com",
+            "page_data": {
+              "title": "Example Domain",
+              "content": "Example Domain Example Domain This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission. More information...",
+              "security": {
+                "is_https": true
+              },
+              "meta": {
+                "description": ""
+              }
+            },
+            "tab_id": "cc61695e-d0de-44d6-adba-ee4debe298f6"
           },
-          "status": 500
+          "status": 200
         },
         "chat": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "response": "I apologize for the technical issue. Please try rephrasing your question or try again later.",
+            "session_id": "92958dd4-aa3f-4f59-a6c0-a1ec0eaafa5c",
+            "enhanced_features": [
+              "intelligent_conversation",
+              "context_aware",
+              "session_management"
+            ]
           },
-          "status": 500
+          "status": 200
         },
         "recent_tabs": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "tabs": [
+              {
+                "id": "cc61695e-d0de-44d6-adba-ee4debe298f6",
+                "url": "https://example.com",
+                "title": "Example Domain",
+                "content_preview": "Example Domain Example Domain This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission. More information...",
+                "timestamp": "2025-08-19T14:31:15.902000",
+                "is_secure": true,
+                "domain": "example.com"
+              }
+            ]
           },
-          "status": 500
+          "status": 200
         },
         "recommendations": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "recommendations": [
+              {
+                "id": "1",
+                "title": "Continue Reading",
+                "description": "Based on your recent browsing",
+                "url": "https://example.com"
+              },
+              {
+                "id": "2",
+                "title": "Related Topics",
+                "description": "Discover similar content",
+                "url": "https://www.google.com/search?q=Example+Domain"
+              },
+              {
+                "id": "3",
+                "title": "Trending Now",
+                "description": "Popular content today",
+                "url": "https://trends.google.com"
+              }
+            ]
           },
-          "status": 500
+          "status": 200
         },
         "clear_history": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "success": true,
+            "message": "History cleared"
           },
-          "status": 500
+          "status": 200
         }
       },
       "enhanced_features": {
         "summarize": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "success": true,
+            "title": "Example Domain",
+            "summary": "I apologize for the technical issue. Please try rephrasing your question or try again later.",
+            "length": "medium",
+            "word_count": 15
           },
-          "status": 500
+          "status": 200
         },
         "search_suggestions": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "success": true,
+            "query": "artificial intelligence tools",
+            "suggestions": [
+              "artificial intelligence tools tutorial",
+              "artificial intelligence tools guide",
+              "artificial intelligence tools examples"
+            ]
           },
-          "status": 500
+          "status": 200
         },
         "create_workflow": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "success": true,
+            "workflow_id": "88afbfe1-3e45-4a80-954a-ff6a9747c9e4",
+            "name": "Test Workflow",
+            "status": "created"
           },
-          "status": 500
+          "status": 200
         },
         "create_advanced_automation": {
           "success": false,
           "data": {
-            "text": "Internal Server Error"
+            "detail": "Not Found"
           },
-          "status": 500
+          "status": 404
         },
         "create_workflow_template": {
           "success": false,
           "data": {
-            "text": "Internal Server Error"
+            "detail": "Not Found"
           },
-          "status": 500
+          "status": 404
         },
         "oauth_initiate": {
           "success": false,
           "data": {
-            "text": "Internal Server Error"
+            "detail": "Not Found"
           },
-          "status": 500
+          "status": 404
         },
         "store_api_key": {
           "success": false,
           "data": {
-            "text": "Internal Server Error"
+            "detail": "Not Found"
           },
-          "status": 500
+          "status": 404
         },
         "system_overview": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "status": "operational",
+            "version": "4.0.0",
+            "timestamp": "2025-08-19T14:31:17.411191",
+            "stats": {
+              "recent_tabs": 0,
+              "chat_sessions": 0,
+              "workflows": 1
+            },
+            "services": {
+              "database": "operational",
+              "ai_provider": "operational",
+              "backend": "operational"
+            }
           },
-          "status": 500
+          "status": 200
         }
       },
       "voice_keyboard_features": {
         "voice_command": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "success": true,
+            "action": "navigate",
+            "result": "Navigation command processed"
           },
-          "status": 500
+          "status": 200
         },
         "available_voice_commands": {
           "success": false,
           "data": {
-            "text": "Internal Server Error"
+            "detail": "Not Found"
           },
-          "status": 500
+          "status": 404
         },
         "keyboard_shortcut": {
           "success": false,
           "data": {
-            "text": "Internal Server Error"
+            "detail": "Not Found"
           },
-          "status": 500
+          "status": 404
         }
       },
       "health_performance": {
         "health": {
-          "success": false,
+          "success": true,
           "data": {
-            "text": "Internal Server Error"
+            "status": "operational",
+            "version": "4.0.0",
+            "timestamp": "2025-08-19T14:31:17.524831",
+            "services": {
+              "database": "operational",
+              "ai_provider": "groq",
+              "backend": "operational"
+            },
+            "enhanced_capabilities": [
+              "intelligent_ai_conversations",
+              "advanced_web_browsing",
+              "real_time_performance_monitoring",
+              "comprehensive_security_analysis",
+              "automated_optimization_suggestions"
+            ]
           },
-          "status": 500
+          "status": 200
         }
       },
       "concurrent_load": {
-        "concurrent_success_rate": 0.0,
-        "total_time": 0.05539107322692871,
-        "requests_per_second": 90.26725262238139
+        "concurrent_success_rate": 1.0,
+        "total_time": 0.5382604598999023,
+        "requests_per_second": 9.289183160378947
       },
       "data_persistence": {
-        "browse_persistence": false,
-        "tabs_retrieval": false,
-        "chat_persistence": false,
-        "session_continuity": false
+        "browse_persistence": true,
+        "tabs_retrieval": true,
+        "chat_persistence": true,
+        "session_continuity": true
       },
       "error_handling": true
     }
@@ -151,237 +240,237 @@
     {
       "endpoint": "/browse",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.10926008224487305,
-      "timestamp": "2025-08-19T14:29:32.028267"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.39983367919921875,
+      "timestamp": "2025-08-19T14:31:15.929337"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.011642932891845703,
-      "timestamp": "2025-08-19T14:29:32.040049"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.5233912467956543,
+      "timestamp": "2025-08-19T14:31:16.452867"
     },
     {
       "endpoint": "/recent-tabs",
       "method": "GET",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008426666259765625,
-      "timestamp": "2025-08-19T14:29:32.048881"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.010576248168945312,
+      "timestamp": "2025-08-19T14:31:16.463586"
     },
     {
       "endpoint": "/recommendations",
       "method": "GET",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.00921487808227539,
-      "timestamp": "2025-08-19T14:29:32.058239"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.09152770042419434,
+      "timestamp": "2025-08-19T14:31:16.555247"
     },
     {
       "endpoint": "/clear-history",
       "method": "DELETE",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.00906825065612793,
-      "timestamp": "2025-08-19T14:29:32.067440"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.05109596252441406,
+      "timestamp": "2025-08-19T14:31:16.606492"
     },
     {
       "endpoint": "/summarize",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008596420288085938,
-      "timestamp": "2025-08-19T14:29:32.076192"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.30362558364868164,
+      "timestamp": "2025-08-19T14:31:16.910265"
     },
     {
       "endpoint": "/search-suggestions",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.011652469635009766,
-      "timestamp": "2025-08-19T14:29:32.087978"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.08372282981872559,
+      "timestamp": "2025-08-19T14:31:16.994121"
     },
     {
       "endpoint": "/create-workflow",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.00932765007019043,
-      "timestamp": "2025-08-19T14:29:32.097440"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.05511116981506348,
+      "timestamp": "2025-08-19T14:31:17.049366"
     },
     {
       "endpoint": "/enhanced/automation/create-advanced",
       "method": "POST",
       "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008835077285766602,
-      "timestamp": "2025-08-19T14:29:32.106592"
+      "details": "Expected 200, got 404",
+      "response_time": 0.29160499572753906,
+      "timestamp": "2025-08-19T14:31:17.341091"
     },
     {
       "endpoint": "/enhanced/workflows/template/create",
       "method": "POST",
       "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.00853419303894043,
-      "timestamp": "2025-08-19T14:29:32.115249"
+      "details": "Expected 200, got 404",
+      "response_time": 0.007274150848388672,
+      "timestamp": "2025-08-19T14:31:17.348470"
     },
     {
       "endpoint": "/enhanced/integrations/oauth/initiate",
       "method": "POST",
       "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.009534358978271484,
-      "timestamp": "2025-08-19T14:29:32.125029"
+      "details": "Expected 200, got 404",
+      "response_time": 0.008927345275878906,
+      "timestamp": "2025-08-19T14:31:17.357495"
     },
     {
       "endpoint": "/enhanced/integrations/api-key/store",
       "method": "POST",
       "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.01153111457824707,
-      "timestamp": "2025-08-19T14:29:32.136672"
+      "details": "Expected 200, got 404",
+      "response_time": 0.047798871994018555,
+      "timestamp": "2025-08-19T14:31:17.405392"
     },
     {
       "endpoint": "/enhanced/system/overview",
       "method": "GET",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008530378341674805,
-      "timestamp": "2025-08-19T14:29:32.145319"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.050017356872558594,
+      "timestamp": "2025-08-19T14:31:17.455515"
     },
     {
       "endpoint": "/voice-command",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008734703063964844,
-      "timestamp": "2025-08-19T14:29:32.154183"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.009457588195800781,
+      "timestamp": "2025-08-19T14:31:17.465092"
     },
     {
       "endpoint": "/voice-commands/available",
       "method": "GET",
       "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008665323257446289,
-      "timestamp": "2025-08-19T14:29:32.162973"
+      "details": "Expected 200, got 404",
+      "response_time": 0.047121286392211914,
+      "timestamp": "2025-08-19T14:31:17.512342"
     },
     {
       "endpoint": "/keyboard-shortcut",
       "method": "POST",
       "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008573055267333984,
-      "timestamp": "2025-08-19T14:29:32.171652"
+      "details": "Expected 200, got 404",
+      "response_time": 0.007374763488769531,
+      "timestamp": "2025-08-19T14:31:17.519849"
     },
     {
       "endpoint": "/health",
       "method": "GET",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008465051651000977,
-      "timestamp": "2025-08-19T14:29:32.180413"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.008152484893798828,
+      "timestamp": "2025-08-19T14:31:17.528144"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.019466161727905273,
-      "timestamp": "2025-08-19T14:29:32.200087"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.34802675247192383,
+      "timestamp": "2025-08-19T14:31:17.876368"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.02747488021850586,
-      "timestamp": "2025-08-19T14:29:32.209119"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.39472317695617676,
+      "timestamp": "2025-08-19T14:31:17.924101"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.03660249710083008,
-      "timestamp": "2025-08-19T14:29:32.217485"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.4453153610229492,
+      "timestamp": "2025-08-19T14:31:17.974309"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.03687238693237305,
-      "timestamp": "2025-08-19T14:29:32.218316"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.49864959716796875,
+      "timestamp": "2025-08-19T14:31:18.027189"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.05352497100830078,
-      "timestamp": "2025-08-19T14:29:32.235764"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.5364131927490234,
+      "timestamp": "2025-08-19T14:31:18.066395"
     },
     {
       "endpoint": "/browse",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008198976516723633,
-      "timestamp": "2025-08-19T14:29:32.244164"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.30774879455566406,
+      "timestamp": "2025-08-19T14:31:18.374333"
     },
     {
       "endpoint": "/recent-tabs",
       "method": "GET",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.008105039596557617,
-      "timestamp": "2025-08-19T14:29:32.252369"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.011196136474609375,
+      "timestamp": "2025-08-19T14:31:18.385652"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.01165461540222168,
-      "timestamp": "2025-08-19T14:29:32.264128"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.3218202590942383,
+      "timestamp": "2025-08-19T14:31:18.707584"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
-      "status": "FAIL",
-      "details": "Expected 200, got 500",
-      "response_time": 0.00738215446472168,
-      "timestamp": "2025-08-19T14:29:32.271612"
+      "status": "PASS",
+      "details": "Status 200",
+      "response_time": 0.3199295997619629,
+      "timestamp": "2025-08-19T14:31:19.027626"
     },
     {
       "endpoint": "/browse",
       "method": "POST",
       "status": "FAIL",
-      "details": "Expected 400, got 500",
-      "response_time": 0.008549928665161133,
-      "timestamp": "2025-08-19T14:29:32.280280"
+      "details": "Expected 400, got 200",
+      "response_time": 0.08536815643310547,
+      "timestamp": "2025-08-19T14:31:19.113129"
     },
     {
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Expected 422, got 500",
-      "response_time": 0.008140802383422852,
-      "timestamp": "2025-08-19T14:29:32.289134"
+      "details": "Expected 422, got 200",
+      "response_time": 0.05002307891845703,
+      "timestamp": "2025-08-19T14:31:19.163262"
     },
     {
       "endpoint": "/nonexistent-endpoint",
       "method": "GET",
-      "status": "FAIL",
-      "details": "Expected 404, got 500",
-      "response_time": 0.007803201675415039,
-      "timestamp": "2025-08-19T14:29:32.297485"
+      "status": "PASS",
+      "details": "Status 404",
+      "response_time": 0.005820751190185547,
+      "timestamp": "2025-08-19T14:31:19.169191"
     }
   ],
-  "test_session": "60b03b36-73f2-4c46-a02d-1088598fa5af",
-  "timestamp": "2025-08-19T14:29:32.297925",
+  "test_session": "92958dd4-aa3f-4f59-a6c0-a1ec0eaafa5c",
+  "timestamp": "2025-08-19T14:31:19.169592",
   "backend_url": "https://feature-test-suite-1.preview.emergentagent.com"
 }
