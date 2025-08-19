@@ -113,8 +113,18 @@ const EnhancedAIPanel = ({
           <div className="ai-info">
             <h3>AETHER Assistant</h3>
             <p className="ai-status">
-              {aiLoading ? 'Thinking...' : `Ready • ${chatMessages.length} messages`}
+              {aiLoading ? 'Thinking...' : 
+               activeTaskCount > 0 ? 
+                 `Ready • ${activeTaskCount} task${activeTaskCount > 1 ? 's' : ''} running • ${chatMessages.length} messages` :
+                 `Ready • ${chatMessages.length} messages`
+              }
             </p>
+            {activeTaskCount > 0 && (
+              <div className="background-tasks-indicator">
+                <span className="task-dot pulsing"></span>
+                <span className="task-text">Background automation active</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="ai-controls">
