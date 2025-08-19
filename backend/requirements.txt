@@ -104,7 +104,7 @@ tweepy==4.14.0
 pynput==1.8.1
 pillow==10.1.0
 protobuf
--e scikit-learn
+scikit-learn==1.4.0
 numpy
 pillow
 opencv-python-headless
