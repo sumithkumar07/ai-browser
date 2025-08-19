@@ -20,12 +20,23 @@ from functools import lru_cache
 import logging
 import time
 
-# Import enhanced components
-from enhanced_server import *
-from advanced_browser_engine import browser_engine
-from cache_system import cache_system, cached, get_cached, set_cached
-from performance_monitor import performance_monitor, record_api_call, record_user_action
-from ai_intelligence_engine import ai_intelligence_engine
+# Import enhanced components with fallback handling
+try:
+    from enhanced_server import *
+    from advanced_browser_engine import AdvancedBrowserEngine
+    from cache_system import AdvancedCacheSystem
+    from performance_monitor import RealTimePerformanceMonitor, record_api_call, record_user_action
+    from ai_intelligence_engine import AIIntelligenceEngine
+    
+    # Initialize enhanced components
+    browser_engine = AdvancedBrowserEngine()
+    cache_system = AdvancedCacheSystem()
+    performance_monitor = RealTimePerformanceMonitor()
+    ai_intelligence_engine = AIIntelligenceEngine()
+    logger.info("✅ Enhanced components loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Enhanced components not available, using fallback: {e}")
+    # Fallback implementations will be used
 
 load_dotenv()
 
