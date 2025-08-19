@@ -25,6 +25,13 @@ from advanced_workflows.cross_page_engine import CrossPageWorkflowEngine
 from ai_systems.predictive_automation import PredictiveAutomationEngine
 from collaborative_agents.multi_user_system import CollaborativeAgentSystem
 
+# Import new advanced frameworks
+from advanced_agent_framework.agent_coordinator import AgentCoordinator
+from advanced_agent_framework.collaboration_engine import CollaborationEngine
+from platform_integrations.productivity.slack_connector import SlackConnector
+from platform_integrations.productivity.notion_connector import NotionConnector
+from platform_integrations.ai_services.openai_connector import OpenAIConnector
+
 # Initialize FastAPI app
 app = FastAPI(
     title="AETHER Advanced AI Browser",
