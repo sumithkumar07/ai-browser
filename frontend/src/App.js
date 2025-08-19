@@ -707,6 +707,7 @@ function App() {
           onSendMessage={handleAiMessage}
           currentUrl={currentUrl}
           sessionId={sessionId}
+          backgroundTasks={backgroundTasks}
         />
       </div>
 
