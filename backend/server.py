@@ -520,16 +520,16 @@ async def initiate_oauth(request: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"OAuth initiation failed: {str(e)}")
 
 @app.post("/api/enhanced/integrations/api-key/store")
-async def store_api_key(request: IntegrationRequest):
+async def store_api_key(request: Dict[str, Any]):
     """Store API key for integration"""
     try:
         integration_id = str(uuid.uuid4())
         
         integration_data = {
             "id": integration_id,
-            "name": request.name,
-            "type": request.type,
-            "api_key_hash": hash(request.api_key),  # Store hash, not actual key
+            "name": request.get("name", "Unknown Integration"),
+            "type": request.get("type", "api"),
+            "api_key_hash": hash(request.get("api_key", "")),  # Store hash, not actual key
             "status": "active",
             "created_at": datetime.utcnow()
         }
@@ -539,7 +539,7 @@ async def store_api_key(request: IntegrationRequest):
         return {
             "success": True,
             "integration_id": integration_id,
-            "name": request.name,
+            "name": integration_data["name"],
             "message": "API key stored successfully"
         }
         
