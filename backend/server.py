@@ -19,8 +19,12 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
-app = FastAPI(title="AETHER Enhanced Browser API", version="4.0.0")
+# Create FastAPI app - Clean initialization
+app = FastAPI(
+    title="AETHER Enhanced Browser API", 
+    version="4.0.0",
+    middleware=[]  # Explicitly empty middleware list
+)
 
 # Database connection
 MONGO_URL = os.getenv("MONGO_URL")
