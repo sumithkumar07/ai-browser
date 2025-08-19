@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 import uuid
 import logging
+from pydantic import BaseModel
 from .base_agent import BaseAgent, AgentTask, TaskPriority, AgentCapability, AgentStatus
 
 class ExecutionPlan(BaseModel):
