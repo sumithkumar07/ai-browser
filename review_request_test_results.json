@@ -139,7 +139,7 @@
           "data": {
             "success": true,
             "session_id": "8e9010d5-96be-4f44-888e-dfcd5cf4177e",
-            "auth_url": "https://oauth.provider.com/auth?session=8e9010d5-96be-4f44-888e-dfcd5cf4177e",
+            "auth_url": "https://oauth.provider.com/auth?session=e2e-test-suite",
             "message": "OAuth flow initiated"
           },
           "status": 200
@@ -482,5 +482,5 @@
   ],
   "test_session": "d9fe3a10-21fb-4727-b620-ac2afb33d3e0",
   "timestamp": "2025-08-19T10:46:24.705867",
-  "backend_url": "https://app-optimization-3.preview.emergentagent.com"
+  "backend_url": "https://e2e-test-suite.preview.emergentagent.com"
 }
