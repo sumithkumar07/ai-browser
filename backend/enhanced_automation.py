@@ -1,491 +1,516 @@
-# 🚀 ENHANCED AUTOMATION ENGINE - FELLOU.AI LEVEL CAPABILITIES
-# Single Natural Language Commands for Everything
+# Enhanced Automation Engine - NLP Processor and Task Executor
+# Provides Fellou.ai-style natural language command processing and background execution
 
 import asyncio
-import json
 import uuid
-import re
-from typing import Dict, List, Any, Optional
+import logging
 from datetime import datetime
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-import httpx
-from bs4 import BeautifulSoup
-from pymongo import MongoClient
-import os
-from dotenv import load_dotenv
+from enum import Enum
+import json
+import re
 
-load_dotenv()
+logger = logging.getLogger(__name__)
+
+class TaskStatus(Enum):
+    CREATED = "created"
+    PARSING = "parsing"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    PAUSED = "paused"
+
+class TaskPriority(Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+@dataclass
+class TaskStep:
+    action: str
+    url: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    expected_duration: int = 30  # seconds
+    status: str = "pending"
 
 @dataclass
 class Task:
-    id: str
-    name: str
-    type: str
-    steps: List[Dict]
-    status: str
-    progress: int
-    results: Dict
-    user_session: str
+    task_id: str
+    command: str
+    steps: List[TaskStep]
+    context: Dict[str, Any]
+    priority: TaskPriority
+    status: TaskStatus
     created_at: datetime
-    
-@dataclass 
-class Site:
-    url: str
-    name: str
-    login_required: bool
-    credentials: Optional[Dict] = None
+    updated_at: datetime
+    progress: float = 0.0
+    result: Optional[Dict[str, Any]] = None
 
-class AdvancedNLPProcessor:
-    """Advanced Natural Language Processing - Single Command Everything"""
+class NLPProcessor:
+    """Natural Language Processing for automation commands"""
     
     def __init__(self):
-        self.command_patterns = {
-            # RESEARCH & DATA COLLECTION
-            "multi_site_research": r"research (.+?) across (\d+) sites?",
-            "compare_products": r"compare (.+?) (on|across) (.+)",
-            "price_monitoring": r"monitor (.+?) price.* on (.+)",
-            "data_extraction": r"extract (.+?) from (.+)",
-            "compile_report": r"(create|generate|compile) (.+?) report",
-            
-            # AUTOMATION & FORMS  
-            "job_applications": r"apply.* jobs?.* (on|using) (.+)",
-            "form_filling": r"fill (.+?) forms?.* (on|across) (.+)",
-            "batch_submission": r"submit (.+?) (on|to) (\d+) (.+)",
-            "account_creation": r"create accounts?.* (on|across) (.+)",
-            
-            # BROWSING & NAVIGATION
-            "multi_tab_navigation": r"open (.+?) in (.+?) tabs?",
-            "site_monitoring": r"monitor (.+?) for (.+)",
-            "bookmark_management": r"(save|bookmark) (.+?) (to|as) (.+)",
-            
-            # CONTENT MANAGEMENT
-            "content_scraping": r"scrape (.+?) from (.+)",
-            "social_media": r"post (.+?) (on|to) (.+)",
-            "email_automation": r"send (.+?) email.* (to|about) (.+)",
-            
-            # WORKFLOW CHAINING
-            "conditional_logic": r"if (.+?) then (.+?) else (.+)",
-            "sequential_tasks": r"(.+?) then (.+?) then (.+)",
-            "parallel_execution": r"simultaneously (.+?) and (.+)",
-        }
-        
-        self.site_adapters = {
-            "linkedin": LinkedInAdapter(),
-            "indeed": IndeedAdapter(), 
-            "github": GitHubAdapter(),
-            "google": GoogleAdapter(),
-            "generic": GenericSiteAdapter()
+        self.automation_patterns = {
+            "research": {
+                "keywords": ["research", "find information", "gather data", "investigate"],
+                "actions": ["navigate", "extract", "compile", "summarize"],
+                "sites": ["google.com", "wikipedia.org", "arxiv.org", "scholar.google.com"]
+            },
+            "job_application": {
+                "keywords": ["apply", "job", "position", "application", "career"],
+                "actions": ["navigate", "fill_form", "upload_resume", "submit"],
+                "sites": ["linkedin.com", "indeed.com", "glassdoor.com", "monster.com"]
+            },
+            "form_filling": {
+                "keywords": ["fill", "form", "contact", "submit", "application"],
+                "actions": ["navigate", "fill_fields", "validate", "submit"],
+                "sites": []
+            },
+            "price_monitoring": {
+                "keywords": ["monitor", "price", "track", "alert", "deal"],
+                "actions": ["navigate", "extract_price", "compare", "alert"],
+                "sites": ["amazon.com", "ebay.com", "bestbuy.com", "walmart.com"]
+            },
+            "data_extraction": {
+                "keywords": ["extract", "scrape", "collect", "gather", "download"],
+                "actions": ["navigate", "extract", "process", "save"],
+                "sites": []
+            }
         }
     
-    async def parse_command(self, command: str, context: Dict) -> Task:
-        """Parse single natural language command into executable task"""
-        
-        command_lower = command.lower().strip()
-        
-        # Detect command type and extract parameters
-        for pattern_name, pattern in self.command_patterns.items():
-            match = re.search(pattern, command_lower)
-            if match:
-                return await self.create_task_from_pattern(
-                    pattern_name, match, command, context
-                )
-        
-        # Fallback to general AI processing
-        return await self.create_general_task(command, context)
+    async def parse_command(self, command: str, context: Dict[str, Any]) -> Task:
+        """Parse natural language command into executable task"""
+        try:
+            task_id = str(uuid.uuid4())
+            command_lower = command.lower()
+            
+            # Detect task type
+            task_type = self._detect_task_type(command_lower)
+            
+            # Extract parameters
+            parameters = self._extract_parameters(command, context)
+            
+            # Generate steps based on task type
+            steps = await self._generate_task_steps(task_type, command, parameters, context)
+            
+            # Determine priority
+            priority = self._determine_priority(command_lower, len(steps))
+            
+            task = Task(
+                task_id=task_id,
+                command=command,
+                steps=steps,
+                context=context,
+                priority=priority,
+                status=TaskStatus.CREATED,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            
+            logger.info(f"Parsed command: {command} -> {len(steps)} steps, priority: {priority}")
+            return task
+            
+        except Exception as e:
+            logger.error(f"Error parsing command '{command}': {e}")
+            raise
     
-    async def create_task_from_pattern(self, pattern_name: str, match, 
-                                     original_command: str, context: Dict) -> Task:
-        """Create specific task based on detected pattern"""
+    def _detect_task_type(self, command: str) -> str:
+        """Detect the type of automation task"""
+        for task_type, config in self.automation_patterns.items():
+            for keyword in config["keywords"]:
+                if keyword in command:
+                    return task_type
+        return "general"
+    
+    def _extract_parameters(self, command: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract parameters from command"""
+        parameters = {
+            "urls": [],
+            "keywords": [],
+            "quantity": 1,
+            "time_limit": 300,  # 5 minutes default
+            "current_url": context.get("current_url")
+        }
         
-        task_id = str(uuid.uuid4())
+        # Extract URLs
+        url_pattern = r'https?://[^\s]+'
+        urls = re.findall(url_pattern, command)
+        parameters["urls"] = urls
         
-        if pattern_name == "multi_site_research":
-            topic = match.group(1)
-            num_sites = int(match.group(2))
-            
-            steps = [
-                {"action": "identify_sources", "topic": topic, "count": num_sites},
-                {"action": "parallel_research", "sites": []},
-                {"action": "compile_findings", "format": "comprehensive_report"},
-                {"action": "present_results", "include_sources": True}
-            ]
-            
-        elif pattern_name == "job_applications":
-            job_criteria = match.group(2) if len(match.groups()) > 1 else "relevant positions"
-            
-            steps = [
-                {"action": "identify_job_sites", "criteria": job_criteria},
-                {"action": "search_positions", "auto_filter": True},
-                {"action": "batch_apply", "use_profile": True},
-                {"action": "track_applications", "follow_up": True}
-            ]
-            
-        elif pattern_name == "form_filling":
-            form_type = match.group(1)
-            target_sites = match.group(3)
-            
-            steps = [
-                {"action": "detect_forms", "type": form_type, "sites": target_sites},
-                {"action": "auto_fill", "use_user_data": True},
-                {"action": "validate_data", "confirm_before_submit": True},
-                {"action": "batch_submit", "track_results": True}
-            ]
-            
-        elif pattern_name == "price_monitoring":
-            product = match.group(1)
-            sites = match.group(2)
-            
-            steps = [
-                {"action": "setup_monitoring", "product": product, "sites": sites},
-                {"action": "price_tracking", "frequency": "daily"},
-                {"action": "alert_setup", "threshold_percentage": 10},
-                {"action": "report_changes", "notification_method": "chat"}
-            ]
-            
+        # Extract quantities
+        quantity_match = re.search(r'(\d+)\s*(sites?|jobs?|forms?|pages?)', command.lower())
+        if quantity_match:
+            parameters["quantity"] = int(quantity_match.group(1))
+        
+        # Extract keywords/search terms
+        if "search" in command.lower() or "find" in command.lower():
+            # Extract quoted terms or terms after "for"
+            quoted_terms = re.findall(r'"([^"]*)"', command)
+            for_terms = re.findall(r'for\s+([^,\.\!]+)', command.lower())
+            parameters["keywords"] = quoted_terms + for_terms
+        
+        return parameters
+    
+    async def _generate_task_steps(self, task_type: str, command: str, parameters: Dict[str, Any], context: Dict[str, Any]) -> List[TaskStep]:
+        """Generate executable steps for the task"""
+        steps = []
+        
+        if task_type == "research":
+            steps = await self._generate_research_steps(command, parameters)
+        elif task_type == "job_application":
+            steps = await self._generate_job_application_steps(command, parameters)
+        elif task_type == "form_filling":
+            steps = await self._generate_form_filling_steps(command, parameters)
+        elif task_type == "price_monitoring":
+            steps = await self._generate_price_monitoring_steps(command, parameters)
+        elif task_type == "data_extraction":
+            steps = await self._generate_data_extraction_steps(command, parameters)
         else:
-            # Generic multi-step task
+            # General automation steps
             steps = [
-                {"action": "analyze_request", "command": original_command},
-                {"action": "plan_execution", "auto_optimize": True},
-                {"action": "execute_steps", "parallel_where_possible": True},
-                {"action": "compile_results", "user_friendly_format": True}
+                TaskStep(action="analyze_command", parameters={"command": command}),
+                TaskStep(action="execute_general_task", parameters=parameters),
+                TaskStep(action="compile_results")
             ]
         
-        return Task(
-            id=task_id,
-            name=f"Auto: {original_command[:50]}...",
-            type=pattern_name,
-            steps=steps,
-            status="created",
-            progress=0,
-            results={},
-            user_session=context.get("session_id", "default"),
-            created_at=datetime.utcnow()
-        )
+        return steps
     
-    async def create_general_task(self, command: str, context: Dict) -> Task:
-        """Create general task for unrecognized patterns"""
-        
-        task_id = str(uuid.uuid4())
-        
-        # AI-powered task breakdown
+    async def _generate_research_steps(self, command: str, parameters: Dict[str, Any]) -> List[TaskStep]:
+        """Generate research automation steps"""
         steps = [
-            {"action": "understand_intent", "command": command, "context": context},
-            {"action": "plan_approach", "optimize_for_efficiency": True},
-            {"action": "execute_intelligently", "adapt_as_needed": True},
-            {"action": "present_results", "user_friendly": True}
+            TaskStep(action="prepare_research", parameters={"query": " ".join(parameters.get("keywords", []))}),
         ]
         
-        return Task(
-            id=task_id,
-            name=f"Smart: {command[:50]}...",
-            type="general_automation",
-            steps=steps,
-            status="created", 
-            progress=0,
-            results={},
-            user_session=context.get("session_id", "default"),
-            created_at=datetime.utcnow()
-        )
+        # Add search steps for multiple sites
+        research_sites = ["google.com", "wikipedia.org", "arxiv.org", "scholar.google.com"]
+        quantity = min(parameters.get("quantity", 3), 5)  # Max 5 sites
+        
+        for i in range(quantity):
+            site = research_sites[i % len(research_sites)]
+            steps.append(TaskStep(
+                action="search_site",
+                url=f"https://{site}",
+                parameters={"query": " ".join(parameters.get("keywords", [])), "site": site}
+            ))
+        
+        steps.extend([
+            TaskStep(action="extract_research_data"),
+            TaskStep(action="compile_research_report"),
+            TaskStep(action="save_results")
+        ])
+        
+        return steps
+    
+    async def _generate_job_application_steps(self, command: str, parameters: Dict[str, Any]) -> List[TaskStep]:
+        """Generate job application automation steps"""
+        job_sites = ["linkedin.com", "indeed.com", "glassdoor.com"]
+        steps = [
+            TaskStep(action="prepare_application_data"),
+        ]
+        
+        for site in job_sites[:parameters.get("quantity", 3)]:
+            steps.extend([
+                TaskStep(action="navigate_to_job_site", url=f"https://{site}"),
+                TaskStep(action="search_jobs", parameters={"site": site}),
+                TaskStep(action="apply_to_jobs", parameters={"site": site, "max_applications": 5})
+            ])
+        
+        steps.append(TaskStep(action="compile_application_report"))
+        return steps
+    
+    async def _generate_form_filling_steps(self, command: str, parameters: Dict[str, Any]) -> List[TaskStep]:
+        """Generate form filling automation steps"""
+        return [
+            TaskStep(action="identify_forms", parameters=parameters),
+            TaskStep(action="prepare_form_data"),
+            TaskStep(action="fill_forms", parameters={"auto_submit": "submit" in command.lower()}),
+            TaskStep(action="verify_submissions")
+        ]
+    
+    async def _generate_price_monitoring_steps(self, command: str, parameters: Dict[str, Any]) -> List[TaskStep]:
+        """Generate price monitoring automation steps"""
+        return [
+            TaskStep(action="setup_price_monitoring", parameters=parameters),
+            TaskStep(action="extract_current_prices"),
+            TaskStep(action="setup_price_alerts"),
+            TaskStep(action="schedule_price_checks")
+        ]
+    
+    async def _generate_data_extraction_steps(self, command: str, parameters: Dict[str, Any]) -> List[TaskStep]:
+        """Generate data extraction automation steps"""
+        return [
+            TaskStep(action="identify_data_sources", parameters=parameters),
+            TaskStep(action="extract_structured_data"),
+            TaskStep(action="clean_and_process_data"),
+            TaskStep(action="export_data_results")
+        ]
+    
+    def _determine_priority(self, command: str, step_count: int) -> TaskPriority:
+        """Determine task priority based on command and complexity"""
+        urgent_keywords = ["urgent", "asap", "immediately", "now", "emergency"]
+        high_keywords = ["important", "priority", "quickly", "fast"]
+        
+        if any(keyword in command for keyword in urgent_keywords):
+            return TaskPriority.URGENT
+        elif any(keyword in command for keyword in high_keywords) or step_count > 10:
+            return TaskPriority.HIGH
+        elif step_count > 5:
+            return TaskPriority.NORMAL
+        else:
+            return TaskPriority.LOW
 
-class BackgroundTaskExecutor:
-    """Execute tasks in background without disrupting user workflow"""
+class TaskExecutor:
+    """Execute automation tasks in background"""
     
-    def __init__(self):
+    def __init__(self, mongo_client):
+        self.db = mongo_client.aether_browser
         self.active_tasks = {}
-        self.completed_tasks = {}
-        self.virtual_browsers = {}
-        self.mongo_client = MongoClient(os.getenv("MONGO_URL"))
-        self.db = self.mongo_client.aether_browser
-        
-    async def execute_task(self, task: Task) -> str:
-        """Execute task in virtual workspace - invisible to user"""
-        
-        # Store task in database
-        task_data = {
-            "task_id": task.id,
-            "name": task.name,
-            "type": task.type,
-            "steps": task.steps,
-            "status": "running",
-            "progress": 0,
-            "user_session": task.user_session,
-            "created_at": task.created_at,
-            "results": {}
-        }
-        
-        self.db.background_tasks.insert_one(task_data)
-        self.active_tasks[task.id] = task
-        
-        # Execute in background
-        asyncio.create_task(self._execute_task_steps(task))
-        
-        return task.id
+        self.task_queue = asyncio.Queue()
+        self.executor_running = False
     
-    async def _execute_task_steps(self, task: Task):
-        """Execute individual task steps"""
-        
+    async def start_executor(self):
+        """Start the background task executor"""
+        if not self.executor_running:
+            self.executor_running = True
+            asyncio.create_task(self._executor_loop())
+            logger.info("Task executor started")
+    
+    async def stop_executor(self):
+        """Stop the background task executor"""
+        self.executor_running = False
+        logger.info("Task executor stopped")
+    
+    async def execute_task(self, task: Task) -> str:
+        """Queue task for background execution"""
         try:
-            total_steps = len(task.steps)
+            # Store task in database
+            task_doc = {
+                "task_id": task.task_id,
+                "command": task.command,
+                "steps": [{"action": step.action, "url": step.url, "parameters": step.parameters, "status": step.status} for step in task.steps],
+                "context": task.context,
+                "priority": task.priority.value,
+                "status": task.status.value,
+                "created_at": task.created_at,
+                "updated_at": task.updated_at,
+                "progress": task.progress,
+                "user_session": task.context.get("session_id")
+            }
             
+            self.db.automation_tasks.insert_one(task_doc)
+            
+            # Add to active tasks
+            self.active_tasks[task.task_id] = task
+            
+            # Queue for execution
+            await self.task_queue.put(task)
+            
+            logger.info(f"Task {task.task_id} queued for execution")
+            return task.task_id
+            
+        except Exception as e:
+            logger.error(f"Error queuing task {task.task_id}: {e}")
+            raise
+    
+    async def _executor_loop(self):
+        """Main executor loop for processing tasks"""
+        while self.executor_running:
+            try:
+                # Get next task (with timeout to allow checking if we should stop)
+                task = await asyncio.wait_for(self.task_queue.get(), timeout=1.0)
+                
+                # Execute the task
+                await self._execute_single_task(task)
+                
+            except asyncio.TimeoutError:
+                # Timeout is normal, just continue the loop
+                continue
+            except Exception as e:
+                logger.error(f"Error in executor loop: {e}")
+                await asyncio.sleep(1)
+    
+    async def _execute_single_task(self, task: Task):
+        """Execute a single automation task"""
+        try:
+            task.status = TaskStatus.EXECUTING
+            await self._update_task_status(task)
+            
+            logger.info(f"Executing task {task.task_id}: {task.command}")
+            
+            # Execute each step
             for i, step in enumerate(task.steps):
-                # Update progress
-                progress = int((i / total_steps) * 100)
-                await self.update_task_progress(task.id, progress, f"Executing: {step['action']}")
-                
-                # Execute step based on action type
-                step_result = await self.execute_step(step, task)
-                
-                # Store step result
-                task.results[f"step_{i}"] = step_result
-                
-                # Small delay to prevent overwhelming
-                await asyncio.sleep(0.5)
+                if task.status == TaskStatus.CANCELLED:
+                    break
+                    
+                try:
+                    step.status = "executing"
+                    await self._execute_step(step, task.context)
+                    step.status = "completed"
+                    
+                    # Update progress
+                    task.progress = ((i + 1) / len(task.steps)) * 100
+                    await self._update_task_status(task)
+                    
+                    # Simulate step execution time
+                    await asyncio.sleep(min(step.expected_duration, 5))  # Max 5 seconds per step in simulation
+                    
+                except Exception as e:
+                    logger.error(f"Error executing step {i} for task {task.task_id}: {e}")
+                    step.status = "failed"
+                    # Continue with next step
             
-            # Mark as completed
-            await self.update_task_progress(task.id, 100, "Completed successfully")
-            task.status = "completed"
-            self.completed_tasks[task.id] = task
+            # Mark task as completed
+            if task.status != TaskStatus.CANCELLED:
+                task.status = TaskStatus.COMPLETED
+                task.result = {
+                    "message": f"Successfully completed: {task.command}",
+                    "steps_completed": sum(1 for step in task.steps if step.status == "completed"),
+                    "total_steps": len(task.steps),
+                    "execution_time": (datetime.utcnow() - task.created_at).total_seconds()
+                }
             
+            await self._update_task_status(task)
+            logger.info(f"Task {task.task_id} completed with status: {task.status}")
+            
+        except Exception as e:
+            logger.error(f"Error executing task {task.task_id}: {e}")
+            task.status = TaskStatus.FAILED
+            await self._update_task_status(task)
+        
+        finally:
             # Remove from active tasks
-            if task.id in self.active_tasks:
-                del self.active_tasks[task.id]
+            if task.task_id in self.active_tasks:
+                del self.active_tasks[task.task_id]
+    
+    async def _execute_step(self, step: TaskStep, context: Dict[str, Any]):
+        """Execute a single task step"""
+        try:
+            action = step.action
+            
+            if action == "navigate":
+                logger.info(f"Navigating to: {step.url}")
+                # Simulate navigation
+                await asyncio.sleep(2)
+                
+            elif action == "search_site":
+                site = step.parameters.get("site", "google.com")
+                query = step.parameters.get("query", "")
+                logger.info(f"Searching {site} for: {query}")
+                # Simulate search
+                await asyncio.sleep(3)
+                
+            elif action == "extract_data" or action == "extract_research_data":
+                logger.info("Extracting data from page")
+                # Simulate data extraction
+                await asyncio.sleep(2)
+                
+            elif action == "fill_form" or action == "fill_forms":
+                logger.info("Filling form fields")
+                # Simulate form filling
+                await asyncio.sleep(4)
+                
+            elif action == "compile_research_report" or action == "compile_results":
+                logger.info("Compiling research report")
+                # Simulate report compilation
+                await asyncio.sleep(3)
+                
+            else:
+                logger.info(f"Executing generic action: {action}")
+                # Generic action simulation
+                await asyncio.sleep(2)
                 
         except Exception as e:
-            await self.update_task_progress(task.id, -1, f"Error: {str(e)}")
-            task.status = "failed"
+            logger.error(f"Error executing step {action}: {e}")
+            raise
     
-    async def execute_step(self, step: Dict, task: Task) -> Dict:
-        """Execute individual step based on action type"""
-        
-        action = step.get("action")
-        
-        if action == "identify_sources":
-            return await self.identify_research_sources(step)
-        elif action == "parallel_research":  
-            return await self.parallel_site_research(step)
-        elif action == "compile_findings":
-            return await self.compile_research_findings(step, task)
-        elif action == "identify_job_sites":
-            return await self.identify_job_sites(step)
-        elif action == "batch_apply":
-            return await self.batch_job_application(step)
-        elif action == "detect_forms":
-            return await self.detect_forms_on_sites(step)
-        elif action == "auto_fill":
-            return await self.auto_fill_forms(step)
-        elif action == "setup_monitoring":
-            return await self.setup_price_monitoring(step)
-        else:
-            return await self.generic_step_execution(step, task)
+    async def get_task_status(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Get current status of a task"""
+        try:
+            task_doc = self.db.automation_tasks.find_one({"task_id": task_id}, {"_id": 0})
+            if task_doc:
+                return task_doc
+            return None
+        except Exception as e:
+            logger.error(f"Error getting task status for {task_id}: {e}")
+            return None
     
-    async def identify_research_sources(self, step: Dict) -> Dict:
-        """Identify best sources for research topic"""
-        topic = step.get("topic", "")
-        count = step.get("count", 5)
-        
-        # AI-powered source identification
-        sources = [
-            {"name": "Wikipedia", "url": f"https://en.wikipedia.org/wiki/{topic.replace(' ', '_')}", "reliability": "high"},
-            {"name": "Google Scholar", "url": f"https://scholar.google.com/scholar?q={topic}", "reliability": "very_high"},
-            {"name": "Reddit Discussion", "url": f"https://www.reddit.com/search/?q={topic}", "reliability": "medium"},
-            {"name": "News Sources", "url": f"https://news.google.com/search?q={topic}", "reliability": "high"},
-            {"name": "Industry Sites", "url": "auto_detected", "reliability": "high"}
-        ]
-        
-        return {"sources": sources[:count], "topic": topic}
-    
-    async def parallel_site_research(self, step: Dict) -> Dict:
-        """Research multiple sites in parallel"""
-        # Simulate parallel research across multiple sites
-        results = []
-        
-        # This would use virtual browsers to actually visit and analyze sites
-        for i in range(3):  # Simulate 3 sites researched
-            results.append({
-                "site": f"research_site_{i+1}",
-                "summary": f"Key findings from site {i+1} about the research topic",
-                "key_points": [f"Point {j+1}" for j in range(3)],
-                "credibility": "verified"
-            })
-        
-        return {"research_results": results, "total_sites": len(results)}
-    
-    async def compile_research_findings(self, step: Dict, task: Task) -> Dict:
-        """Compile research into comprehensive report"""
-        
-        # Get previous research results
-        research_data = task.results.get("step_1", {})
-        
-        compiled_report = {
-            "executive_summary": "Comprehensive analysis compiled from multiple sources",
-            "key_findings": [
-                "Finding 1: Based on cross-source analysis",
-                "Finding 2: Verified across multiple platforms", 
-                "Finding 3: Industry consensus identified"
-            ],
-            "detailed_analysis": "Detailed breakdown of research findings...",
-            "sources_cited": research_data.get("research_results", []),
-            "confidence_level": "high",
-            "generated_at": datetime.utcnow().isoformat()
-        }
-        
-        return compiled_report
-    
-    async def identify_job_sites(self, step: Dict) -> Dict:
-        """Identify relevant job sites for applications"""
-        criteria = step.get("criteria", "")
-        
-        job_sites = [
-            {"name": "LinkedIn", "url": "https://linkedin.com/jobs", "success_rate": "high"},
-            {"name": "Indeed", "url": "https://indeed.com", "success_rate": "high"},
-            {"name": "Glassdoor", "url": "https://glassdoor.com", "success_rate": "medium"},
-            {"name": "AngelList", "url": "https://angel.co", "success_rate": "medium"},
-            {"name": "Company Websites", "url": "direct_application", "success_rate": "very_high"}
-        ]
-        
-        return {"job_sites": job_sites, "criteria": criteria}
-    
-    async def batch_job_application(self, step: Dict) -> Dict:
-        """Simulate batch job application process"""
-        
-        applications = []
-        
-        # Simulate applying to multiple positions
-        for i in range(5):  # Simulate 5 applications
-            applications.append({
-                "company": f"Company_{i+1}",
-                "position": f"Position_{i+1}", 
-                "status": "submitted",
-                "application_date": datetime.utcnow().isoformat(),
-                "follow_up_date": "scheduled"
-            })
-        
-        return {
-            "applications_submitted": len(applications),
-            "applications": applications,
-            "success_rate": "100%"
-        }
-    
-    async def detect_forms_on_sites(self, step: Dict) -> Dict:
-        """Detect forms across multiple sites"""
-        form_type = step.get("type", "contact")
-        sites = step.get("sites", "multiple sites")
-        
-        detected_forms = [
-            {"site": "site1.com", "form_type": form_type, "fields_count": 8},
-            {"site": "site2.com", "form_type": form_type, "fields_count": 12},
-            {"site": "site3.com", "form_type": form_type, "fields_count": 6}
-        ]
-        
-        return {"detected_forms": detected_forms, "total_sites": len(detected_forms)}
-    
-    async def auto_fill_forms(self, step: Dict) -> Dict:
-        """Automatically fill detected forms"""
-        
-        filled_forms = [
-            {"site": "site1.com", "status": "filled", "fields_completed": 8},
-            {"site": "site2.com", "status": "filled", "fields_completed": 12},
-            {"site": "site3.com", "status": "filled", "fields_completed": 6}
-        ]
-        
-        return {"filled_forms": filled_forms, "success_rate": "100%"}
-    
-    async def setup_price_monitoring(self, step: Dict) -> Dict:
-        """Setup price monitoring for products"""
-        product = step.get("product", "")
-        sites = step.get("sites", "")
-        
-        monitoring_setup = {
-            "product": product,
-            "sites_monitored": ["amazon.com", "ebay.com", "walmart.com"],
-            "frequency": "daily",
-            "alert_threshold": "10% price change",
-            "monitoring_active": True,
-            "next_check": datetime.utcnow().isoformat()
-        }
-        
-        return monitoring_setup
-    
-    async def generic_step_execution(self, step: Dict, task: Task) -> Dict:
-        """Generic step execution for unrecognized actions"""
-        
-        return {
-            "action": step.get("action", "unknown"),
-            "status": "completed",
-            "result": "Successfully processed generic step",
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    
-    async def update_task_progress(self, task_id: str, progress: int, status: str):
-        """Update task progress in database"""
-        
-        self.db.background_tasks.update_one(
-            {"task_id": task_id},
-            {
-                "$set": {
-                    "progress": progress,
-                    "status": status,
-                    "updated_at": datetime.utcnow()
-                }
+    async def get_user_tasks(self, user_session: str) -> Dict[str, Any]:
+        """Get all tasks for a user session"""
+        try:
+            # Get active tasks
+            active_tasks = list(self.db.automation_tasks.find(
+                {"user_session": user_session, "status": {"$in": ["created", "executing", "parsing"]}},
+                {"_id": 0}
+            ))
+            
+            # Get completed tasks (last 10)
+            completed_tasks = list(self.db.automation_tasks.find(
+                {"user_session": user_session, "status": {"$in": ["completed", "failed", "cancelled"]}},
+                {"_id": 0}
+            ).sort("updated_at", -1).limit(10))
+            
+            return {
+                "active_tasks": active_tasks,
+                "completed_tasks": completed_tasks,
+                "total_active": len(active_tasks)
             }
-        )
+            
+        except Exception as e:
+            logger.error(f"Error getting user tasks for {user_session}: {e}")
+            return {"active_tasks": [], "completed_tasks": [], "total_active": 0}
     
-    async def get_task_status(self, task_id: str) -> Dict:
-        """Get current task status"""
-        
-        task_data = self.db.background_tasks.find_one({"task_id": task_id}, {"_id": 0})
-        
-        if task_data:
-            return task_data
-        
-        return {"error": "Task not found"}
+    async def cancel_task(self, task_id: str) -> bool:
+        """Cancel a running task"""
+        try:
+            if task_id in self.active_tasks:
+                self.active_tasks[task_id].status = TaskStatus.CANCELLED
+                await self._update_task_status(self.active_tasks[task_id])
+                return True
+            else:
+                # Update in database only
+                result = self.db.automation_tasks.update_one(
+                    {"task_id": task_id},
+                    {"$set": {"status": "cancelled", "updated_at": datetime.utcnow()}}
+                )
+                return result.modified_count > 0
+                
+        except Exception as e:
+            logger.error(f"Error cancelling task {task_id}: {e}")
+            return False
     
-    async def get_user_tasks(self, user_session: str) -> Dict:
-        """Get all tasks for user session"""
-        
-        active = list(self.db.background_tasks.find(
-            {"user_session": user_session, "progress": {"$gte": 0, "$lt": 100}},
-            {"_id": 0}
-        ))
-        
-        completed = list(self.db.background_tasks.find(
-            {"user_session": user_session, "progress": 100},
-            {"_id": 0}
-        ).limit(10))
-        
-        return {
-            "active_tasks": active,
-            "completed_tasks": completed,
-            "total_active": len(active),
-            "total_completed": len(completed)
-        }
-
-# Site-specific adapters for different platforms
-class LinkedInAdapter:
-    async def login(self, credentials: Dict): pass
-    async def search_jobs(self, criteria: Dict): pass
-    async def apply_job(self, job_id: str, profile: Dict): pass
-
-class IndeedAdapter:
-    async def login(self, credentials: Dict): pass
-    async def search_jobs(self, criteria: Dict): pass
-    async def apply_job(self, job_id: str, profile: Dict): pass
-
-class GitHubAdapter:
-    async def login(self, credentials: Dict): pass
-    async def search_repositories(self, query: str): pass
-    async def clone_repository(self, repo_url: str): pass
-
-class GoogleAdapter:
-    async def search(self, query: str): pass
-    async def get_results(self, max_results: int): pass
-
-class GenericSiteAdapter:
-    async def analyze_site(self, url: str): pass
-    async def extract_data(self, selectors: List[str]): pass
-    async def fill_form(self, form_data: Dict): pass
+    async def _update_task_status(self, task: Task):
+        """Update task status in database"""
+        try:
+            task.updated_at = datetime.utcnow()
+            
+            update_doc = {
+                "status": task.status.value,
+                "updated_at": task.updated_at,
+                "progress": task.progress,
+                "steps": [{"action": step.action, "url": step.url, "parameters": step.parameters, "status": step.status} for step in task.steps]
+            }
+            
+            if task.result:
+                update_doc["result"] = task.result
+            
+            self.db.automation_tasks.update_one(
+                {"task_id": task.task_id},
+                {"$set": update_doc}
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating task status for {task.task_id}: {e}")
 
 # Global instances
-nlp_processor = AdvancedNLPProcessor()
-task_executor = BackgroundTaskExecutor()
+nlp_processor = NLPProcessor()
+task_executor = None
+
+def initialize_task_executor(mongo_client) -> TaskExecutor:
+    """Initialize the global task executor"""
+    global task_executor
+    task_executor = TaskExecutor(mongo_client)
+    asyncio.create_task(task_executor.start_executor())
+    return task_executor

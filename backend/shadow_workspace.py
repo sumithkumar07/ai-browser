@@ -1,23 +1,25 @@
-# Shadow Workspace - Background Task Execution System
-# Critical Gap #1: Implement Fellou.ai's Shadow Workspace concept
+# Shadow Workspace - Background Task Execution Without Disruption
+# Critical Gap #1: Fellou.ai-style background task execution
 
 import asyncio
 import uuid
-import json
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-from enum import Enum
 import logging
-from pymongo import MongoClient
-import os
-from concurrent.futures import ThreadPoolExecutor
-import threading
-import queue
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Set
+from dataclasses import dataclass, field
+from enum import Enum
+import json
 
 logger = logging.getLogger(__name__)
 
-class TaskStatus(Enum):
+class TaskPriority(Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+class ShadowTaskStatus(Enum):
+    CREATED = "created"
     QUEUED = "queued"
     RUNNING = "running"
     PAUSED = "paused"
@@ -25,56 +27,60 @@ class TaskStatus(Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
-class TaskPriority(Enum):
-    LOW = 1
-    NORMAL = 2
-    HIGH = 3
-    URGENT = 4
-
 @dataclass
 class ShadowTask:
-    """Shadow workspace task - runs in background without disrupting main workflow"""
     task_id: str
-    name: str
-    description: str
     command: str
-    status: TaskStatus
-    priority: TaskPriority
-    progress: float
-    created_at: datetime
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
     user_session: str
-    current_url: Optional[str]
-    background_mode: bool
-    steps: List[Dict[str, Any]]
-    results: Dict[str, Any]
-    error_message: Optional[str] = None
+    priority: TaskPriority
+    status: ShadowTaskStatus
+    created_at: datetime
+    updated_at: datetime
+    current_url: Optional[str] = None
+    progress: float = 0.0
+    background_mode: bool = True
+    estimated_completion: Optional[datetime] = None
+    result: Optional[Dict[str, Any]] = None
+    steps_completed: int = 0
+    total_steps: int = 0
+    execution_log: List[Dict[str, Any]] = field(default_factory=list)
 
 class ShadowWorkspace:
-    """Fellou.ai-style Shadow Workspace for non-disruptive background task execution"""
+    """
+    Shadow Workspace provides background task execution without disrupting the main browser experience.
+    This is Fellou.ai's key differentiator - tasks run in parallel to normal browsing.
+    """
     
-    def __init__(self, mongo_client: MongoClient):
+    def __init__(self, mongo_client):
         self.db = mongo_client.aether_browser
-        self.task_queue = asyncio.Queue()
-        self.active_tasks: Dict[str, ShadowTask] = {}
-        self.executor = ThreadPoolExecutor(max_workers=4)
-        self.running = False
+        self.active_shadows: Dict[str, ShadowTask] = {}
+        self.shadow_queue = asyncio.Queue()
+        self.workspace_running = False
+        self.max_concurrent_shadows = 5
+        self.running_shadows: Set[str] = set()
         
+        # Performance monitoring
+        self.execution_stats = {
+            "tasks_completed": 0,
+            "average_execution_time": 0,
+            "success_rate": 100,
+            "last_cleanup": datetime.utcnow()
+        }
+    
     async def start_shadow_workspace(self):
-        """Start the shadow workspace background processor"""
-        self.running = True
-        logger.info("🌟 Shadow Workspace started - Ready for background task execution")
-        
-        # Start background task processor
-        asyncio.create_task(self._process_shadow_tasks())
-        
-    async def stop_shadow_workspace(self):
-        """Stop the shadow workspace"""
-        self.running = False
-        self.executor.shutdown(wait=True)
-        logger.info("Shadow Workspace stopped")
-        
+        """Start the shadow workspace background processing"""
+        if not self.workspace_running:
+            self.workspace_running = True
+            # Start multiple worker coroutines for parallel processing
+            for i in range(self.max_concurrent_shadows):
+                asyncio.create_task(self._shadow_worker(f"shadow_worker_{i}"))
+            
+            # Start cleanup and monitoring tasks
+            asyncio.create_task(self._cleanup_completed_tasks())
+            asyncio.create_task(self._monitor_shadow_performance())
+            
+            logger.info("🌟 Shadow Workspace started - background tasks ready")
+    
     async def create_shadow_task(
         self, 
         command: str, 
@@ -83,373 +89,476 @@ class ShadowWorkspace:
         priority: TaskPriority = TaskPriority.NORMAL,
         background_mode: bool = True
     ) -> str:
-        """Create a new shadow task (Fellou.ai-style non-disruptive execution)"""
-        
-        task_id = str(uuid.uuid4())
-        
-        # Parse command into actionable steps
-        steps = await self._parse_command_to_steps(command, current_url)
-        
-        task = ShadowTask(
-            task_id=task_id,
-            name=self._generate_task_name(command),
-            description=command,
-            command=command,
-            status=TaskStatus.QUEUED,
-            priority=priority,
-            progress=0.0,
-            created_at=datetime.utcnow(),
-            started_at=None,
-            completed_at=None,
-            user_session=user_session,
-            current_url=current_url,
-            background_mode=background_mode,
-            steps=steps,
-            results={}
-        )
-        
-        # Store in database
-        await self._store_shadow_task(task)
-        
-        # Add to queue for processing
-        await self.task_queue.put(task)
-        
-        logger.info(f"🚀 Shadow task created: {task_id} - '{command}' (Background: {background_mode})")
-        
-        return task_id
-    
-    async def _process_shadow_tasks(self):
-        """Background processor for shadow tasks (non-disruptive execution)"""
-        while self.running:
-            try:
-                # Get next task from queue (priority-based)
-                task = await asyncio.wait_for(self.task_queue.get(), timeout=1.0)
-                
-                # Execute task in shadow mode
-                await self._execute_shadow_task(task)
-                
-            except asyncio.TimeoutError:
-                # No tasks in queue, continue
-                continue
-            except Exception as e:
-                logger.error(f"Shadow workspace error: {e}")
-    
-    async def _execute_shadow_task(self, task: ShadowTask):
-        """Execute task in shadow workspace (background execution)"""
+        """Create a new shadow task for background execution"""
         try:
-            # Update status to running
-            task.status = TaskStatus.RUNNING
-            task.started_at = datetime.utcnow()
-            self.active_tasks[task.task_id] = task
-            await self._update_shadow_task(task)
+            task_id = f"shadow_{uuid.uuid4()}"
             
-            logger.info(f"🔄 Executing shadow task: {task.task_id} ({task.name})")
+            # Estimate completion time based on command complexity
+            estimated_duration = self._estimate_task_duration(command)
+            estimated_completion = datetime.utcnow() + timedelta(seconds=estimated_duration)
             
-            # Execute steps in background
-            for i, step in enumerate(task.steps):
-                if not self.running:
-                    break
-                    
-                # Update progress
-                task.progress = (i / len(task.steps)) * 100
-                await self._update_shadow_task(task)
-                
-                # Execute step in shadow mode
-                step_result = await self._execute_shadow_step(step, task)
-                task.results[f"step_{i}"] = step_result
-                
-                # Small delay to prevent overwhelming
-                await asyncio.sleep(0.5)
+            shadow_task = ShadowTask(
+                task_id=task_id,
+                command=command,
+                user_session=user_session,
+                priority=priority,
+                status=ShadowTaskStatus.CREATED,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                current_url=current_url,
+                background_mode=background_mode,
+                estimated_completion=estimated_completion,
+                total_steps=self._estimate_task_steps(command)
+            )
             
-            # Complete task
-            task.status = TaskStatus.COMPLETED
-            task.progress = 100.0
-            task.completed_at = datetime.utcnow()
+            # Store in database
+            await self._store_shadow_task(shadow_task)
             
-            # Generate completion summary
-            task.results["summary"] = await self._generate_task_summary(task)
+            # Add to active shadows
+            self.active_shadows[task_id] = shadow_task
             
-            await self._update_shadow_task(task)
+            # Queue for execution
+            await self.shadow_queue.put(shadow_task)
+            shadow_task.status = ShadowTaskStatus.QUEUED
             
-            # Remove from active tasks
-            if task.task_id in self.active_tasks:
-                del self.active_tasks[task.task_id]
-                
-            logger.info(f"✅ Shadow task completed: {task.task_id}")
+            logger.info(f"🌟 Shadow task created: {command[:50]}... -> {task_id}")
+            return task_id
             
         except Exception as e:
-            task.status = TaskStatus.FAILED
-            task.error_message = str(e)
-            await self._update_shadow_task(task)
-            logger.error(f"❌ Shadow task failed: {task.task_id} - {e}")
+            logger.error(f"Error creating shadow task: {e}")
+            raise
     
-    async def _execute_shadow_step(self, step: Dict[str, Any], task: ShadowTask) -> Dict[str, Any]:
-        """Execute individual step in shadow mode"""
-        step_type = step.get("type", "generic")
-        
-        if step_type == "navigate":
-            return await self._shadow_navigate(step, task)
-        elif step_type == "extract":
-            return await self._shadow_extract_data(step, task)
-        elif step_type == "analyze":
-            return await self._shadow_analyze_content(step, task)
-        elif step_type == "report":
-            return await self._shadow_generate_report(step, task)
-        else:
-            return await self._shadow_generic_action(step, task)
+    async def _shadow_worker(self, worker_name: str):
+        """Background worker that executes shadow tasks"""
+        while self.workspace_running:
+            try:
+                # Get next task from queue
+                shadow_task = await asyncio.wait_for(self.shadow_queue.get(), timeout=5.0)
+                
+                # Check if we can run more tasks
+                if len(self.running_shadows) >= self.max_concurrent_shadows:
+                    # Re-queue the task
+                    await self.shadow_queue.put(shadow_task)
+                    await asyncio.sleep(1)
+                    continue
+                
+                # Execute the shadow task
+                self.running_shadows.add(shadow_task.task_id)
+                await self._execute_shadow_task(shadow_task, worker_name)
+                
+            except asyncio.TimeoutError:
+                # Normal timeout, continue
+                continue
+            except Exception as e:
+                logger.error(f"Error in shadow worker {worker_name}: {e}")
+                await asyncio.sleep(1)
+            finally:
+                if 'shadow_task' in locals():
+                    self.running_shadows.discard(shadow_task.task_id)
     
-    async def _shadow_navigate(self, step: Dict[str, Any], task: ShadowTask) -> Dict[str, Any]:
-        """Shadow navigation (doesn't disrupt main browser)"""
-        url = step.get("url", task.current_url)
-        
-        # Simulate shadow navigation
-        await asyncio.sleep(1.0)  # Simulate navigation time
-        
-        return {
-            "action": "shadow_navigate",
-            "url": url,
-            "status": "completed",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+    async def _execute_shadow_task(self, shadow_task: ShadowTask, worker_name: str):
+        """Execute a shadow task in the background"""
+        try:
+            shadow_task.status = ShadowTaskStatus.RUNNING
+            shadow_task.updated_at = datetime.utcnow()
+            await self._update_shadow_task(shadow_task)
+            
+            logger.info(f"🚀 [{worker_name}] Executing shadow task: {shadow_task.command[:50]}...")
+            
+            # Parse and execute the command
+            execution_steps = await self._parse_shadow_command(shadow_task.command, shadow_task.current_url)
+            shadow_task.total_steps = len(execution_steps)
+            
+            results = []
+            for i, step in enumerate(execution_steps):
+                if shadow_task.status == ShadowTaskStatus.CANCELLED:
+                    break
+                
+                # Execute step
+                step_result = await self._execute_shadow_step(step, shadow_task)
+                results.append(step_result)
+                
+                # Update progress
+                shadow_task.steps_completed = i + 1
+                shadow_task.progress = ((i + 1) / len(execution_steps)) * 100
+                
+                # Log execution step
+                shadow_task.execution_log.append({
+                    "step": i + 1,
+                    "action": step.get("action"),
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "status": "completed" if step_result.get("success") else "failed",
+                    "details": step_result.get("message", "")
+                })
+                
+                await self._update_shadow_task(shadow_task)
+                
+                # Small delay to simulate realistic execution and allow cancellation
+                await asyncio.sleep(1)
+            
+            # Complete the task
+            if shadow_task.status != ShadowTaskStatus.CANCELLED:
+                shadow_task.status = ShadowTaskStatus.COMPLETED
+                shadow_task.progress = 100
+                shadow_task.result = {
+                    "success": True,
+                    "message": f"Shadow task completed successfully: {shadow_task.command}",
+                    "results": results,
+                    "execution_time": (datetime.utcnow() - shadow_task.created_at).total_seconds(),
+                    "steps_completed": shadow_task.steps_completed,
+                    "worker": worker_name
+                }
+                
+                # Update stats
+                self.execution_stats["tasks_completed"] += 1
+                
+            await self._update_shadow_task(shadow_task)
+            logger.info(f"✅ [{worker_name}] Shadow task completed: {shadow_task.task_id}")
+            
+        except Exception as e:
+            logger.error(f"Error executing shadow task {shadow_task.task_id}: {e}")
+            shadow_task.status = ShadowTaskStatus.FAILED
+            shadow_task.result = {
+                "success": False,
+                "error": str(e),
+                "execution_time": (datetime.utcnow() - shadow_task.created_at).total_seconds()
+            }
+            await self._update_shadow_task(shadow_task)
     
-    async def _shadow_extract_data(self, step: Dict[str, Any], task: ShadowTask) -> Dict[str, Any]:
-        """Shadow data extraction (background processing)"""
-        target = step.get("target", "page_content")
-        
-        # Simulate data extraction
-        await asyncio.sleep(2.0)
-        
-        extracted_data = {
-            "title": "Sample Page Title",
-            "key_points": ["Point 1", "Point 2", "Point 3"],
-            "metadata": {"extracted_at": datetime.utcnow().isoformat()}
-        }
-        
-        return {
-            "action": "shadow_extract",
-            "target": target,
-            "data": extracted_data,
-            "status": "completed"
-        }
-    
-    async def _shadow_analyze_content(self, step: Dict[str, Any], task: ShadowTask) -> Dict[str, Any]:
-        """Shadow content analysis"""
-        analysis_type = step.get("analysis_type", "summary")
-        
-        # Simulate AI analysis
-        await asyncio.sleep(1.5)
-        
-        analysis_result = {
-            "type": analysis_type,
-            "summary": "AI-generated content summary from shadow analysis",
-            "insights": ["Insight 1", "Insight 2"],
-            "confidence": 0.85
-        }
-        
-        return {
-            "action": "shadow_analyze",
-            "result": analysis_result,
-            "status": "completed"
-        }
-    
-    async def _shadow_generate_report(self, step: Dict[str, Any], task: ShadowTask) -> Dict[str, Any]:
-        """Shadow report generation"""
-        report_type = step.get("report_type", "summary")
-        
-        # Generate comprehensive report
-        await asyncio.sleep(2.5)
-        
-        report = {
-            "type": report_type,
-            "title": f"Shadow Report: {task.name}",
-            "content": "Comprehensive report generated in shadow workspace",
-            "sections": ["Executive Summary", "Key Findings", "Recommendations"],
-            "generated_at": datetime.utcnow().isoformat()
-        }
-        
-        return {
-            "action": "shadow_report",
-            "report": report,
-            "status": "completed"
-        }
-    
-    async def _shadow_generic_action(self, step: Dict[str, Any], task: ShadowTask) -> Dict[str, Any]:
-        """Generic shadow action processor"""
-        action = step.get("action", "unknown")
-        
-        # Simulate generic processing
-        await asyncio.sleep(1.0)
-        
-        return {
-            "action": f"shadow_{action}",
-            "parameters": step.get("parameters", {}),
-            "status": "completed",
-            "result": "Shadow action executed successfully"
-        }
-    
-    async def _parse_command_to_steps(self, command: str, current_url: Optional[str]) -> List[Dict[str, Any]]:
-        """Parse natural language command into executable shadow steps"""
-        command_lower = command.lower()
+    async def _parse_shadow_command(self, command: str, current_url: Optional[str]) -> List[Dict[str, Any]]:
+        """Parse shadow command into executable steps"""
         steps = []
+        command_lower = command.lower()
         
-        # Smart command parsing (Fellou.ai-style)
-        if "summarize" in command_lower or "summary" in command_lower:
+        # Research and data gathering
+        if any(word in command_lower for word in ["research", "find", "gather", "investigate"]):
             steps.extend([
-                {"type": "extract", "target": "page_content"},
-                {"type": "analyze", "analysis_type": "summary"},
-                {"type": "report", "report_type": "summary"}
+                {"action": "initialize_research", "url": current_url},
+                {"action": "identify_sources", "parameters": {"query": command}},
+                {"action": "gather_information", "parallel": True},
+                {"action": "analyze_data"},
+                {"action": "compile_report"}
             ])
         
-        elif "extract" in command_lower and "data" in command_lower:
+        # Job applications
+        elif any(word in command_lower for word in ["apply", "job", "application"]):
             steps.extend([
-                {"type": "navigate", "url": current_url},
-                {"type": "extract", "target": "structured_data"},
-                {"type": "report", "report_type": "data_extraction"}
+                {"action": "scan_job_sites", "sites": ["linkedin.com", "indeed.com", "glassdoor.com"]},
+                {"action": "filter_relevant_positions"},
+                {"action": "prepare_applications", "parallel": True},
+                {"action": "submit_applications"},
+                {"action": "track_submissions"}
             ])
         
-        elif "analyze" in command_lower:
+        # Form filling
+        elif any(word in command_lower for word in ["fill", "form", "contact", "submit"]):
             steps.extend([
-                {"type": "extract", "target": "content"},
-                {"type": "analyze", "analysis_type": "comprehensive"},
-                {"type": "report", "report_type": "analysis"}
+                {"action": "identify_forms", "url": current_url},
+                {"action": "prepare_form_data"},
+                {"action": "fill_forms_automatically"},
+                {"action": "validate_submissions"}
             ])
         
-        elif "monitor" in command_lower:
+        # Price monitoring
+        elif any(word in command_lower for word in ["monitor", "price", "track", "alert"]):
             steps.extend([
-                {"type": "navigate", "url": current_url},
-                {"type": "extract", "target": "baseline_data"},
-                {"type": "generic", "action": "setup_monitoring"}
+                {"action": "identify_products", "url": current_url},
+                {"action": "setup_price_tracking"},
+                {"action": "compare_prices_across_sites"},
+                {"action": "setup_alert_system"}
             ])
         
+        # Data extraction
+        elif any(word in command_lower for word in ["extract", "scrape", "collect"]):
+            steps.extend([
+                {"action": "analyze_page_structure", "url": current_url},
+                {"action": "identify_data_elements"},
+                {"action": "extract_structured_data"},
+                {"action": "clean_and_format_data"},
+                {"action": "export_results"}
+            ])
+        
+        # Generic automation
         else:
-            # Generic workflow
-            steps = [
-                {"type": "generic", "action": "process_command", "parameters": {"command": command}},
-                {"type": "report", "report_type": "generic"}
-            ]
+            steps.extend([
+                {"action": "analyze_command", "command": command},
+                {"action": "plan_execution_strategy"},
+                {"action": "execute_automated_task"},
+                {"action": "verify_completion"}
+            ])
         
         return steps
     
-    def _generate_task_name(self, command: str) -> str:
-        """Generate user-friendly task name"""
-        command_lower = command.lower()
-        
-        if "summarize" in command_lower:
-            return "Page Summarization"
-        elif "extract" in command_lower:
-            return "Data Extraction"
-        elif "analyze" in command_lower:
-            return "Content Analysis"
-        elif "monitor" in command_lower:
-            return "Page Monitoring"
-        else:
-            return f"Custom Task: {command[:30]}..."
+    async def _execute_shadow_step(self, step: Dict[str, Any], shadow_task: ShadowTask) -> Dict[str, Any]:
+        """Execute a single step of a shadow task"""
+        try:
+            action = step.get("action")
+            
+            # Simulate step execution with realistic timing
+            if action == "initialize_research":
+                await asyncio.sleep(2)
+                return {"success": True, "message": "Research initialized"}
+                
+            elif action == "gather_information":
+                await asyncio.sleep(5)  # Longer for data gathering
+                return {"success": True, "message": "Information gathered from multiple sources"}
+                
+            elif action == "scan_job_sites":
+                await asyncio.sleep(8)  # Job site scanning takes longer
+                return {"success": True, "message": "Job sites scanned for opportunities"}
+                
+            elif action == "prepare_applications":
+                await asyncio.sleep(6)
+                return {"success": True, "message": "Applications prepared for submission"}
+                
+            elif action == "extract_structured_data":
+                await asyncio.sleep(4)
+                return {"success": True, "message": "Data extracted and structured"}
+                
+            elif action == "setup_price_tracking":
+                await asyncio.sleep(3)
+                return {"success": True, "message": "Price tracking system configured"}
+                
+            else:
+                # Generic step execution
+                await asyncio.sleep(2)
+                return {"success": True, "message": f"Executed: {action}"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Step failed: {str(e)}"}
     
-    async def _generate_task_summary(self, task: ShadowTask) -> str:
-        """Generate completion summary for task"""
-        return f"Task '{task.name}' completed successfully in shadow workspace. {len(task.steps)} steps executed with {task.progress}% completion."
+    def _estimate_task_duration(self, command: str) -> int:
+        """Estimate task duration in seconds"""
+        base_duration = 60  # 1 minute base
+        
+        # Adjust based on command complexity
+        if any(word in command.lower() for word in ["research", "gather", "investigate"]):
+            return base_duration * 3  # 3 minutes
+        elif any(word in command.lower() for word in ["apply", "job", "multiple"]):
+            return base_duration * 5  # 5 minutes
+        elif any(word in command.lower() for word in ["monitor", "track", "continuous"]):
+            return base_duration * 10  # 10 minutes
+        else:
+            return base_duration * 2  # 2 minutes default
+    
+    def _estimate_task_steps(self, command: str) -> int:
+        """Estimate number of steps for task"""
+        if any(word in command.lower() for word in ["research", "investigate"]):
+            return 5
+        elif any(word in command.lower() for word in ["apply", "job"]):
+            return 5
+        elif any(word in command.lower() for word in ["extract", "scrape"]):
+            return 5
+        else:
+            return 4
     
     async def get_shadow_task_status(self, task_id: str) -> Optional[Dict[str, Any]]:
-        """Get status of shadow task"""
+        """Get status of a shadow task"""
         try:
-            task_data = self.db.shadow_tasks.find_one({"task_id": task_id}, {"_id": 0})
-            if task_data:
+            if task_id in self.active_shadows:
+                task = self.active_shadows[task_id]
                 return {
-                    "task_id": task_id,
-                    "status": task_data["status"],
-                    "progress": task_data["progress"],
-                    "name": task_data["name"],
-                    "background_mode": task_data["background_mode"],
-                    "created_at": task_data["created_at"],
-                    "results": task_data.get("results", {})
+                    "task_id": task.task_id,
+                    "command": task.command,
+                    "status": task.status.value,
+                    "progress": task.progress,
+                    "steps_completed": task.steps_completed,
+                    "total_steps": task.total_steps,
+                    "created_at": task.created_at.isoformat(),
+                    "updated_at": task.updated_at.isoformat(),
+                    "estimated_completion": task.estimated_completion.isoformat() if task.estimated_completion else None,
+                    "execution_log": task.execution_log[-5:],  # Last 5 log entries
+                    "result": task.result,
+                    "background_mode": task.background_mode
                 }
-            return None
+            else:
+                # Try to get from database
+                task_doc = self.db.shadow_tasks.find_one({"task_id": task_id}, {"_id": 0})
+                return task_doc
+                
         except Exception as e:
             logger.error(f"Error getting shadow task status: {e}")
             return None
     
     async def get_active_shadow_tasks(self, user_session: str) -> List[Dict[str, Any]]:
-        """Get active shadow tasks for user"""
+        """Get all active shadow tasks for a user"""
         try:
-            tasks = list(self.db.shadow_tasks.find(
+            active_tasks = []
+            
+            # Get from active shadows
+            for task_id, task in self.active_shadows.items():
+                if task.user_session == user_session and task.status in [
+                    ShadowTaskStatus.QUEUED, ShadowTaskStatus.RUNNING
+                ]:
+                    active_tasks.append({
+                        "task_id": task.task_id,
+                        "command": task.command,
+                        "status": task.status.value,
+                        "progress": task.progress,
+                        "created_at": task.created_at.isoformat(),
+                        "estimated_completion": task.estimated_completion.isoformat() if task.estimated_completion else None
+                    })
+            
+            # Also get from database for completed tasks
+            recent_completed = list(self.db.shadow_tasks.find(
                 {
                     "user_session": user_session,
-                    "status": {"$in": ["queued", "running"]}
+                    "status": {"$in": ["completed", "failed"]},
+                    "updated_at": {"$gte": datetime.utcnow() - timedelta(hours=24)}
                 },
                 {"_id": 0}
-            ).sort("created_at", -1))
+            ).sort("updated_at", -1).limit(5))
             
-            return tasks
+            return {
+                "active_tasks": active_tasks,
+                "recent_completed": recent_completed,
+                "total_active": len(active_tasks)
+            }
+            
         except Exception as e:
             logger.error(f"Error getting active shadow tasks: {e}")
-            return []
+            return {"active_tasks": [], "recent_completed": [], "total_active": 0}
     
     async def pause_shadow_task(self, task_id: str) -> bool:
-        """Pause shadow task execution"""
-        if task_id in self.active_tasks:
-            task = self.active_tasks[task_id]
-            task.status = TaskStatus.PAUSED
-            await self._update_shadow_task(task)
-            return True
-        return False
-    
-    async def resume_shadow_task(self, task_id: str) -> bool:
-        """Resume paused shadow task"""
+        """Pause a running shadow task"""
         try:
-            task_data = self.db.shadow_tasks.find_one({"task_id": task_id})
-            if task_data and task_data["status"] == "paused":
-                # Re-queue task
-                task = ShadowTask(**task_data)
-                task.status = TaskStatus.QUEUED
-                await self._update_shadow_task(task)
-                await self.task_queue.put(task)
+            if task_id in self.active_shadows:
+                self.active_shadows[task_id].status = ShadowTaskStatus.PAUSED
+                await self._update_shadow_task(self.active_shadows[task_id])
+                logger.info(f"Shadow task paused: {task_id}")
                 return True
             return False
         except Exception as e:
-            logger.error(f"Error resuming shadow task: {e}")
+            logger.error(f"Error pausing shadow task {task_id}: {e}")
+            return False
+    
+    async def resume_shadow_task(self, task_id: str) -> bool:
+        """Resume a paused shadow task"""
+        try:
+            if task_id in self.active_shadows and self.active_shadows[task_id].status == ShadowTaskStatus.PAUSED:
+                self.active_shadows[task_id].status = ShadowTaskStatus.QUEUED
+                await self.shadow_queue.put(self.active_shadows[task_id])
+                await self._update_shadow_task(self.active_shadows[task_id])
+                logger.info(f"Shadow task resumed: {task_id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error resuming shadow task {task_id}: {e}")
             return False
     
     async def cancel_shadow_task(self, task_id: str) -> bool:
-        """Cancel shadow task"""
+        """Cancel a shadow task"""
         try:
-            # Update database
-            self.db.shadow_tasks.update_one(
-                {"task_id": task_id},
-                {"$set": {"status": "cancelled", "cancelled_at": datetime.utcnow()}}
-            )
-            
-            # Remove from active tasks
-            if task_id in self.active_tasks:
-                del self.active_tasks[task_id]
-            
-            return True
+            if task_id in self.active_shadows:
+                self.active_shadows[task_id].status = ShadowTaskStatus.CANCELLED
+                await self._update_shadow_task(self.active_shadows[task_id])
+                logger.info(f"Shadow task cancelled: {task_id}")
+                return True
+            return False
         except Exception as e:
-            logger.error(f"Error cancelling shadow task: {e}")
+            logger.error(f"Error cancelling shadow task {task_id}: {e}")
             return False
     
-    async def _store_shadow_task(self, task: ShadowTask):
+    async def _store_shadow_task(self, shadow_task: ShadowTask):
         """Store shadow task in database"""
-        task_dict = asdict(task)
-        task_dict["status"] = task.status.value
-        task_dict["priority"] = task.priority.value
-        
-        self.db.shadow_tasks.insert_one(task_dict)
+        try:
+            task_doc = {
+                "task_id": shadow_task.task_id,
+                "command": shadow_task.command,
+                "user_session": shadow_task.user_session,
+                "priority": shadow_task.priority.value,
+                "status": shadow_task.status.value,
+                "created_at": shadow_task.created_at,
+                "updated_at": shadow_task.updated_at,
+                "current_url": shadow_task.current_url,
+                "progress": shadow_task.progress,
+                "background_mode": shadow_task.background_mode,
+                "estimated_completion": shadow_task.estimated_completion,
+                "steps_completed": shadow_task.steps_completed,
+                "total_steps": shadow_task.total_steps,
+                "execution_log": shadow_task.execution_log,
+                "result": shadow_task.result
+            }
+            
+            self.db.shadow_tasks.insert_one(task_doc)
+            
+        except Exception as e:
+            logger.error(f"Error storing shadow task: {e}")
     
-    async def _update_shadow_task(self, task: ShadowTask):
+    async def _update_shadow_task(self, shadow_task: ShadowTask):
         """Update shadow task in database"""
-        task_dict = asdict(task)
-        task_dict["status"] = task.status.value
-        task_dict["priority"] = task.priority.value
-        
-        self.db.shadow_tasks.update_one(
-            {"task_id": task.task_id},
-            {"$set": task_dict}
-        )
+        try:
+            shadow_task.updated_at = datetime.utcnow()
+            
+            update_doc = {
+                "status": shadow_task.status.value,
+                "updated_at": shadow_task.updated_at,
+                "progress": shadow_task.progress,
+                "steps_completed": shadow_task.steps_completed,
+                "execution_log": shadow_task.execution_log
+            }
+            
+            if shadow_task.result:
+                update_doc["result"] = shadow_task.result
+            
+            self.db.shadow_tasks.update_one(
+                {"task_id": shadow_task.task_id},
+                {"$set": update_doc}
+            )
+            
+        except Exception as e:
+            logger.error(f"Error updating shadow task: {e}")
+    
+    async def _cleanup_completed_tasks(self):
+        """Cleanup old completed tasks"""
+        while self.workspace_running:
+            try:
+                # Clean up every hour
+                await asyncio.sleep(3600)
+                
+                # Remove tasks completed more than 24 hours ago
+                cutoff_time = datetime.utcnow() - timedelta(hours=24)
+                
+                # Clean from active shadows
+                completed_tasks = []
+                for task_id, task in list(self.active_shadows.items()):
+                    if task.status in [ShadowTaskStatus.COMPLETED, ShadowTaskStatus.FAILED, ShadowTaskStatus.CANCELLED]:
+                        if task.updated_at < cutoff_time:
+                            completed_tasks.append(task_id)
+                
+                for task_id in completed_tasks:
+                    del self.active_shadows[task_id]
+                
+                logger.info(f"Cleaned up {len(completed_tasks)} completed shadow tasks")
+                self.execution_stats["last_cleanup"] = datetime.utcnow()
+                
+            except Exception as e:
+                logger.error(f"Error in shadow task cleanup: {e}")
+    
+    async def _monitor_shadow_performance(self):
+        """Monitor shadow workspace performance"""
+        while self.workspace_running:
+            try:
+                await asyncio.sleep(300)  # Every 5 minutes
+                
+                # Calculate performance metrics
+                total_tasks = self.db.shadow_tasks.count_documents({})
+                completed_tasks = self.db.shadow_tasks.count_documents({"status": "completed"})
+                failed_tasks = self.db.shadow_tasks.count_documents({"status": "failed"})
+                
+                if total_tasks > 0:
+                    success_rate = (completed_tasks / total_tasks) * 100
+                    self.execution_stats["success_rate"] = success_rate
+                
+                logger.info(f"🌟 Shadow Workspace Stats - Active: {len(self.active_shadows)}, Success: {success_rate:.1f}%")
+                
+            except Exception as e:
+                logger.error(f"Error monitoring shadow performance: {e}")
 
 # Global shadow workspace instance
-shadow_workspace: Optional[ShadowWorkspace] = None
+shadow_workspace = None
 
-def initialize_shadow_workspace(mongo_client: MongoClient) -> ShadowWorkspace:
+def initialize_shadow_workspace(mongo_client) -> ShadowWorkspace:
     """Initialize the global shadow workspace"""
     global shadow_workspace
     shadow_workspace = ShadowWorkspace(mongo_client)
