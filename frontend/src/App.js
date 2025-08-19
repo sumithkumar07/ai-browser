@@ -23,7 +23,7 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [sessionId, setSessionId] = useState('web-session-' + Date.now());
+  const [sessionId] = useState('web-session-' + Date.now());
   
   // Browser history
   const [history, setHistory] = useState([]);
