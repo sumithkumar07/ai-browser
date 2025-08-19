@@ -231,38 +231,54 @@ async def browse_page(session: BrowsingSession):
 
 @app.post("/api/chat")
 async def chat_with_ai(chat_data: ChatMessage):
-    """Enhanced AI chat"""
+    """Enhanced AI chat with automation capabilities"""
     try:
-        session_id = chat_data.session_id or str(uuid.uuid4())
-        
-        # Get page context if URL provided
-        context = None
-        if chat_data.current_url:
-            page_data = await get_page_content(chat_data.current_url)
-            context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
-        
-        # Get AI response
-        ai_response = await get_ai_response(chat_data.message, context, session_id)
-        
-        # Store chat session
-        chat_record = {
-            "session_id": session_id,
-            "user_message": chat_data.message,
-            "ai_response": ai_response,
-            "current_url": chat_data.current_url,
-            "timestamp": datetime.utcnow()
-        }
-        
-        db.chat_sessions.insert_one(chat_record)
-        
-        return {
-            "response": ai_response,
-            "session_id": session_id
-        }
-        
+        if ENHANCED_MODE:
+            # Use enhanced chat with automation support
+            enhanced_data = EnhancedChatMessage(
+                message=chat_data.message,
+                session_id=chat_data.session_id,
+                current_url=chat_data.current_url,
+                enable_automation=True,
+                background_execution=True
+            )
+            return await enhanced_chat_with_ai(enhanced_data)
+        else:
+            # Fallback to basic chat
+            return await basic_chat_with_ai(chat_data)
+            
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+async def basic_chat_with_ai(chat_data: ChatMessage):
+    """Basic AI chat (fallback when enhanced mode unavailable)"""
+    session_id = chat_data.session_id or str(uuid.uuid4())
+    
+    # Get page context if URL provided
+    context = None
+    if chat_data.current_url:
+        page_data = await get_page_content(chat_data.current_url)
+        context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
+    
+    # Get AI response
+    ai_response = await get_ai_response(chat_data.message, context, session_id)
+    
+    # Store chat session
+    chat_record = {
+        "session_id": session_id,
+        "user_message": chat_data.message,
+        "ai_response": ai_response,
+        "current_url": chat_data.current_url,
+        "timestamp": datetime.utcnow()
+    }
+    
+    db.chat_sessions.insert_one(chat_record)
+    
+    return {
+        "response": ai_response,
+        "session_id": session_id
+    }
 
 @app.get("/api/recent-tabs")
 async def get_recent_tabs():
