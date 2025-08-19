@@ -166,19 +166,19 @@ function App() {
     <div className="quick-actions">
       <h3>Quick Actions</h3>
       <div className="action-grid">
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Research Report')}>
+        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Research Report')} onDragEnd={handleDragEnd}>
           <div className="action-icon">📊</div>
           <span>Generate Report</span>
         </div>
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Data Analysis')}>
+        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Data Analysis')} onDragEnd={handleDragEnd}>
           <div className="action-icon">📈</div>
           <span>Analyze Data</span>
         </div>
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Web Scraping')}>
+        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Web Scraping')} onDragEnd={handleDragEnd}>
           <div className="action-icon">🕷️</div>
           <span>Extract Info</span>
         </div>
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Automation')}>
+        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Automation')} onDragEnd={handleDragEnd}>
           <div className="action-icon">⚡</div>
           <span>Automate Task</span>
         </div>
