@@ -25,7 +25,7 @@
     {
       "test_name": "AI-First UI Command Processing",
       "status": "FAIL",
-      "details": "API call failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/chat'",
+      "details": "API call failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/chat'",
       "response_time": 0.06850409507751465,
       "timestamp": "2025-08-18T17:07:22.759988",
       "data": null
@@ -57,7 +57,7 @@
     {
       "test_name": "Enhanced Page Analysis",
       "status": "FAIL",
-      "details": "Browse API failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/browse'",
+      "details": "Browse API failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/browse'",
       "response_time": 0.008489131927490234,
       "timestamp": "2025-08-18T17:07:22.800030",
       "data": null
@@ -65,7 +65,7 @@
     {
       "test_name": "Proactive AI Suggestions",
       "status": "FAIL",
-      "details": "Proactive suggestions API failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/proactive-suggestions?session_id=ui-research&current_url=https://github.com'",
+      "details": "Proactive suggestions API failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/proactive-suggestions?session_id=ui-research&current_url=https://github.com'",
       "response_time": 0.008292198181152344,
       "timestamp": "2025-08-18T17:07:22.808395",
       "data": null
@@ -73,7 +73,7 @@
     {
       "test_name": "Autonomous Action Execution",
       "status": "FAIL",
-      "details": "Autonomous action API failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/autonomous-action'",
+      "details": "Autonomous action API failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/autonomous-action'",
       "response_time": 0.007225990295410156,
       "timestamp": "2025-08-18T17:07:22.815682",
       "data": null
@@ -81,7 +81,7 @@
     {
       "test_name": "Background Automation Processing",
       "status": "FAIL",
-      "details": "Task creation failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/automate-task'",
+      "details": "Task creation failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/automate-task'",
       "response_time": 0.007414340972900391,
       "timestamp": "2025-08-18T17:07:22.823166",
       "data": null
@@ -89,7 +89,7 @@
     {
       "test_name": "Integration Step 1: Context-Aware Chat",
       "status": "FAIL",
-      "details": "Chat failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/chat'",
+      "details": "Chat failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/chat'",
       "response_time": 0.008402824401855469,
       "timestamp": "2025-08-18T17:07:22.831625",
       "data": null
@@ -97,7 +97,7 @@
     {
       "test_name": "Integration Step 2: Enhanced Browse",
       "status": "FAIL",
-      "details": "Browse failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/browse'",
+      "details": "Browse failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/browse'",
       "response_time": 0.010390758514404297,
       "timestamp": "2025-08-18T17:07:22.842071",
       "data": null
@@ -105,7 +105,7 @@
     {
       "test_name": "Integration Step 3: Context-Based Automation",
       "status": "FAIL",
-      "details": "Automation creation failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/automate-task'",
+      "details": "Automation creation failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/automate-task'",
       "response_time": 0.008599281311035156,
       "timestamp": "2025-08-18T17:07:22.850732",
       "data": null
@@ -113,7 +113,7 @@
     {
       "test_name": "Integration Step 4: Session Persistence",
       "status": "FAIL",
-      "details": "Session persistence check failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/recent-tabs'",
+      "details": "Session persistence check failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/recent-tabs'",
       "response_time": 0.009731769561767578,
       "timestamp": "2025-08-18T17:07:22.860523",
       "data": null
@@ -121,7 +121,7 @@
     {
       "test_name": "Real-Time Pattern Recognition",
       "status": "FAIL",
-      "details": "Pattern-based suggestions failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://ai-browser-compare.preview.emergentagent.com/api/proactive-suggestions?session_id=ui-research&current_url=https://github.com'",
+      "details": "Pattern-based suggestions failed: 500, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='https://fellou-inspired-ui.preview.emergentagent.com/api/proactive-suggestions?session_id=ui-research&current_url=https://github.com'",
       "response_time": 0.008646488189697266,
       "timestamp": "2025-08-18T17:07:25.984377",
       "data": null
@@ -129,5 +129,5 @@
   ],
   "test_session": "d0bf4df7-23d1-48ce-a5e7-be4fff28a00a",
   "timestamp": "2025-08-18T17:07:25.984669",
-  "backend_url": "https://ai-browser-compare.preview.emergentagent.com"
+  "backend_url": "https://fellou-inspired-ui.preview.emergentagent.com"
 }
