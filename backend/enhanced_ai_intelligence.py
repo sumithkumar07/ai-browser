@@ -1,6 +1,6 @@
 <file>
       <absolute_file_name>/app/backend/enhanced_ai_intelligence.py</absolute_file_name>
-      <content">"""
+      <content>"""
 Enhanced AI Intelligence Module - Phase 2 Implementation
 Proactive AI with behavioral learning and predictive task automation
 """
