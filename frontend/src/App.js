@@ -753,6 +753,12 @@ function App() {
         onProcessVoiceCommand={advancedFeatures.processVoiceCommand}
         availableShortcuts={advancedFeatures.availableShortcuts}
       />
+
+      {/* Shadow Workspace Manager - Critical Gap #1 - Background task execution */}
+      <ShadowWorkspaceManager 
+        backendUrl={backendUrl}
+        userSession={sessionId}
+      />
     </div>
   );
 }
