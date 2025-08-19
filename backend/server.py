@@ -268,40 +268,66 @@ async def browse_page(session: BrowsingSession):
 
 @app.post("/api/chat")
 async def chat_with_ai(chat_data: ChatMessage):
-    """Chat with AI assistant"""
+    """Enhanced AI chat with intelligent conversation patterns"""
+    start_time = time.time()
+    
     try:
         session_id = chat_data.session_id or str(uuid.uuid4())
         
         # Get page context if URL provided
         context = None
         if chat_data.current_url:
-            page_data = await get_page_content(chat_data.current_url)
+            # Try to get from cache first
+            cache_key = f"page_content:{chat_data.current_url}"
+            cached_content = await get_cached(cache_key, "page_content")
+            
+            if cached_content:
+                page_data = cached_content
+            else:
+                page_data = await get_page_content(chat_data.current_url)
+                # Cache the page content
+                await set_cached(cache_key, page_data, ttl=1800, namespace="page_content")
+            
             context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
         
-        # Get AI response
-        ai_response = await get_ai_response(
-            chat_data.message, 
+        # Use intelligent AI conversation processing
+        intelligent_response = await ai_intelligence_engine.process_intelligent_conversation(
+            message=chat_data.message,
+            session_id=session_id,
             context=context,
-            session_id=session_id
+            url_context=chat_data.current_url
         )
         
-        # Store chat session
+        # Store chat session with enhanced data
         chat_record = {
             "session_id": session_id,
             "user_message": chat_data.message,
-            "ai_response": ai_response,
+            "ai_response": intelligent_response.content,
             "current_url": chat_data.current_url,
+            "response_type": intelligent_response.response_type,
+            "confidence_score": intelligent_response.confidence_score,
+            "processing_time": intelligent_response.processing_time,
             "timestamp": datetime.utcnow()
         }
         
         db.chat_sessions.insert_one(chat_record)
         
+        response_time = time.time() - start_time
+        record_api_call("/api/chat", "POST", response_time, 200)
+        
         return {
-            "response": ai_response,
-            "session_id": session_id
+            "response": intelligent_response.content,
+            "session_id": session_id,
+            "confidence_score": intelligent_response.confidence_score,
+            "suggested_actions": intelligent_response.suggested_actions,
+            "response_type": intelligent_response.response_type,
+            "enhanced_features": ["intelligent_conversation", "context_aware", "cached_content"]
         }
         
     except Exception as e:
+        response_time = time.time() - start_time
+        record_api_call("/api/chat", "POST", response_time, 500)
+        logger.error(f"Enhanced chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/recent-tabs")
