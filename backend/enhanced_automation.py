@@ -514,3 +514,7 @@ def initialize_task_executor(mongo_client) -> TaskExecutor:
     task_executor = TaskExecutor(mongo_client)
     asyncio.create_task(task_executor.start_executor())
     return task_executor
+
+def get_task_executor() -> Optional[TaskExecutor]:
+    """Get the global task executor instance"""
+    return task_executor
