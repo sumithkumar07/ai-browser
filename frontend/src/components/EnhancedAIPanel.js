@@ -11,7 +11,8 @@ const EnhancedAIPanel = ({
   aiLoading, 
   onSendMessage,
   currentUrl,
-  sessionId 
+  sessionId,
+  backgroundTasks = {}  // Add background tasks support
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
@@ -19,6 +20,9 @@ const EnhancedAIPanel = ({
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const [isTyping, setIsTyping] = useState(false);
+
+  // Calculate active background tasks
+  const activeTaskCount = Object.keys(backgroundTasks).length;
 
   // Scroll to bottom when messages change
   useEffect(() => {
