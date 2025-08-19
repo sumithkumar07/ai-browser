@@ -585,17 +585,17 @@ async def get_system_overview():
 
 # Missing Enhanced Automation Endpoints
 @app.post("/api/enhanced/automation/create-advanced")
-async def create_advanced_automation(request: Dict[str, Any]):
+async def create_advanced_automation(request: AdvancedAutomationRequest):
     """Create advanced automation with enhanced capabilities"""
     try:
         automation_data = {
             "id": str(uuid.uuid4()),
-            "name": request.get("name", "Advanced Automation"),
-            "description": request.get("description", "Advanced automation task"),
+            "name": request.name,
+            "description": request.description,
             "type": "advanced",
-            "steps": request.get("steps", []),
-            "conditions": request.get("conditions", {}),
-            "triggers": request.get("triggers", []),
+            "steps": request.steps,
+            "conditions": request.conditions,
+            "triggers": request.triggers,
             "status": "created",
             "created_at": datetime.utcnow(),
             "advanced_features": {
@@ -621,16 +621,16 @@ async def create_advanced_automation(request: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"Advanced automation creation failed: {str(e)}")
 
 @app.post("/api/enhanced/workflows/template/create")
-async def create_workflow_template(request: Dict[str, Any]):
+async def create_workflow_template(request: WorkflowTemplateRequest):
     """Create workflow template for reusable automations"""
     try:
         template_data = {
             "id": str(uuid.uuid4()),
-            "name": request.get("name", "Workflow Template"),
-            "description": request.get("description", "Reusable workflow template"),
-            "category": request.get("category", "general"),
-            "template_steps": request.get("steps", []),
-            "variables": request.get("variables", {}),
+            "name": request.name,
+            "description": request.description,
+            "category": request.category,
+            "template_steps": request.steps,
+            "variables": request.variables,
             "created_at": datetime.utcnow(),
             "usage_count": 0,
             "template_features": {
@@ -657,19 +657,16 @@ async def create_workflow_template(request: Dict[str, Any]):
 
 # Missing Integration Endpoints
 @app.post("/api/enhanced/integrations/oauth/initiate")
-async def initiate_oauth_flow(request: Dict[str, Any]):
+async def initiate_oauth_flow(request: OAuthRequest):
     """Initiate OAuth authentication flow"""
     try:
-        provider = request.get("provider", "")
-        redirect_uri = request.get("redirect_uri", "")
-        
         # Generate OAuth state for security
         oauth_state = str(uuid.uuid4())
         
         oauth_data = {
             "state": oauth_state,
-            "provider": provider,
-            "redirect_uri": redirect_uri,
+            "provider": request.provider,
+            "redirect_uri": request.redirect_uri,
             "created_at": datetime.utcnow(),
             "status": "initiated",
             "expires_at": datetime.utcnow().timestamp() + 3600  # 1 hour
@@ -685,13 +682,13 @@ async def initiate_oauth_flow(request: Dict[str, Any]):
             "default": f"https://oauth.example.com/auth?state={oauth_state}"
         }
         
-        auth_url = oauth_urls.get(provider.lower(), oauth_urls["default"])
+        auth_url = oauth_urls.get(request.provider.lower(), oauth_urls["default"])
         
         return {
             "success": True,
             "auth_url": auth_url,
             "state": oauth_state,
-            "provider": provider,
+            "provider": request.provider,
             "expires_in": 3600
         }
         
@@ -699,22 +696,20 @@ async def initiate_oauth_flow(request: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"OAuth initiation failed: {str(e)}")
 
 @app.post("/api/enhanced/integrations/api-key/store")
-async def store_api_key(request: Dict[str, Any]):
+async def store_api_key(request: ApiKeyRequest):
     """Store API key for integrations"""
     try:
-        service = request.get("service", "")
-        api_key = request.get("api_key", "")
-        key_name = request.get("key_name", f"{service}_key")
+        key_name = request.key_name or f"{request.service}_key"
         
         # Hash the API key for security (in production, use proper encryption)
-        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        key_hash = hashlib.sha256(request.api_key.encode()).hexdigest()
         
         key_data = {
             "id": str(uuid.uuid4()),
-            "service": service,
+            "service": request.service,
             "key_name": key_name,
             "key_hash": key_hash,
-            "key_preview": api_key[:8] + "..." if len(api_key) > 8 else "***",
+            "key_preview": request.api_key[:8] + "..." if len(request.api_key) > 8 else "***",
             "created_at": datetime.utcnow(),
             "status": "active",
             "last_used": None
@@ -722,7 +717,7 @@ async def store_api_key(request: Dict[str, Any]):
         
         # Update existing key if it exists, otherwise insert new
         db.api_keys.update_one(
-            {"service": service, "key_name": key_name},
+            {"service": request.service, "key_name": key_name},
             {"$set": key_data},
             upsert=True
         )
@@ -730,7 +725,7 @@ async def store_api_key(request: Dict[str, Any]):
         return {
             "success": True,
             "key_id": key_data["id"],
-            "service": service,
+            "service": request.service,
             "key_name": key_name,
             "key_preview": key_data["key_preview"],
             "status": "stored"
@@ -812,12 +807,9 @@ async def get_available_voice_commands():
 
 # Missing Keyboard Shortcut Endpoint
 @app.post("/api/keyboard-shortcut")
-async def execute_keyboard_shortcut(request: Dict[str, Any]):
+async def execute_keyboard_shortcut(request: KeyboardShortcutRequest):
     """Execute keyboard shortcut actions"""
     try:
-        shortcut = request.get("shortcut", "")
-        action = request.get("action", "")
-        
         # Define available shortcuts and their actions
         shortcuts = {
             "ctrl+t": {"action": "new_tab", "description": "Open new tab"},
@@ -832,12 +824,12 @@ async def execute_keyboard_shortcut(request: Dict[str, Any]):
             "escape": {"action": "close_panels", "description": "Close all panels"}
         }
         
-        if shortcut.lower() in shortcuts:
-            shortcut_info = shortcuts[shortcut.lower()]
+        if request.shortcut.lower() in shortcuts:
+            shortcut_info = shortcuts[request.shortcut.lower()]
             
             # Log shortcut usage
             usage_data = {
-                "shortcut": shortcut,
+                "shortcut": request.shortcut,
                 "action": shortcut_info["action"],
                 "timestamp": datetime.utcnow(),
                 "executed": True
@@ -847,7 +839,7 @@ async def execute_keyboard_shortcut(request: Dict[str, Any]):
             
             return {
                 "success": True,
-                "shortcut": shortcut,
+                "shortcut": request.shortcut,
                 "action": shortcut_info["action"],
                 "description": shortcut_info["description"],
                 "executed": True
@@ -855,7 +847,7 @@ async def execute_keyboard_shortcut(request: Dict[str, Any]):
         else:
             return {
                 "success": False,
-                "shortcut": shortcut,
+                "shortcut": request.shortcut,
                 "error": "Shortcut not recognized",
                 "available_shortcuts": list(shortcuts.keys())
             }
