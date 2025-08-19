@@ -70,7 +70,7 @@ function App() {
   }, [currentUrl, loadAutomationSuggestions]);
 
   // Load context-aware automation suggestions
-  const loadAutomationSuggestions = async () => {
+  const loadAutomationSuggestions = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/automation-suggestions`, {
         method: 'GET',
@@ -84,7 +84,7 @@ function App() {
     } catch (error) {
       console.error('Failed to load automation suggestions:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Handle URL navigation
   async function handleNavigate(url) {
