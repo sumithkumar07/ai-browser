@@ -37,8 +37,33 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
 db = client.aether_browser
 
-# Groq client
+# AI clients initialization
 groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# Initialize additional AI providers
+openai_client = None
+anthropic_client = None
+genai_model = None
+
+def initialize_ai_providers():
+    """Initialize all AI providers based on available API keys"""
+    global openai_client, anthropic_client, genai_model
+    
+    # OpenAI
+    if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_key_here":
+        openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+    # Anthropic
+    if os.getenv("ANTHROPIC_API_KEY") and os.getenv("ANTHROPIC_API_KEY") != "your_anthropic_key_here":
+        anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    
+    # Google Gemini
+    if os.getenv("GOOGLE_API_KEY") and os.getenv("GOOGLE_API_KEY") != "your_google_key_here":
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+        genai_model = genai.GenerativeModel('gemini-pro')
+
+# Initialize providers on startup
+initialize_ai_providers()
 
 # Pydantic models
 class ChatMessage(BaseModel):
