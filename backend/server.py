@@ -135,6 +135,60 @@ class AutomationRequest(BaseModel):
     current_url: Optional[str] = None
     session_id: Optional[str] = None
 
+# Additional Pydantic models for enhanced systems
+class ShadowTaskRequest(BaseModel):
+    command: str
+    user_session: str
+    current_url: Optional[str] = None
+    priority: str = "normal"
+    background_mode: bool = True
+
+class VisualWorkflowCreateRequest(BaseModel):
+    name: str
+    description: str
+    created_by: str
+
+class WorkflowNodeRequest(BaseModel):
+    workflow_id: str
+    template_key: str
+    position_x: float
+    position_y: float
+    parameters: Optional[Dict[str, Any]] = None
+
+class NodeConnectionRequest(BaseModel):
+    workflow_id: str
+    source_node: str
+    target_node: str
+    source_output: str
+    target_input: str
+    connection_type: str = "success"
+
+class SplitViewCreateRequest(BaseModel):
+    user_session: str
+    layout: str = "horizontal"
+    initial_urls: Optional[List[str]] = None
+
+class SplitViewNavigateRequest(BaseModel):
+    session_id: str
+    pane_id: str
+    url: str
+    sync_all: bool = False
+
+class PlatformConnectionRequest(BaseModel):
+    user_session: str
+    platform_id: str
+    auth_data: Dict[str, Any]
+
+class PlatformActionRequest(BaseModel):
+    user_session: str
+    platform_id: str
+    capability_id: str
+    parameters: Dict[str, Any]
+
+class BatchActionRequest(BaseModel):
+    user_session: str
+    actions: List[Dict[str, Any]]
+
 # Helper functions
 async def get_page_content(url: str) -> Dict[str, Any]:
     """Fetch and parse web page content"""
