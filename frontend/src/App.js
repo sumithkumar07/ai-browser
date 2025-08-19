@@ -215,7 +215,7 @@ function App() {
     }
   };
 
-  // Enhanced AI Assistant with all backend integration
+  // Enhanced AI Assistant with all backend integration + Fellou.ai-level automation
   const handleAiMessage = async () => {
     if (!aiInput.trim()) return;
 
@@ -223,99 +223,48 @@ function App() {
     setChatMessages(prev => [...prev, userMessage]);
     setAiLoading(true);
 
-    // Process special AI commands for direct feature access
-    const command = aiInput.toLowerCase();
-    
     try {
-      // Handle summarization directly
-      if (command.includes('summarize') && currentUrl) {
-        const summaryResponse = await fetch(`${backendUrl}/api/summarize`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            url: currentUrl, 
-            length: command.includes('short') ? 'short' : command.includes('long') ? 'long' : 'medium' 
-          })
-        });
-        
-        if (summaryResponse.ok) {
-          const summaryResult = await summaryResponse.json();
-          const aiMessage = { 
-            role: 'assistant', 
-            content: `📄 **Page Summary:**\n\n**${summaryResult.title}**\n\n${summaryResult.summary}\n\n*Word count: ${summaryResult.word_count} | Summary type: ${summaryResult.length}*`
-          };
-          setChatMessages(prev => [...prev, aiMessage]);
-          setAiLoading(false);
-          setAiInput('');
-          return;
-        }
-      }
-      
-      // Handle system status directly
-      if (command.includes('system status') || command.includes('system info')) {
-        const statusResponse = await fetch(`${backendUrl}/api/enhanced/system/overview`);
-        
-        if (statusResponse.ok) {
-          const statusResult = await statusResponse.json();
-          const aiMessage = { 
-            role: 'assistant', 
-            content: `📊 **System Status:**\n\n• Status: ${statusResult.status}\n• Version: ${statusResult.version}\n• Recent Tabs: ${statusResult.stats?.recent_tabs || 0}\n• Chat Sessions: ${statusResult.stats?.chat_sessions || 0}\n• Workflows: ${statusResult.stats?.workflows || 0}\n\n✅ All systems operational!`
-          };
-          setChatMessages(prev => [...prev, aiMessage]);
-          setAiLoading(false);
-          setAiInput('');
-          return;
-        }
-      }
-      
-      // Handle workflow creation directly
-      if (command.includes('create workflow') || command.includes('automate')) {
-        const workflowData = {
-          name: `Auto Workflow ${Date.now()}`,
-          description: `Workflow created from: "${aiInput}"`,
-          steps: [
-            { action: 'navigate', url: currentUrl || 'https://example.com' },
-            { action: 'extract', selector: 'title' }
-          ]
-        };
-        
-        const workflowResponse = await fetch(`${backendUrl}/api/create-workflow`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(workflowData)
-        });
-        
-        if (workflowResponse.ok) {
-          const workflowResult = await workflowResponse.json();
-          const aiMessage = { 
-            role: 'assistant', 
-            content: `🔧 **Workflow Created Successfully!**\n\n**ID:** ${workflowResult.workflow_id}\n**Name:** ${workflowResult.name}\n\nYour automation workflow is ready to use. You can now execute it or modify it as needed.`
-          };
-          setChatMessages(prev => [...prev, aiMessage]);
-          setAiLoading(false);
-          setAiInput('');
-          return;
-        }
-      }
-
-      // Regular AI chat with context
+      // Enhanced chat with automation support
       const response = await fetch(`${backendUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: aiInput,
           session_id: sessionId,
-          current_url: currentUrl
+          current_url: currentUrl,
+          enable_automation: true,  // Enable Fellou.ai-level automation
+          background_execution: true
         })
       });
 
       if (response.ok) {
         const result = await response.json();
+        
+        // Create enhanced AI message with automation info
+        let aiResponse = result.response;
+        
+        // If automation was triggered, enhance the response
+        if (result.automation_triggered && result.task_id) {
+          aiResponse += `\n\n🔗 **Task ID:** ${result.task_id}`;
+          
+          // Start monitoring task progress
+          monitorTaskProgress(result.task_id);
+        }
+        
         const aiMessage = { 
           role: 'assistant', 
-          content: result.response || 'I can help you with that!'
+          content: aiResponse,
+          automation_triggered: result.automation_triggered,
+          task_id: result.task_id,
+          suggestions: result.suggestions || []
         };
+        
         setChatMessages(prev => [...prev, aiMessage]);
+        
+        // Show automation suggestions if available
+        if (result.suggestions && result.suggestions.length > 0) {
+          showAutomationSuggestions(result.suggestions);
+        }
       }
     } catch (error) {
       console.error('Error:', error);
@@ -328,6 +277,84 @@ function App() {
       setAiInput('');
     }
   };
+
+  // Monitor background task progress
+  const monitorTaskProgress = async (taskId) => {
+    const checkProgress = async () => {
+      try {
+        const response = await fetch(`${backendUrl}/api/automation/status/${taskId}`);
+        if (response.ok) {
+          const status = await response.json();
+          
+          // Update UI with progress if task is still running
+          if (status.progress >= 0 && status.progress < 100) {
+            // Show subtle progress indicator
+            updateTaskProgress(taskId, status);
+            
+            // Check again in 3 seconds
+            setTimeout(checkProgress, 3000);
+          } else if (status.progress === 100) {
+            // Task completed - notify user
+            showTaskCompletion(taskId, status);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking task progress:', error);
+      }
+    };
+    
+    // Start monitoring after 2 seconds
+    setTimeout(checkProgress, 2000);
+  };
+
+  // Show automation suggestions (integrated into existing UI)
+  const showAutomationSuggestions = (suggestions) => {
+    // Add suggestions as quick action buttons in existing framework
+    const suggestionMessages = suggestions.map(suggestion => ({
+      role: 'assistant',
+      content: `💡 **Quick Suggestion:** ${suggestion.text}`,
+      is_suggestion: true,
+      suggested_command: suggestion.command
+    }));
+    
+    setChatMessages(prev => [...prev, ...suggestionMessages]);
+  };
+
+  // Update task progress (subtle, non-disruptive)
+  const updateTaskProgress = (taskId, status) => {
+    // Store progress in state for optional display
+    setBackgroundTasks(prev => ({
+      ...prev,
+      [taskId]: {
+        name: status.name || 'Background Task',
+        progress: status.progress,
+        status: status.status
+      }
+    }));
+  };
+
+  // Show task completion notification
+  const showTaskCompletion = (taskId, status) => {
+    // Add completion message to chat
+    const completionMessage = {
+      role: 'assistant',
+      content: `✅ **Task Completed!** ${status.name || 'Your automation task'} has finished successfully.\n\n📊 **Results available** - Task ID: ${taskId}`,
+      task_completed: true,
+      task_id: taskId
+    };
+    
+    setChatMessages(prev => [...prev, completionMessage]);
+    
+    // Remove from active background tasks
+    setBackgroundTasks(prev => {
+      const updated = {...prev};
+      delete updated[taskId];
+      return updated;
+    });
+  };
+
+  // Enhanced state for background tasks
+  const [backgroundTasks, setBackgroundTasks] = useState({});
 
   // Enhanced AI Quick Actions - All capabilities in one place
   const aiQuickActions = [
