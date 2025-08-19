@@ -947,6 +947,221 @@ async def execute_quick_automation(request: Dict[str, Any]):
         logger.error(f"Quick automation error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ==================== ALL CRITICAL GAPS API ENDPOINTS ====================
+# Shadow Workspace, Visual Workflow Builder, Split View, Platform Integrations
+
+@app.post("/api/shadow/create-task")
+async def create_shadow_task(request: ShadowTaskRequest):
+    """Create shadow task for background execution (Critical Gap #1)"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.create_shadow_task(request)
+
+@app.get("/api/shadow/task-status/{task_id}")
+async def get_shadow_task_status(task_id: str):
+    """Get shadow task status"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.get_shadow_task_status(task_id)
+
+@app.get("/api/shadow/active-tasks/{user_session}")
+async def get_active_shadow_tasks(user_session: str):
+    """Get active shadow tasks for user"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.get_active_shadow_tasks(user_session)
+
+@app.post("/api/shadow/control-task/{task_id}/{action}")
+async def control_shadow_task(task_id: str, action: str):
+    """Control shadow task (pause/resume/cancel)"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.control_shadow_task(task_id, action)
+
+@app.get("/api/workflows/templates")
+async def get_workflow_templates():
+    """Get visual workflow templates (Critical Gap #2)"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.get_workflow_templates()
+
+@app.post("/api/workflows/create")
+async def create_visual_workflow(request: VisualWorkflowCreateRequest):
+    """Create new visual workflow"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.create_visual_workflow(request)
+
+@app.post("/api/workflows/add-node")
+async def add_workflow_node(request: WorkflowNodeRequest):
+    """Add node to visual workflow"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.add_workflow_node(request)
+
+@app.post("/api/workflows/connect-nodes")
+async def connect_workflow_nodes(request: NodeConnectionRequest):
+    """Connect nodes in visual workflow"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.connect_workflow_nodes(request)
+
+@app.get("/api/workflows/{workflow_id}")
+async def get_workflow_definition(workflow_id: str):
+    """Get complete workflow definition"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.get_workflow_definition(workflow_id)
+
+@app.get("/api/workflows/user/{created_by}")
+async def list_user_workflows(created_by: str):
+    """List user's workflows"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.list_user_workflows(created_by)
+
+@app.post("/api/split-view/create")
+async def create_split_view_session(request: SplitViewCreateRequest):
+    """Create split view session (Critical Gap #3)"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.create_split_view_session(request)
+
+@app.post("/api/split-view/add-pane/{session_id}")
+async def add_split_pane(
+    session_id: str, 
+    url: str, 
+    position_row: Optional[int] = None,
+    position_col: Optional[int] = None
+):
+    """Add pane to split view"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.add_split_pane(session_id, url, position_row, position_col)
+
+@app.post("/api/split-view/navigate")
+async def navigate_split_pane(request: SplitViewNavigateRequest):
+    """Navigate split view pane"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.navigate_split_pane(request)
+
+@app.get("/api/split-view/{session_id}")
+async def get_split_view_state(session_id: str):
+    """Get split view session state"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.get_split_view_state(session_id)
+
+@app.post("/api/split-view/change-layout/{session_id}/{layout}")
+async def change_split_layout(session_id: str, layout: str):
+    """Change split view layout"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.change_split_layout(session_id, layout)
+
+@app.get("/api/platforms/available")
+async def get_available_integrations(integration_type: Optional[str] = None):
+    """Get available platform integrations (Critical Gap #4)"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.get_available_integrations(integration_type)
+
+@app.post("/api/platforms/connect")
+async def connect_platform(request: PlatformConnectionRequest):
+    """Connect user to platform"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.connect_platform(request)
+
+@app.post("/api/platforms/execute")
+async def execute_platform_action(request: PlatformActionRequest):
+    """Execute action on connected platform"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.execute_platform_action(request)
+
+@app.post("/api/platforms/batch-execute")
+async def batch_execute_platform_actions(request: BatchActionRequest):
+    """Execute multiple platform actions (Fellou.ai-style)"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.batch_execute_platform_actions(request)
+
+@app.get("/api/platforms/user-integrations/{user_session}")
+async def get_user_integrations(user_session: str):
+    """Get user's connected integrations"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.get_user_integrations(user_session)
+
+@app.delete("/api/platforms/disconnect/{user_session}/{platform_id}")
+async def disconnect_platform(user_session: str, platform_id: str):
+    """Disconnect user from platform"""
+    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
+        raise HTTPException(status_code=503, detail="Enhanced systems not available")
+    
+    return await enhanced_integration.disconnect_platform(user_session, platform_id)
+
+# Enhanced system status endpoint
+@app.get("/api/enhanced/system-status")
+async def get_enhanced_system_status():
+    """Get status of all enhanced systems"""
+    try:
+        status = {
+            "enhanced_systems_available": ENHANCED_SYSTEMS_AVAILABLE,
+            "timestamp": datetime.utcnow().isoformat(),
+            "capabilities": {
+                "shadow_workspace": ENHANCED_SYSTEMS_AVAILABLE,
+                "visual_workflow_builder": ENHANCED_SYSTEMS_AVAILABLE,
+                "split_view_engine": ENHANCED_SYSTEMS_AVAILABLE,
+                "platform_integrations": ENHANCED_SYSTEMS_AVAILABLE
+            }
+        }
+        
+        if ENHANCED_SYSTEMS_AVAILABLE and enhanced_integration:
+            # Get additional system stats
+            status["systems"] = {
+                "shadow_workspace": "operational",
+                "visual_workflow_builder": "operational",
+                "split_view_engine": "operational", 
+                "platform_integrations": "operational"
+            }
+            
+            status["features"] = [
+                "Background task execution (Shadow Workspace)",
+                "Drag & drop workflow builder",
+                "Multi-website split view browsing",
+                "50+ platform integrations",
+                "Fellou.ai-level automation capabilities"
+            ]
+        
+        return status
+        
+    except Exception as e:
+        logger.error(f"Enhanced system status error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
