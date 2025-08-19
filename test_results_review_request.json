@@ -1,0 +1,126 @@
+{
+  "total_tests": 13,
+  "successful_tests": 0,
+  "failed_tests": 13,
+  "success_rate": 0.0,
+  "total_time": 0.2062218189239502,
+  "results": [
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.08066129684448242,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.217933"
+    },
+    {
+      "endpoint": "/api/enhanced/automation/create-advanced",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.012016773223876953,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.230122"
+    },
+    {
+      "endpoint": "/api/enhanced/workflows/template/create",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.009032964706420898,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.239272"
+    },
+    {
+      "endpoint": "/api/enhanced/integrations/oauth/initiate",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008474111557006836,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.247853"
+    },
+    {
+      "endpoint": "/api/enhanced/integrations/api-key/store",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.00966501235961914,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.257620"
+    },
+    {
+      "endpoint": "/api/voice-commands/available",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.008249282836914062,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.265965"
+    },
+    {
+      "endpoint": "/api/keyboard-shortcut",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008714914321899414,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.274778"
+    },
+    {
+      "endpoint": "/api/automate-task",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.013895034790039062,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.288791"
+    },
+    {
+      "endpoint": "/api/automation-status/d226c746-e028-4c96-a3dd-07c278b3c313",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.010351896286010742,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.299269"
+    },
+    {
+      "endpoint": "/api/execute-automation/d226c746-e028-4c96-a3dd-07c278b3c313",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.009967565536499023,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.309331"
+    },
+    {
+      "endpoint": "/api/cancel-automation/d226c746-e028-4c96-a3dd-07c278b3c313",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.012727499008178711,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.322154"
+    },
+    {
+      "endpoint": "/api/active-automations",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.01132965087890625,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.333580"
+    },
+    {
+      "endpoint": "/api/automation-suggestions",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.009685277938842773,
+      "success": false,
+      "details": "Response text: Internal Server Error...",
+      "timestamp": "2025-08-19T14:56:37.343367"
+    }
+  ]
+}
