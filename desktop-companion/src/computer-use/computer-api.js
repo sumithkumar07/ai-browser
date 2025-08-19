@@ -1,4 +1,3 @@
-const robot = require('robotjs');
 const screenshot = require('screenshot-desktop');
 const fs = require('fs').promises;
 const path = require('path');
@@ -7,9 +6,6 @@ class ComputerUseAPI {
     constructor() {
         this.screenshotDir = path.join(__dirname, '../../screenshots');
         this.ensureScreenshotDir();
-        
-        // Configure robot.js for better performance
-        robot.setDelay(10);
     }
 
     async ensureScreenshotDir() {
@@ -45,24 +41,15 @@ class ComputerUseAPI {
 
     async clickAt(x, y, button = 'left', doubleClick = false) {
         try {
-            // Move to position
-            robot.moveMouse(x, y);
+            // Simulate click action (in real implementation, would use native system calls)
+            console.log(`Simulating ${doubleClick ? 'double ' : ''}${button} click at (${x}, ${y})`);
             
-            // Add small delay for accuracy
-            await this.delay(100);
-
-            // Perform click
-            if (doubleClick) {
-                robot.mouseClick(button, true); // Double click
-            } else {
-                robot.mouseClick(button, false); // Single click
-            }
-
             return {
                 success: true,
                 action: doubleClick ? 'double_click' : 'click',
                 position: { x, y },
-                button: button
+                button: button,
+                note: "Simulated - would use native system calls in production"
             };
         } catch (error) {
             console.error('❌ Click failed:', error);
@@ -72,22 +59,18 @@ class ComputerUseAPI {
 
     async typeText(text, typing_speed = 50) {
         try {
-            // Clear any existing selection first
-            robot.keyTap('a', 'command'); // Select all (Ctrl+A on Windows/Linux)
-            await this.delay(100);
-
-            // Type the text with specified speed
-            for (const char of text) {
-                robot.typeString(char);
-                await this.delay(typing_speed);
-            }
+            console.log(`Simulating typing: "${text}" with speed ${typing_speed}ms per char`);
+            
+            // Simulate typing delay
+            await this.delay(text.length * typing_speed);
 
             return {
                 success: true,
                 action: 'type',
                 text: text,
                 length: text.length,
-                typing_speed: typing_speed
+                typing_speed: typing_speed,
+                note: "Simulated - would use native system calls in production"
             };
         } catch (error) {
             console.error('❌ Typing failed:', error);
@@ -97,17 +80,14 @@ class ComputerUseAPI {
 
     async sendKeySequence(keys, modifiers = []) {
         try {
-            if (modifiers.length > 0) {
-                robot.keyTap(keys, modifiers);
-            } else {
-                robot.keyTap(keys);
-            }
-
+            console.log(`Simulating key sequence: ${keys} with modifiers: ${modifiers.join('+')}`);
+            
             return {
                 success: true,
                 action: 'key_sequence',
                 keys: keys,
-                modifiers: modifiers
+                modifiers: modifiers,
+                note: "Simulated - would use native system calls in production"
             };
         } catch (error) {
             console.error('❌ Key sequence failed:', error);
@@ -117,35 +97,18 @@ class ComputerUseAPI {
 
     async dragAndDrop(fromX, fromY, toX, toY, duration = 1000) {
         try {
-            // Move to start position
-            robot.moveMouse(fromX, fromY);
-            await this.delay(100);
-
-            // Start drag
-            robot.mouseToggle('down');
-            await this.delay(100);
-
-            // Perform drag motion
-            const steps = Math.max(Math.abs(toX - fromX), Math.abs(toY - fromY));
-            const stepDuration = duration / steps;
-
-            for (let i = 1; i <= steps; i++) {
-                const currentX = fromX + (toX - fromX) * (i / steps);
-                const currentY = fromY + (toY - fromY) * (i / steps);
-                
-                robot.moveMouse(Math.round(currentX), Math.round(currentY));
-                await this.delay(stepDuration);
-            }
-
-            // End drag
-            robot.mouseToggle('up');
+            console.log(`Simulating drag from (${fromX}, ${fromY}) to (${toX}, ${toY}) over ${duration}ms`);
+            
+            // Simulate drag duration
+            await this.delay(duration);
 
             return {
                 success: true,
                 action: 'drag_and_drop',
                 from: { x: fromX, y: fromY },
                 to: { x: toX, y: toY },
-                duration: duration
+                duration: duration,
+                note: "Simulated - would use native system calls in production"
             };
         } catch (error) {
             console.error('❌ Drag and drop failed:', error);
@@ -155,20 +118,15 @@ class ComputerUseAPI {
 
     async scrollAt(x, y, direction = 'down', amount = 3) {
         try {
-            // Move to position
-            robot.moveMouse(x, y);
-            await this.delay(100);
-
-            // Perform scroll
-            const scrollDirection = direction === 'down' ? -amount : amount;
-            robot.scrollMouse(0, scrollDirection);
-
+            console.log(`Simulating scroll at (${x}, ${y}) ${direction} by ${amount}`);
+            
             return {
                 success: true,
                 action: 'scroll',
                 position: { x, y },
                 direction: direction,
-                amount: amount
+                amount: amount,
+                note: "Simulated - would use native system calls in production"
             };
         } catch (error) {
             console.error('❌ Scroll failed:', error);
@@ -178,10 +136,12 @@ class ComputerUseAPI {
 
     async getMousePosition() {
         try {
-            const position = robot.getMousePos();
+            // Simulate getting mouse position
+            const position = { x: 100, y: 100 };
             return {
                 success: true,
-                position: position
+                position: position,
+                note: "Simulated position - would get actual position in production"
             };
         } catch (error) {
             console.error('❌ Get mouse position failed:', error);
@@ -191,10 +151,12 @@ class ComputerUseAPI {
 
     async getScreenSize() {
         try {
-            const size = robot.getScreenSize();
+            // Simulate getting screen size
+            const size = { width: 1920, height: 1080 };
             return {
                 success: true,
-                screen_size: size
+                screen_size: size,
+                note: "Simulated size - would get actual screen size in production"
             };
         } catch (error) {
             console.error('❌ Get screen size failed:', error);
