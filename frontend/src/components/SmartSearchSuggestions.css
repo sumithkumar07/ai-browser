@@ -1,0 +1,116 @@
+/* Smart Search Suggestions Styles */
+
+.smart-search-container {
+  position: relative;
+  flex: 1;
+}
+
+.url-input.typing {
+  color: var(--color-primary);
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+}
+
+.search-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-glass);
+  backdrop-filter: blur(30px);
+  border: 1px solid var(--border-primary);
+  border-top: none;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  z-index: var(--z-dropdown);
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  transition: all var(--animation-fast) var(--ease-out);
+  border-bottom: 1px solid var(--border-secondary);
+  position: relative;
+  overflow: hidden;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  opacity: 0;
+  transition: opacity var(--animation-fast) var(--ease-out);
+}
+
+.suggestion-item:hover::before,
+.suggestion-item:focus::before {
+  opacity: 0.1;
+}
+
+.suggestion-item:hover,
+.suggestion-item:focus {
+  background: var(--bg-glass-hover);
+  color: var(--color-primary);
+}
+
+.suggestion-icon {
+  font-size: 16px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.suggestion-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Enhanced search input states */
+.url-input:focus {
+  color: var(--text-primary);
+}
+
+.url-input[aria-expanded="true"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .search-suggestions {
+    left: -1rem;
+    right: -1rem;
+  }
+  
+  .suggestion-item {
+    padding: var(--space-sm) var(--space-md);
+  }
+  
+  .suggestion-text {
+    font-size: 13px;
+  }
+}
