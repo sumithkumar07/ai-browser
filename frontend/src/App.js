@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
+import './components/AdvancedFeatures.css';
+import AdvancedFeatures from './components/AdvancedFeatures';
+import SmartSearchBar from './components/SmartSearchBar';
+import PageSummaryPanel from './components/PageSummaryPanel';
+import VoiceCommandPanel from './components/VoiceCommandPanel';
 
 function App() {
   // Browser state
@@ -24,6 +29,12 @@ function App() {
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   
+  // Advanced Features State
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const [voiceVisible, setVoiceVisible] = useState(false);
+  const [workflowVisible, setWorkflowVisible] = useState(false);
+  const [systemStatusVisible, setSystemStatusVisible] = useState(false);
+  
   // Quick suggestions
   const [suggestions, setSuggestions] = useState([
     { title: 'Google', url: 'https://google.com', favicon: '🔍' },
@@ -36,6 +47,13 @@ function App() {
   const iframeRef = useRef(null);
   const messagesEndRef = useRef(null);
 
+  // Initialize advanced features
+  const advancedFeatures = AdvancedFeatures({ 
+    backendUrl, 
+    currentUrl, 
+    onNavigate: handleNavigate 
+  });
+
   // Scroll to bottom of chat
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,7 +64,7 @@ function App() {
   }, [chatMessages]);
 
   // Handle URL navigation
-  const handleNavigate = async (url) => {
+  async function handleNavigate(url) {
     if (!url) return;
     
     // Add protocol if missing
@@ -90,7 +108,7 @@ function App() {
     } catch (error) {
       console.error('Error storing browse history:', error);
     }
-  };
+  }
 
   const getDomainFromUrl = (url) => {
     try {
@@ -183,7 +201,8 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: aiInput,
-          context: { current_url: currentUrl }
+          session_id: 'web-session-' + Date.now(),
+          current_url: currentUrl
         })
       });
 
@@ -207,19 +226,60 @@ function App() {
     }
   };
 
-  // AI Quick Actions
+  // Enhanced AI Quick Actions with backend integration
   const aiQuickActions = [
-    { text: "Summarize this page", action: () => setAiInput("Summarize the content of this webpage") },
-    { text: "Find similar sites", action: () => setAiInput("Find websites similar to this one") },
-    { text: "Extract key points", action: () => setAiInput("Extract the key points from this page") },
-    { text: "Translate this page", action: () => setAiInput("Translate this page to English") }
+    { 
+      text: "📄 Summarize Page", 
+      action: () => setSummaryVisible(true)
+    },
+    { 
+      text: "🎤 Voice Commands", 
+      action: () => setVoiceVisible(true)
+    },
+    { 
+      text: "🔧 Workflows", 
+      action: () => setWorkflowVisible(true)
+    },
+    { 
+      text: "📊 System Status", 
+      action: () => setSystemStatusVisible(true)
+    }
   ];
 
   const handleQuickAction = (action) => {
     action();
-    setAiVisible(true);
-    setTimeout(() => handleAiMessage(), 100);
   };
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+Shift+P - Voice Commands
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setVoiceVisible(true);
+      }
+      // Ctrl+Shift+S - Summarize Page  
+      else if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        if (currentUrl) setSummaryVisible(true);
+      }
+      // Ctrl+Shift+A - AI Assistant
+      else if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        setAiVisible(!aiVisible);
+      }
+      // Escape - Close all panels
+      else if (e.key === 'Escape') {
+        setSummaryVisible(false);
+        setVoiceVisible(false);
+        setWorkflowVisible(false);
+        setSystemStatusVisible(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [aiVisible, currentUrl]);
 
   return (
     <div className="browser-app">
@@ -251,14 +311,14 @@ function App() {
         </div>
       </div>
 
-      {/* Navigation Bar */}
+      {/* Navigation Bar with Enhanced Features */}
       <div className="nav-bar">
         <div className="nav-controls">
           <button 
             className={`nav-btn ${!canGoBack ? 'disabled' : ''}`}
             onClick={handleGoBack}
             disabled={!canGoBack}
-            title="Go back"
+            title="Go back (Alt+←)"
           >
             ←
           </button>
@@ -266,14 +326,14 @@ function App() {
             className={`nav-btn ${!canGoForward ? 'disabled' : ''}`}
             onClick={handleGoForward}
             disabled={!canGoForward}
-            title="Go forward"
+            title="Go forward (Alt+→)"
           >
             →
           </button>
           <button 
             className="nav-btn"
             onClick={handleRefresh}
-            title="Refresh"
+            title="Refresh (Ctrl+R)"
           >
             {isLoading ? '⟳' : '↻'}
           </button>
@@ -287,14 +347,18 @@ function App() {
               <span className="insecure" title="Not secure">⚠️</span>
             )}
           </div>
-          <input
-            type="text"
-            className="url-input"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleNavigate(urlInput)}
-            placeholder="Search or type a URL"
+          
+          {/* Enhanced Smart Search Bar */}
+          <SmartSearchBar 
+            urlInput={urlInput}
+            setUrlInput={setUrlInput}
+            onNavigate={handleNavigate}
+            searchSuggestions={advancedFeatures.searchSuggestions}
+            showSuggestions={advancedFeatures.showSuggestions}
+            onGetSuggestions={advancedFeatures.getSearchSuggestions}
+            setShowSuggestions={advancedFeatures.setShowSuggestions}
           />
+          
           <button 
             className="nav-btn go-btn"
             onClick={() => handleNavigate(urlInput)}
@@ -305,13 +369,43 @@ function App() {
         </div>
 
         <div className="browser-actions">
+          {/* Voice Command Button */}
+          <button 
+            className={`nav-btn voice-btn ${advancedFeatures.voiceListening ? 'active listening' : ''}`}
+            onClick={() => setVoiceVisible(true)}
+            title="Voice Commands (Ctrl+Shift+P)"
+          >
+            🎤
+          </button>
+          
+          {/* Summary Button */}
+          <button 
+            className="nav-btn summary-btn"
+            onClick={() => setSummaryVisible(true)}
+            title="Summarize Page (Ctrl+Shift+S)"
+            disabled={!currentUrl}
+          >
+            📄
+          </button>
+          
+          {/* AI Assistant Button */}
           <button 
             className={`ai-toggle ${aiVisible ? 'active' : ''}`}
             onClick={() => setAiVisible(!aiVisible)}
-            title="AI Assistant"
+            title="AI Assistant (Ctrl+Shift+A)"
           >
             🤖
           </button>
+          
+          {/* System Status Button */}
+          <button 
+            className="nav-btn status-btn"
+            onClick={() => setSystemStatusVisible(true)}
+            title="System Status"
+          >
+            📊
+          </button>
+          
           <button className="menu-btn" title="Menu">⋮</button>
         </div>
       </div>
@@ -363,7 +457,7 @@ function App() {
                 </div>
 
                 <div className="ai-quick-actions">
-                  <h2>AI Actions</h2>
+                  <h2>Advanced Features</h2>
                   <div className="actions-grid">
                     {aiQuickActions.map((action, index) => (
                       <button 
@@ -403,7 +497,7 @@ function App() {
                   <div className="welcome-message">
                     <div className="welcome-icon">✨</div>
                     <h3>Hello! I'm your AI assistant</h3>
-                    <p>I can help you browse, research, summarize content, and much more. What would you like me to do?</p>
+                    <p>I can help you browse, research, summarize content, automate tasks, and much more. What would you like me to do?</p>
                   </div>
                 ) : (
                   chatMessages.map((message, index) => (
@@ -429,21 +523,27 @@ function App() {
                     <>
                       <button 
                         className="suggestion-chip"
-                        onClick={() => handleQuickAction(() => setAiInput("Summarize this page"))}
+                        onClick={() => setSummaryVisible(true)}
                       >
-                        Summarize
+                        📄 Summarize
                       </button>
                       <button 
                         className="suggestion-chip"
-                        onClick={() => handleQuickAction(() => setAiInput("Extract key information"))}
+                        onClick={() => {
+                          setAiInput("Extract key information from this page");
+                          handleAiMessage();
+                        }}
                       >
-                        Extract Info
+                        📝 Extract Info
                       </button>
                       <button 
                         className="suggestion-chip"
-                        onClick={() => handleQuickAction(() => setAiInput("Find similar websites"))}
+                        onClick={() => {
+                          setAiInput("Find websites similar to this one");
+                          handleAiMessage();
+                        }}
                       >
-                        Similar Sites
+                        🔍 Similar Sites
                       </button>
                     </>
                   )}
@@ -471,6 +571,55 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Advanced Feature Panels */}
+      <PageSummaryPanel 
+        currentUrl={currentUrl}
+        summary={advancedFeatures.summary}
+        summaryLoading={advancedFeatures.summaryLoading}
+        onGetSummary={advancedFeatures.getPageSummary}
+        visible={summaryVisible}
+        onClose={() => setSummaryVisible(false)}
+      />
+      
+      <VoiceCommandPanel 
+        visible={voiceVisible}
+        onClose={() => setVoiceVisible(false)}
+        voiceListening={advancedFeatures.voiceListening}
+        setVoiceListening={advancedFeatures.setVoiceListening}
+        onProcessVoiceCommand={advancedFeatures.processVoiceCommand}
+        availableShortcuts={advancedFeatures.availableShortcuts}
+      />
+
+      {/* System Status Panel */}
+      {systemStatusVisible && advancedFeatures.systemStatus && (
+        <div className="status-panel-overlay" onClick={() => setSystemStatusVisible(false)}>
+          <div className="status-panel" onClick={e => e.stopPropagation()}>
+            <div className="status-header">
+              <h3>📊 System Status</h3>
+              <button onClick={() => setSystemStatusVisible(false)}>×</button>
+            </div>
+            <div className="status-content">
+              <div className="status-item">
+                <span>Status:</span>
+                <span className="status-value">{advancedFeatures.systemStatus.status}</span>
+              </div>
+              <div className="status-item">
+                <span>Version:</span>
+                <span className="status-value">{advancedFeatures.systemStatus.version}</span>
+              </div>
+              <div className="status-item">
+                <span>Recent Tabs:</span>
+                <span className="status-value">{advancedFeatures.systemStatus.stats?.recent_tabs || 0}</span>
+              </div>
+              <div className="status-item">
+                <span>Chat Sessions:</span>
+                <span className="status-value">{advancedFeatures.systemStatus.stats?.chat_sessions || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
