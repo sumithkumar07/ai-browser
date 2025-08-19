@@ -226,19 +226,56 @@ if 'performance_monitor' not in locals():
 if 'ai_intelligence_engine' not in locals():
     ai_intelligence_engine = OptimizedAIEngine()
 
-# Mock cache functions
+# Enhanced cache functions with performance optimizations
 async def get_cached(key, namespace=None):
-    return None  # Always cache miss for simplicity
+    cache_key = f"{namespace}:{key}" if namespace else key
+    
+    try:
+        # Try memory cache first (fastest)
+        if hasattr(cache_system, 'cache') and cache_key in cache_system.cache:
+            cache_system.stats['hits'] += 1
+            return cache_system.cache[cache_key]
+    except:
+        pass
+    
+    cache_system.stats['misses'] += 1
+    return None
 
 async def set_cached(key, value, ttl=None, namespace=None, priority=None):
-    pass  # Mock cache set
+    cache_key = f"{namespace}:{key}" if namespace else key
+    
+    try:
+        # Store in memory cache with TTL tracking
+        if hasattr(cache_system, 'cache'):
+            cache_system.cache[cache_key] = value
+            if hasattr(cache_system, 'access_times'):
+                cache_system.access_times[cache_key] = {
+                    'created': time.time(),
+                    'ttl': ttl or 1800
+                }
+    except Exception as e:
+        logger.warning(f"Cache storage failed: {e}")
 
-# Mock monitoring functions
+# Enhanced monitoring functions
 def record_api_call(endpoint, method, response_time, status_code):
-    logger.info(f"API Call: {method} {endpoint} - {status_code} ({response_time:.3f}s)")
+    try:
+        performance_monitor.record_api_call(endpoint, method, response_time, status_code)
+        
+        # Log performance warnings for optimization
+        if response_time > 2.0:
+            logger.warning(f"⚠️ Slow API: {method} {endpoint} - {response_time:.2f}s")
+        elif response_time > 1.0:
+            logger.info(f"📊 API Performance: {method} {endpoint} - {response_time:.2f}s")
+    except:
+        pass
 
 def record_user_action(session_id, action, response_time, success, metadata=None):
-    logger.info(f"User Action: {action} - Session: {session_id} - Success: {success}")
+    try:
+        if hasattr(performance_monitor, 'record_user_action'):
+            performance_monitor.record_user_action(session_id, action, response_time, success, metadata)
+        logger.info(f"👤 User Action: {action} - {session_id} - {'✅' if success else '❌'}")
+    except:
+        pass
 
 app = FastAPI(title="AETHER Enhanced Browser API", version="4.0.0")
 
