@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 
 # Backend URL from review request
-BASE_URL = "https://feature-verify-4.preview.emergentagent.com"
+BASE_URL = "https://quality-assurance-4.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 class CoreAPITester:

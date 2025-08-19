@@ -14,7 +14,7 @@ import concurrent.futures
 import threading
 
 # Backend URL from environment
-BACKEND_URL = "https://feature-verify-4.preview.emergentagent.com"
+BACKEND_URL = "https://quality-assurance-4.preview.emergentagent.com"
 
 class ComprehensiveBackendTester:
     def __init__(self):
