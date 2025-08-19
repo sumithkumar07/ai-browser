@@ -52,11 +52,28 @@ db = client.aether_browser
 # AI clients initialization
 groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# Pydantic models
+# Enhanced Pydantic models
 class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
     current_url: Optional[str] = None
+
+class EnhancedChatMessage(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+    current_url: Optional[str] = None
+    enable_automation: Optional[bool] = True
+    background_execution: Optional[bool] = True
+
+class AutomationCommand(BaseModel):
+    command: str
+    user_session: str
+    priority: Optional[str] = "normal"
+    background: Optional[bool] = True
+
+class TaskStatusRequest(BaseModel):
+    task_id: str
+    user_session: str
 
 class BrowsingSession(BaseModel):
     url: str
