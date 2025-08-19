@@ -227,14 +227,12 @@ class OptimizedAIEngine:
         }
 
 # Initialize optimized components
-if 'browser_engine' not in locals():
-    browser_engine = OptimizedBrowserEngine()
-if 'cache_system' not in locals():
-    cache_system = OptimizedCacheSystem()
-if 'performance_monitor' not in locals():
-    performance_monitor = OptimizedPerformanceMonitor()  
-if 'ai_intelligence_engine' not in locals():
-    ai_intelligence_engine = OptimizedAIEngine()
+browser_engine = OptimizedBrowserEngine()
+cache_system = OptimizedCacheSystem()
+performance_monitor = OptimizedPerformanceMonitor()  
+ai_intelligence_engine = OptimizedAIEngine()
+
+logger.info("✅ Optimized fallback components initialized")
 
 # Enhanced cache functions with performance optimizations
 async def get_cached(key, namespace=None):
