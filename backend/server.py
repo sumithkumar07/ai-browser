@@ -989,7 +989,7 @@ async def execute_quick_automation(request: Dict[str, Any]):
         command = request.get("command", "")
         user_session = request.get("user_session", str(uuid.uuid4()))
         
-        if not ENHANCED_MODE:
+        if not ENHANCED_MODE or not task_executor:
             # Fallback to basic processing
             return {
                 "success": True,
