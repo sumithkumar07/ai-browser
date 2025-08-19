@@ -697,205 +697,220 @@ function App() {
                 onNavigate={handleNavigate}
                 searchSuggestions={advancedFeatures.searchSuggestions}
                 showSuggestions={advancedFeatures.showSuggestions}
-            onGetSuggestions={advancedFeatures.getSearchSuggestions}
-            setShowSuggestions={advancedFeatures.setShowSuggestions}
-          />
-          
-          <button 
-            className="nav-btn go-btn"
-            onClick={() => handleNavigate(urlInput)}
-            title="Go"
-            aria-label="Navigate to URL"
-          >
-            →
-          </button>
-        </div>
+                onNavigate={handleNavigate}
+                searchSuggestions={advancedFeatures.searchSuggestions}
+                showSuggestions={advancedFeatures.showSuggestions}
+                onGetSuggestions={advancedFeatures.getSearchSuggestions}
+                setShowSuggestions={advancedFeatures.setShowSuggestions}
+              />
+              
+              <button 
+                className="nav-btn go-btn"
+                onClick={() => handleNavigate(urlInput)}
+                title="Go"
+                aria-label="Navigate to URL"
+              >
+                →
+              </button>
+            </div>
 
-        <div className="browser-actions">
-          {/* Split View Manager - Critical Gap #3 */}
-          <SplitViewManager 
-            backendUrl={backendUrl}
-            userSession={sessionId}
-            onNavigate={handleNavigate}
-          />
-          
-          {/* Platform Integrations Manager - Critical Gap #4 */}
-          <PlatformIntegrationsManager 
-            backendUrl={backendUrl}
-            userSession={sessionId}
-          />
-          
-          {/* Visual Workflow Builder - Critical Gap #2 */}
-          <VisualWorkflowBuilder 
-            backendUrl={backendUrl}
-            userSession={sessionId}
-          />
-          
-          {/* Voice Command Button - Enhanced with accessibility */}
-          <button 
-            className={`nav-btn voice-btn ${advancedFeatures.voiceListening ? 'active listening' : ''}`}
-            onClick={() => setVoiceVisible(true)}
-            title="Voice Commands (Ctrl+Shift+P)"
-            aria-label="Open voice commands"
-            aria-pressed={voiceVisible}
-          >
-            🎤
-          </button>
-          
-          {/* AI Assistant Button - Enhanced with accessibility */}
-          <button 
-            className={`ai-toggle ${aiVisible ? 'active' : ''}`}
-            onClick={() => setAiVisible(!aiVisible)}
-            title="AI Assistant - All Features (Ctrl+Shift+A)"
-            aria-label="Toggle AI Assistant"
-            aria-pressed={aiVisible}
-          >
-            🤖
-          </button>
-          
-          <button 
-            className="menu-btn" 
-            title="Menu"
-            aria-label="Open menu"
-            onClick={showTour}
-          >
-            ⋮
-          </button>
-        </div>
-      </div>
+            <div className="browser-actions">
+              {/* Enhanced action buttons with switch to Fellou mode */}
+              <button 
+                className="action-btn fellou-toggle"
+                onClick={() => setInterfaceMode('fellou')}
+                title="Switch to Fellou.ai Style Interface"
+                aria-label="Switch to simplified interface"
+              >
+                ⚡
+              </button>
+              
+              {/* Split View Manager - Critical Gap #3 */}
+              <SplitViewManager 
+                backendUrl={backendUrl}
+                userSession={sessionId}
+                onNavigate={handleNavigate}
+              />
+              
+              {/* Platform Integrations Manager - Critical Gap #4 */}
+              <PlatformIntegrationsManager 
+                backendUrl={backendUrl}
+                userSession={sessionId}
+              />
+              
+              {/* Visual Workflow Builder - Critical Gap #2 */}
+              <VisualWorkflowBuilder 
+                backendUrl={backendUrl}
+                userSession={sessionId}
+              />
+              
+              {/* Voice Command Button - Enhanced with accessibility */}
+              <button 
+                className={`nav-btn voice-btn ${advancedFeatures.voiceListening ? 'active listening' : ''}`}
+                onClick={() => setVoiceVisible(true)}
+                title="Voice Commands (Ctrl+Shift+P)"
+                aria-label="Open voice commands"
+                aria-pressed={voiceVisible}
+              >
+                🎤
+              </button>
+              
+              {/* AI Assistant Button - Enhanced with accessibility */}
+              <button 
+                className={`ai-toggle ${aiVisible ? 'active' : ''}`}
+                onClick={() => setAiVisible(!aiVisible)}
+                title="AI Assistant - All Features (Ctrl+Shift+A)"
+                aria-label="Toggle AI Assistant"
+                aria-pressed={aiVisible}
+              >
+                🤖
+              </button>
+              
+              <button 
+                className="menu-btn" 
+                title="Menu"
+                aria-label="Open menu"
+                onClick={showTour}
+              >
+                ⋮
+              </button>
+            </div>
+          </div>
 
-      {/* Main Browser Content */}
-      <div className="browser-content">
-        {/* Web View */}
-        <div className={`web-view ${aiVisible ? 'with-ai' : ''}`}>
-          {currentUrl ? (
-            <div className="iframe-container">
-              {isLoading && (
-                <div className="loading-overlay" role="progressbar" aria-label="Loading page">
-                  <div className="loading-spinner"></div>
-                  <div className="loading-text">Loading {getDomainFromUrl(currentUrl)}...</div>
+          {/* Main Browser Content */}
+          <div className="browser-content">
+            {/* Web View */}
+            <div className={`web-view ${aiVisible ? 'with-ai' : ''}`}>
+              {currentUrl ? (
+                <div className="iframe-container">
+                  {isLoading && (
+                    <div className="loading-overlay" role="progressbar" aria-label="Loading page">
+                      <div className="loading-spinner"></div>
+                      <div className="loading-text">Loading {getDomainFromUrl(currentUrl)}...</div>
+                    </div>
+                  )}
+                  <iframe
+                    ref={iframeRef}
+                    src={currentUrl}
+                    className="web-iframe"
+                    title="Web Content"
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-navigation allow-popups allow-popups-to-escape-sandbox"
+                    onLoad={() => setIsLoading(false)}
+                    aria-label={`Web content for ${getDomainFromUrl(currentUrl)}`}
+                  />
+                </div>
+              ) : (
+                <div className="start-page">
+                  <div className="start-content">
+                    <div className="aether-logo">
+                      <div className="logo-icon" role="img" aria-label="AETHER logo">⚡</div>
+                      <h1>AETHER v6.0</h1>
+                      <p>AI-First Browser with Native Chromium</p>
+                    </div>
+                    
+                    <div className="quick-access">
+                      <h2>Quick Access</h2>
+                      <div className="suggestions-grid" role="grid" aria-label="Quick access websites">
+                        {suggestions.map((site, index) => (
+                          <div 
+                            key={index}
+                            className="suggestion-card"
+                            onClick={() => handleNavigate(site.url)}
+                            role="gridcell"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleNavigate(site.url);
+                              }
+                            }}
+                            aria-label={`Navigate to ${site.title}`}
+                          >
+                            <div className="suggestion-favicon" role="img" aria-label={`${site.title} icon`}>
+                              {site.favicon}
+                            </div>
+                            <div className="suggestion-title">{site.title}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="ai-quick-actions">
+                      <h2>AI-Powered Features</h2>
+                      <div className="actions-grid" role="grid" aria-label="AI-powered features">
+                        {aiQuickActions.map((action, index) => (
+                          <button 
+                            key={index}
+                            className="action-btn"
+                            onClick={() => handleQuickAction(action.action)}
+                            role="gridcell"
+                            aria-label={action.text.replace(/[^\w\s]/gi, '')}
+                          >
+                            {action.text}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Capabilities Showcase */}
+                    <EnhancedCapabilities 
+                      backendUrl={backendUrl}
+                      currentUrl={currentUrl}
+                      sessionId={sessionId}
+                    />
+
+                    {/* Show automation suggestions if available */}
+                    {automationSuggestions.length > 0 && (
+                      <div className="automation-suggestions">
+                        <h2>Smart Automation</h2>
+                        <div className="suggestions-list" role="list" aria-label="Automation suggestions">
+                          {automationSuggestions.slice(0, 3).map((suggestion, index) => (
+                            <div key={index} className="suggestion-item" role="listitem">
+                              <span className="suggestion-icon" role="img" aria-label="Automation">🔧</span>
+                              <span className="suggestion-text">{suggestion}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-              <iframe
-                ref={iframeRef}
-                src={currentUrl}
-                className="web-iframe"
-                title="Web Content"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-navigation allow-popups allow-popups-to-escape-sandbox"
-                onLoad={() => setIsLoading(false)}
-                aria-label={`Web content for ${getDomainFromUrl(currentUrl)}`}
-              />
             </div>
-          ) : (
-            <div className="start-page">
-              <div className="start-content">
-                <div className="aether-logo">
-                  <div className="logo-icon" role="img" aria-label="AETHER logo">⚡</div>
-                  <h1>AETHER</h1>
-                  <p>AI-First Browser</p>
-                </div>
-                
-                <div className="quick-access">
-                  <h2>Quick Access</h2>
-                  <div className="suggestions-grid" role="grid" aria-label="Quick access websites">
-                    {suggestions.map((site, index) => (
-                      <div 
-                        key={index}
-                        className="suggestion-card"
-                        onClick={() => handleNavigate(site.url)}
-                        role="gridcell"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleNavigate(site.url);
-                          }
-                        }}
-                        aria-label={`Navigate to ${site.title}`}
-                      >
-                        <div className="suggestion-favicon" role="img" aria-label={`${site.title} icon`}>
-                          {site.favicon}
-                        </div>
-                        <div className="suggestion-title">{site.title}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
-                <div className="ai-quick-actions">
-                  <h2>AI-Powered Features</h2>
-                  <div className="actions-grid" role="grid" aria-label="AI-powered features">
-                    {aiQuickActions.map((action, index) => (
-                      <button 
-                        key={index}
-                        className="action-btn"
-                        onClick={() => handleQuickAction(action.action)}
-                        role="gridcell"
-                        aria-label={action.text.replace(/[^\w\s]/gi, '')}
-                      >
-                        {action.text}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            {/* Enhanced AI Assistant Panel */}
+            <EnhancedAIPanel
+              isVisible={aiVisible}
+              onClose={() => setAiVisible(false)}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              aiInput={aiInput}
+              setAiInput={setAiInput}
+              aiLoading={aiLoading}
+              onSendMessage={handleAiMessage}
+              currentUrl={currentUrl}
+              sessionId={sessionId}
+              backgroundTasks={backgroundTasks}
+            />
+          </div>
 
-                {/* Enhanced Capabilities Showcase */}
-                <EnhancedCapabilities 
-                  backendUrl={backendUrl}
-                  currentUrl={currentUrl}
-                  sessionId={sessionId}
-                />
+          {/* Voice Command Panel - Enhanced interface */}
+          <VoiceCommandPanel 
+            visible={voiceVisible}
+            onClose={() => setVoiceVisible(false)}
+            voiceListening={advancedFeatures.voiceListening}
+            setVoiceListening={advancedFeatures.setVoiceListening}
+            onProcessVoiceCommand={advancedFeatures.processVoiceCommand}
+            availableShortcuts={advancedFeatures.availableShortcuts}
+          />
 
-                {/* Show automation suggestions if available */}
-                {automationSuggestions.length > 0 && (
-                  <div className="automation-suggestions">
-                    <h2>Smart Automation</h2>
-                    <div className="suggestions-list" role="list" aria-label="Automation suggestions">
-                      {automationSuggestions.slice(0, 3).map((suggestion, index) => (
-                        <div key={index} className="suggestion-item" role="listitem">
-                          <span className="suggestion-icon" role="img" aria-label="Automation">🔧</span>
-                          <span className="suggestion-text">{suggestion}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Enhanced AI Assistant Panel */}
-        <EnhancedAIPanel
-          isVisible={aiVisible}
-          onClose={() => setAiVisible(false)}
-          chatMessages={chatMessages}
-          setChatMessages={setChatMessages}
-          aiInput={aiInput}
-          setAiInput={setAiInput}
-          aiLoading={aiLoading}
-          onSendMessage={handleAiMessage}
-          currentUrl={currentUrl}
-          sessionId={sessionId}
-          backgroundTasks={backgroundTasks}
-        />
-      </div>
-
-      {/* Voice Command Panel - Enhanced interface */}
-      <VoiceCommandPanel 
-        visible={voiceVisible}
-        onClose={() => setVoiceVisible(false)}
-        voiceListening={advancedFeatures.voiceListening}
-        setVoiceListening={advancedFeatures.setVoiceListening}
-        onProcessVoiceCommand={advancedFeatures.processVoiceCommand}
-        availableShortcuts={advancedFeatures.availableShortcuts}
-      />
-
-      {/* Shadow Workspace Manager - Critical Gap #1 - Background task execution */}
-      <ShadowWorkspaceManager 
-        backendUrl={backendUrl}
-        userSession={sessionId}
-      />
+          {/* Shadow Workspace Manager - Critical Gap #1 - Background task execution */}
+          <ShadowWorkspaceManager 
+            backendUrl={backendUrl}
+            userSession={sessionId}
+          />
+        </>
+      )}
     </div>
   );
 }
