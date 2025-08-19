@@ -28,15 +28,16 @@ try:
     from performance_monitor import RealTimePerformanceMonitor, record_api_call, record_user_action
     from ai_intelligence_engine import AIIntelligenceEngine
     
-    # Initialize enhanced components
+    # Try to initialize enhanced components
     browser_engine = AdvancedBrowserEngine()
     cache_system = AdvancedCacheSystem()
     performance_monitor = RealTimePerformanceMonitor()
     ai_intelligence_engine = AIIntelligenceEngine()
     logger.info("✅ Enhanced components loaded successfully")
+    enhanced_available = True
 except ImportError as e:
     logger.warning(f"⚠️ Enhanced components not available, using fallback: {e}")
-    # Fallback implementations will be used
+    enhanced_available = False
 
 load_dotenv()
 
