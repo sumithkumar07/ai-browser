@@ -21,7 +21,7 @@ from split_view_engine import (
     initialize_split_view_engine, get_split_view_engine,
     SplitViewEngine
 )
-from platform_integrations import (
+from platform_integration_engine import (
     initialize_platform_integration_engine, get_platform_integration_engine,
     PlatformIntegrationEngine
 )
