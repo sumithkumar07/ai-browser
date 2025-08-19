@@ -1390,5 +1390,7 @@ async def get_contextual_help():
         
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
