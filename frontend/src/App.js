@@ -34,8 +34,7 @@ function App() {
   const [workflowBuilder, setWorkflowBuilder] = useState({ visible: false, workflows: [] });
   const [automationSuggestions, setAutomationSuggestions] = useState([]);
   
-  // Quick suggestions
-  const [suggestions, setSuggestions] = useState([
+  const [suggestions] = useState([
     { title: 'Google', url: 'https://google.com', favicon: '🔍' },
     { title: 'GitHub', url: 'https://github.com', favicon: '🐙' },
     { title: 'Stack Overflow', url: 'https://stackoverflow.com', favicon: '📚' },
