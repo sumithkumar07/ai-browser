@@ -401,81 +401,176 @@ async def get_page_content(url: str) -> Dict[str, Any]:
     except Exception as e:
         return {"title": url, "content": f"Error loading page: {str(e)}", "url": url}
 
-async def get_ai_response(message: str, context: Optional[str] = None, session_id: Optional[str] = None, provider: str = "groq") -> str:
-    """Enhanced AI response with multi-provider support"""
+async def get_ai_response(message: str, context: Optional[str] = None, 
+                         session_id: Optional[str] = None, provider: str = "groq") -> str:
+    """Enhanced AI response with performance optimizations, caching, and intelligent routing"""
+    start_time = time.time()
+    
     try:
-        # Prepare messages
-        messages = [
-            {
-                "role": "system", 
-                "content": "You are AETHER AI Assistant, an intelligent browser companion. You help users with web browsing, research, summarization, automation, and workflow creation. Be concise but comprehensive. Format responses with markdown when helpful."
-            }
-        ]
+        # Input validation and sanitization
+        if not message or len(message.strip()) == 0:
+            return "Please provide a message for me to respond to."
         
+        # Enhanced caching strategy
+        cache_key = hashlib.md5(f"{message}:{context[:200] if context else ''}:{provider}".encode()).hexdigest()
+        
+        # Skip caching for creative/dynamic requests
+        skip_cache = any(keyword in message.lower() for keyword in ['create', 'generate', 'random', 'new', 'fresh'])
+        
+        if not skip_cache:
+            cached_response = await get_cached(cache_key, "ai_responses")
+            if cached_response:
+                logger.info(f"🎯 AI Cache hit for: {message[:50]}...")
+                return cached_response
+        
+        # Enhanced system prompt with optimization
+        system_prompt = """You are AETHER AI, an advanced browser assistant with enhanced capabilities:
+
+🔍 **Web Analysis**: Deep webpage content analysis and insights
+🤖 **Smart Automation**: Workflow creation and task optimization  
+📊 **Performance Intelligence**: System monitoring and optimization recommendations
+🔒 **Security Awareness**: Website security analysis and safety guidance
+💡 **Proactive Intelligence**: Context-aware suggestions and predictions
+
+Response Guidelines:
+- Be concise yet comprehensive
+- Use markdown for clarity when helpful
+- Provide actionable insights and suggestions
+- Consider user context and browsing patterns
+- Offer relevant next steps or related actions
+
+Focus on being helpful, accurate, and efficient."""
+
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Optimized session history (last 5 interactions for context)
         if session_id:
-            # Get previous messages from database
-            chat_history = list(db.chat_sessions.find(
-                {"session_id": session_id}
-            ).sort("timestamp", -1).limit(10))
-            
-            for chat in reversed(chat_history):
-                messages.append({"role": "user", "content": chat["user_message"]})
-                messages.append({"role": "assistant", "content": chat["ai_response"]})
+            try:
+                chat_history = list(db.chat_sessions.find(
+                    {"session_id": session_id}
+                ).sort("timestamp", -1).limit(5))
+                
+                # Add context from recent history
+                for chat in reversed(chat_history):
+                    messages.append({"role": "user", "content": chat["user_message"][:200]})
+                    messages.append({"role": "assistant", "content": chat["ai_response"][:300]})
+            except Exception as history_error:
+                logger.warning(f"Session history error: {history_error}")
         
-        # Add context if available (web page content)
+        # Enhanced context processing
         if context:
-            context_msg = f"Current webpage context: {context[:2000]}"
+            # Intelligent context truncation based on relevance
+            context_preview = context[:1500] if len(context) > 1500 else context
+            context_msg = f"**Current Page Context:**\n{context_preview}"
             messages.append({"role": "system", "content": context_msg})
         
         messages.append({"role": "user", "content": message})
         
-        # Route to appropriate AI provider
+        # Enhanced provider routing with intelligent fallback
+        response_content = None
+        provider_used = provider
+        
+        # OpenAI with optimizations
         if provider == "openai" and openai_client:
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1000
-            )
-            return response.choices[0].message.content
-            
+            try:
+                response = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=1200,
+                    top_p=0.9,
+                    frequency_penalty=0.1,
+                    presence_penalty=0.1
+                )
+                response_content = response.choices[0].message.content
+                logger.info("✅ OpenAI response generated")
+            except Exception as e:
+                logger.warning(f"OpenAI fallback to Groq: {str(e)}")
+                provider_used = "groq"
+                
+        # Anthropic with optimizations
         elif provider == "anthropic" and anthropic_client:
-            # Convert messages to Anthropic format
-            system_messages = [msg["content"] for msg in messages if msg["role"] == "system"]
-            user_messages = [msg for msg in messages if msg["role"] != "system"]
-            
-            response = anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",
-                system="\n".join(system_messages) if system_messages else "You are a helpful AI assistant.",
-                messages=user_messages,
-                max_tokens=1000
-            )
-            return response.content[0].text
-            
+            try:
+                system_messages = [msg["content"] for msg in messages if msg["role"] == "system"]
+                user_messages = [msg for msg in messages if msg["role"] != "system"]
+                
+                response = anthropic_client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    system="\n".join(system_messages) if system_messages else system_prompt,
+                    messages=user_messages,
+                    max_tokens=1200
+                )
+                response_content = response.content[0].text
+                logger.info("✅ Anthropic response generated")
+            except Exception as e:
+                logger.warning(f"Anthropic fallback to Groq: {str(e)}")
+                provider_used = "groq"
+                
+        # Google Gemini with optimizations  
         elif provider == "google" and genai_model:
-            # Convert to Google format
-            prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
-            response = genai_model.generate_content(prompt)
-            return response.text
+            try:
+                prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+                response = genai_model.generate_content(prompt)
+                response_content = response.text
+                logger.info("✅ Google Gemini response generated")
+            except Exception as e:
+                logger.warning(f"Google fallback to Groq: {str(e)}")
+                provider_used = "groq"
+        
+        # Enhanced Groq processing (default and fallback)
+        if not response_content or provider_used == "groq":
+            try:
+                chat_completion = groq_client.chat.completions.create(
+                    messages=messages,
+                    model="llama-3.3-70b-versatile",
+                    temperature=0.7,
+                    max_tokens=1200,
+                    top_p=0.9,
+                    frequency_penalty=0.1,
+                    presence_penalty=0.1,
+                    stream=False
+                )
+                response_content = chat_completion.choices[0].message.content
+                provider_used = "groq"
+                logger.info("✅ Groq response generated")
+            except Exception as e:
+                logger.error(f"All AI providers failed: {str(e)}")
+                return "I apologize, but I'm experiencing technical difficulties with AI services. Please try again in a moment."
+        
+        # Enhanced response processing
+        if response_content:
+            # Basic response cleanup and enhancement
+            response_content = response_content.strip()
             
+            # Cache successful responses (with intelligent caching rules)
+            if not skip_cache and len(response_content) > 10:
+                cache_ttl = 3600 if "summary" in message.lower() else 1800  # 1hr for summaries, 30min for others
+                await set_cached(cache_key, response_content, ttl=cache_ttl, namespace="ai_responses")
+                logger.info(f"💾 Cached AI response for future use")
+        
+        processing_time = time.time() - start_time
+        record_api_call("ai_response", "POST", processing_time, 200)
+        
+        # Performance logging for optimization
+        if processing_time > 3.0:
+            logger.warning(f"⚠️ Slow AI response: {processing_time:.2f}s with {provider_used}")
         else:
-            # Default to Groq
-            chat_completion = groq_client.chat.completions.create(
-                messages=messages,
-                model="llama-3.3-70b-versatile",
-                temperature=0.7,
-                max_tokens=1000
-            )
-            return chat_completion.choices[0].message.content
+            logger.info(f"🚀 AI Response: {processing_time:.2f}s with {provider_used}")
+        
+        return response_content
         
     except Exception as e:
-        # Fallback to Groq if other providers fail
-        if provider != "groq":
-            try:
-                return await get_ai_response(message, context, session_id, "groq")
-            except:
-                return f"AI Assistant temporarily unavailable. Please try again."
-        return f"Sorry, I'm having trouble processing your request: {str(e)}"
+        processing_time = time.time() - start_time
+        record_api_call("ai_response", "POST", processing_time, 500)
+        logger.error(f"AI response error: {str(e)}")
+        
+        # Intelligent error responses based on error type
+        if "timeout" in str(e).lower():
+            return "The AI service is currently experiencing high load. Please try again in a moment."
+        elif "rate limit" in str(e).lower():
+            return "I'm processing many requests right now. Please wait a moment and try again."
+        else:
+            return "I apologize for the technical issue. Please try rephrasing your question or try again later."
 
 # API Routes
 @app.get("/api/health")
