@@ -93,10 +93,27 @@ class WorkflowRequest(BaseModel):
     description: str
     steps: List[Dict[str, Any]]
 
-class IntegrationRequest(BaseModel):
+class AutomationRequest(BaseModel):
+    task_name: str
+    url: str
+    action_type: str
+    parameters: Optional[Dict[str, Any]] = {}
+
+class TabGroup(BaseModel):
     name: str
-    api_key: str
-    type: str
+    tab_ids: List[str]
+    color: Optional[str] = "blue"
+
+class Workspace(BaseModel):
+    name: str
+    tab_groups: List[TabGroup]
+    description: Optional[str] = ""
+
+class AIProviderRequest(BaseModel):
+    provider: str  # "groq", "openai", "anthropic", "google"
+    message: str
+    model: Optional[str] = None
+    temperature: Optional[float] = 0.7
 
 # Helper functions
 async def get_page_content(url: str) -> Dict[str, Any]:
