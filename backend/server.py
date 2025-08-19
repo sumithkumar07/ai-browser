@@ -236,34 +236,85 @@ async def health_check():
 
 @app.post("/api/browse")
 async def browse_page(session: BrowsingSession):
-    """Fetch web page content and store browsing history"""
+    """Enhanced web page browsing with comprehensive analysis and caching"""
+    start_time = time.time()
+    
     try:
-        page_data = await get_page_content(session.url)
+        # Check cache first for performance
+        cache_key = f"browse:{session.url}"
+        cached_result = await get_cached(cache_key, "browsing")
         
-        # Store in recent tabs
+        if cached_result:
+            response_time = time.time() - start_time
+            record_api_call("/api/browse", "POST", response_time, 200)
+            return cached_result
+        
+        # Use enhanced browser engine for comprehensive analysis
+        navigation_result = await browser_engine.enhanced_navigate(session.url, {
+            "security_scan": True,
+            "performance_analysis": True,
+            "content_analysis": True
+        })
+        
+        if not navigation_result.get("success"):
+            raise HTTPException(status_code=400, detail=navigation_result.get("error", "Navigation failed"))
+        
+        # Store in recent tabs with enhanced data
         tab_data = {
             "id": str(uuid.uuid4()),
             "url": session.url,
-            "title": page_data["title"],
+            "final_url": navigation_result.get("final_url", session.url),
+            "title": navigation_result.get("title", session.url),
+            "meta_description": navigation_result.get("meta", {}).get("description", ""),
+            "content_preview": navigation_result.get("content", "")[:500],
+            "security_info": navigation_result.get("security", {}),
+            "performance_info": navigation_result.get("performance", {}),
+            "content_analysis": navigation_result.get("content_analysis", {}),
             "timestamp": datetime.utcnow(),
-            "content_preview": page_data["content"][:200]
+            "load_time": navigation_result.get("load_time", 0),
+            "enhanced_features": navigation_result.get("enhanced_features", [])
         }
         
         db.recent_tabs.insert_one(tab_data)
         
-        # Keep only last 10 tabs
+        # Keep only last 20 tabs for performance
         all_tabs = list(db.recent_tabs.find().sort("timestamp", -1))
-        if len(all_tabs) > 10:
-            for tab in all_tabs[10:]:
+        if len(all_tabs) > 20:
+            for tab in all_tabs[20:]:
                 db.recent_tabs.delete_one({"_id": tab["_id"]})
         
-        return {
+        # Prepare response
+        enhanced_result = {
             "success": True,
-            "page_data": page_data,
-            "tab_id": tab_data["id"]
+            "url": session.url,
+            "final_url": navigation_result.get("final_url"),
+            "page_data": {
+                "title": navigation_result.get("title"),
+                "content": navigation_result.get("content"),
+                "meta": navigation_result.get("meta", {}),
+                "links": navigation_result.get("links", [])[:10],  # Limit for performance
+                "images": navigation_result.get("images", [])[:5],
+                "security": navigation_result.get("security", {}),
+                "performance": navigation_result.get("performance", {}),
+                "content_analysis": navigation_result.get("content_analysis", {})
+            },
+            "tab_id": tab_data["id"],
+            "enhanced_features": navigation_result.get("enhanced_features", []),
+            "load_time": navigation_result.get("load_time")
         }
         
+        # Cache the result for 30 minutes
+        await set_cached(cache_key, enhanced_result, ttl=1800, namespace="browsing", priority="high")
+        
+        response_time = time.time() - start_time
+        record_api_call("/api/browse", "POST", response_time, 200)
+        
+        return enhanced_result
+        
     except Exception as e:
+        response_time = time.time() - start_time
+        record_api_call("/api/browse", "POST", response_time, 500)
+        logger.error(f"Enhanced browse error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/chat")
