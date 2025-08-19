@@ -58,6 +58,21 @@ workflow_engine = CrossPageWorkflowEngine()
 predictive_engine = PredictiveAutomationEngine()
 collaborative_system = CollaborativeAgentSystem()
 
+# Initialize new advanced frameworks
+agent_coordinator = AgentCoordinator()
+collaboration_engine = CollaborationEngine()
+
+# Platform connectors registry
+platform_connectors = {}
+
+# Global system state
+system_status = {
+    "initialized": False,
+    "components": {},
+    "performance_metrics": {},
+    "active_sessions": 0
+}
+
 # Platform connectors (initialized when API keys are provided)
 platform_connectors = {}
 
