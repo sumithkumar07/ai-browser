@@ -78,8 +78,8 @@ const AdvancedFeatures = ({ backendUrl, currentUrl, onNavigate }) => {
     }
   };
 
-  // Get system status
-  const getSystemStatus = async () => {
+  // Get system status with useCallback
+  const getSystemStatus = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/enhanced/system/overview`);
       if (response.ok) {
@@ -89,7 +89,7 @@ const AdvancedFeatures = ({ backendUrl, currentUrl, onNavigate }) => {
     } catch (error) {
       console.error('System status error:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Voice command processing
   const processVoiceCommand = async (command) => {
@@ -133,7 +133,7 @@ const AdvancedFeatures = ({ backendUrl, currentUrl, onNavigate }) => {
     
     fetchShortcuts();
     getSystemStatus();
-  }, [backendUrl]);
+  }, [backendUrl, getSystemStatus]);
 
   return {
     // Search suggestions
