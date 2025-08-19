@@ -3,7 +3,6 @@ import './App.css';
 import './components/AdvancedFeatures.css';
 import AdvancedFeatures from './components/AdvancedFeatures';
 import SmartSearchBar from './components/SmartSearchBar';
-import PageSummaryPanel from './components/PageSummaryPanel';
 import VoiceCommandPanel from './components/VoiceCommandPanel';
 
 function App() {
@@ -19,21 +18,21 @@ function App() {
   ]);
   const [activeTab, setActiveTab] = useState(1);
 
-  // AI Assistant state
+  // AI Assistant state - Enhanced with all capabilities
   const [aiVisible, setAiVisible] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [sessionId, setSessionId] = useState('web-session-' + Date.now());
   
   // Browser history
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   
-  // Advanced Features State
-  const [summaryVisible, setSummaryVisible] = useState(false);
+  // Advanced Features State - Simplified
   const [voiceVisible, setVoiceVisible] = useState(false);
-  const [workflowVisible, setWorkflowVisible] = useState(false);
-  const [systemStatusVisible, setSystemStatusVisible] = useState(false);
+  const [workflowBuilder, setWorkflowBuilder] = useState({ visible: false, workflows: [] });
+  const [automationSuggestions, setAutomationSuggestions] = useState([]);
   
   // Quick suggestions
   const [suggestions, setSuggestions] = useState([
@@ -62,6 +61,30 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [chatMessages]);
+
+  // Load automation suggestions when URL changes
+  useEffect(() => {
+    if (currentUrl) {
+      loadAutomationSuggestions();
+    }
+  }, [currentUrl]);
+
+  // Load context-aware automation suggestions
+  const loadAutomationSuggestions = async () => {
+    try {
+      const response = await fetch(`${backendUrl}/api/automation-suggestions`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setAutomationSuggestions(result.suggestions || []);
+      }
+    } catch (error) {
+      console.error('Failed to load automation suggestions:', error);
+    }
+  };
 
   // Handle URL navigation
   async function handleNavigate(url) {
@@ -187,7 +210,7 @@ function App() {
     }
   };
 
-  // AI Assistant functions
+  // Enhanced AI Assistant with all backend integration
   const handleAiMessage = async () => {
     if (!aiInput.trim()) return;
 
@@ -195,13 +218,88 @@ function App() {
     setChatMessages(prev => [...prev, userMessage]);
     setAiLoading(true);
 
+    // Process special AI commands for direct feature access
+    const command = aiInput.toLowerCase();
+    
     try {
+      // Handle summarization directly
+      if (command.includes('summarize') && currentUrl) {
+        const summaryResponse = await fetch(`${backendUrl}/api/summarize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            url: currentUrl, 
+            length: command.includes('short') ? 'short' : command.includes('long') ? 'long' : 'medium' 
+          })
+        });
+        
+        if (summaryResponse.ok) {
+          const summaryResult = await summaryResponse.json();
+          const aiMessage = { 
+            role: 'assistant', 
+            content: `📄 **Page Summary:**\n\n**${summaryResult.title}**\n\n${summaryResult.summary}\n\n*Word count: ${summaryResult.word_count} | Summary type: ${summaryResult.length}*`
+          };
+          setChatMessages(prev => [...prev, aiMessage]);
+          setAiLoading(false);
+          setAiInput('');
+          return;
+        }
+      }
+      
+      // Handle system status directly
+      if (command.includes('system status') || command.includes('system info')) {
+        const statusResponse = await fetch(`${backendUrl}/api/enhanced/system/overview`);
+        
+        if (statusResponse.ok) {
+          const statusResult = await statusResponse.json();
+          const aiMessage = { 
+            role: 'assistant', 
+            content: `📊 **System Status:**\n\n• Status: ${statusResult.status}\n• Version: ${statusResult.version}\n• Recent Tabs: ${statusResult.stats?.recent_tabs || 0}\n• Chat Sessions: ${statusResult.stats?.chat_sessions || 0}\n• Workflows: ${statusResult.stats?.workflows || 0}\n\n✅ All systems operational!`
+          };
+          setChatMessages(prev => [...prev, aiMessage]);
+          setAiLoading(false);
+          setAiInput('');
+          return;
+        }
+      }
+      
+      // Handle workflow creation directly
+      if (command.includes('create workflow') || command.includes('automate')) {
+        const workflowData = {
+          name: `Auto Workflow ${Date.now()}`,
+          description: `Workflow created from: "${aiInput}"`,
+          steps: [
+            { action: 'navigate', url: currentUrl || 'https://example.com' },
+            { action: 'extract', selector: 'title' }
+          ]
+        };
+        
+        const workflowResponse = await fetch(`${backendUrl}/api/create-workflow`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(workflowData)
+        });
+        
+        if (workflowResponse.ok) {
+          const workflowResult = await workflowResponse.json();
+          const aiMessage = { 
+            role: 'assistant', 
+            content: `🔧 **Workflow Created Successfully!**\n\n**ID:** ${workflowResult.workflow_id}\n**Name:** ${workflowResult.name}\n\nYour automation workflow is ready to use. You can now execute it or modify it as needed.`
+          };
+          setChatMessages(prev => [...prev, aiMessage]);
+          setAiLoading(false);
+          setAiInput('');
+          return;
+        }
+      }
+
+      // Regular AI chat with context
       const response = await fetch(`${backendUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: aiInput,
-          session_id: 'web-session-' + Date.now(),
+          session_id: sessionId,
           current_url: currentUrl
         })
       });
@@ -226,23 +324,35 @@ function App() {
     }
   };
 
-  // Enhanced AI Quick Actions with backend integration
+  // Enhanced AI Quick Actions - All capabilities in one place
   const aiQuickActions = [
     { 
       text: "📄 Summarize Page", 
-      action: () => setSummaryVisible(true)
+      action: () => {
+        setAiInput("Summarize this page");
+        setAiVisible(true);
+        setTimeout(() => handleAiMessage(), 100);
+      }
+    },
+    { 
+      text: "📊 System Status", 
+      action: () => {
+        setAiInput("Show system status");
+        setAiVisible(true);
+        setTimeout(() => handleAiMessage(), 100);
+      }
+    },
+    { 
+      text: "🔧 Create Workflow", 
+      action: () => {
+        setAiInput("Create an automation workflow for this page");
+        setAiVisible(true);
+        setTimeout(() => handleAiMessage(), 100);
+      }
     },
     { 
       text: "🎤 Voice Commands", 
       action: () => setVoiceVisible(true)
-    },
-    { 
-      text: "🔧 Workflows", 
-      action: () => setWorkflowVisible(true)
-    },
-    { 
-      text: "📊 System Status", 
-      action: () => setSystemStatusVisible(true)
     }
   ];
 
@@ -258,11 +368,6 @@ function App() {
         e.preventDefault();
         setVoiceVisible(true);
       }
-      // Ctrl+Shift+S - Summarize Page  
-      else if (e.ctrlKey && e.shiftKey && e.key === 'S') {
-        e.preventDefault();
-        if (currentUrl) setSummaryVisible(true);
-      }
       // Ctrl+Shift+A - AI Assistant
       else if (e.ctrlKey && e.shiftKey && e.key === 'A') {
         e.preventDefault();
@@ -270,16 +375,14 @@ function App() {
       }
       // Escape - Close all panels
       else if (e.key === 'Escape') {
-        setSummaryVisible(false);
         setVoiceVisible(false);
-        setWorkflowVisible(false);
-        setSystemStatusVisible(false);
+        setWorkflowBuilder({ ...workflowBuilder, visible: false });
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [aiVisible, currentUrl]);
+  }, [aiVisible, workflowBuilder]);
 
   return (
     <div className="browser-app">
@@ -311,7 +414,7 @@ function App() {
         </div>
       </div>
 
-      {/* Navigation Bar with Enhanced Features */}
+      {/* Navigation Bar - Simplified with only essential buttons */}
       <div className="nav-bar">
         <div className="nav-controls">
           <button 
@@ -369,7 +472,7 @@ function App() {
         </div>
 
         <div className="browser-actions">
-          {/* Voice Command Button */}
+          {/* Voice Command Button - Only separate interface needed */}
           <button 
             className={`nav-btn voice-btn ${advancedFeatures.voiceListening ? 'active listening' : ''}`}
             onClick={() => setVoiceVisible(true)}
@@ -378,32 +481,13 @@ function App() {
             🎤
           </button>
           
-          {/* Summary Button */}
-          <button 
-            className="nav-btn summary-btn"
-            onClick={() => setSummaryVisible(true)}
-            title="Summarize Page (Ctrl+Shift+S)"
-            disabled={!currentUrl}
-          >
-            📄
-          </button>
-          
-          {/* AI Assistant Button */}
+          {/* AI Assistant Button - All other features integrated here */}
           <button 
             className={`ai-toggle ${aiVisible ? 'active' : ''}`}
             onClick={() => setAiVisible(!aiVisible)}
-            title="AI Assistant (Ctrl+Shift+A)"
+            title="AI Assistant - All Features (Ctrl+Shift+A)"
           >
             🤖
-          </button>
-          
-          {/* System Status Button */}
-          <button 
-            className="nav-btn status-btn"
-            onClick={() => setSystemStatusVisible(true)}
-            title="System Status"
-          >
-            📊
           </button>
           
           <button className="menu-btn" title="Menu">⋮</button>
@@ -457,7 +541,7 @@ function App() {
                 </div>
 
                 <div className="ai-quick-actions">
-                  <h2>Advanced Features</h2>
+                  <h2>AI-Powered Features</h2>
                   <div className="actions-grid">
                     {aiQuickActions.map((action, index) => (
                       <button 
@@ -470,18 +554,33 @@ function App() {
                     ))}
                   </div>
                 </div>
+
+                {/* Show automation suggestions if available */}
+                {automationSuggestions.length > 0 && (
+                  <div className="automation-suggestions">
+                    <h2>Smart Automation</h2>
+                    <div className="suggestions-list">
+                      {automationSuggestions.slice(0, 3).map((suggestion, index) => (
+                        <div key={index} className="suggestion-item">
+                          <span className="suggestion-icon">🔧</span>
+                          <span className="suggestion-text">{suggestion}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* AI Assistant Panel */}
+        {/* Enhanced AI Assistant Panel - All features integrated */}
         {aiVisible && (
           <div className="ai-panel">
             <div className="ai-header">
               <div className="ai-title">
                 <span className="ai-icon">🤖</span>
-                <span>AETHER AI</span>
+                <span>AETHER AI - All Features</span>
               </div>
               <button 
                 className="ai-close"
@@ -496,13 +595,26 @@ function App() {
                 {chatMessages.length === 0 ? (
                   <div className="welcome-message">
                     <div className="welcome-icon">✨</div>
-                    <h3>Hello! I'm your AI assistant</h3>
-                    <p>I can help you browse, research, summarize content, automate tasks, and much more. What would you like me to do?</p>
+                    <h3>Your Complete AI Assistant</h3>
+                    <p>I can help with everything: browsing, research, summarization, automation, system status, workflows, and more!</p>
+                    
+                    <div className="ai-capabilities">
+                      <h4>What I can do:</h4>
+                      <div className="capabilities-grid">
+                        <div className="capability">📄 "Summarize this page"</div>
+                        <div className="capability">📊 "Show system status"</div>
+                        <div className="capability">🔧 "Create workflow"</div>
+                        <div className="capability">🔍 "Find similar sites"</div>
+                        <div className="capability">📝 "Extract key info"</div>
+                        <div className="capability">⚙️ "Automate this task"</div>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   chatMessages.map((message, index) => (
                     <div key={index} className={`message ${message.role}`}>
-                      <div className="message-content">{message.content}</div>
+                      <div className="message-content" 
+                           dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
                     </div>
                   ))
                 )}
@@ -519,31 +631,55 @@ function App() {
 
               <div className="ai-input-area">
                 <div className="quick-suggestions">
-                  {currentUrl && (
+                  {currentUrl ? (
                     <>
                       <button 
                         className="suggestion-chip"
-                        onClick={() => setSummaryVisible(true)}
+                        onClick={() => {
+                          setAiInput("Summarize this page");
+                          setTimeout(() => handleAiMessage(), 100);
+                        }}
                       >
                         📄 Summarize
                       </button>
                       <button 
                         className="suggestion-chip"
                         onClick={() => {
-                          setAiInput("Extract key information from this page");
-                          handleAiMessage();
+                          setAiInput("Show system status");
+                          setTimeout(() => handleAiMessage(), 100);
                         }}
                       >
-                        📝 Extract Info
+                        📊 Status
                       </button>
                       <button 
                         className="suggestion-chip"
                         onClick={() => {
-                          setAiInput("Find websites similar to this one");
-                          handleAiMessage();
+                          setAiInput("Create automation workflow");
+                          setTimeout(() => handleAiMessage(), 100);
                         }}
                       >
-                        🔍 Similar Sites
+                        🔧 Automate
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        className="suggestion-chip"
+                        onClick={() => {
+                          setAiInput("Show system overview");
+                          setTimeout(() => handleAiMessage(), 100);
+                        }}
+                      >
+                        📊 System Info
+                      </button>
+                      <button 
+                        className="suggestion-chip"
+                        onClick={() => {
+                          setAiInput("What can you help me with?");
+                          setTimeout(() => handleAiMessage(), 100);
+                        }}
+                      >
+                        ❓ Help
                       </button>
                     </>
                   )}
@@ -556,7 +692,7 @@ function App() {
                     value={aiInput}
                     onChange={(e) => setAiInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAiMessage()}
-                    placeholder="Ask me anything..."
+                    placeholder="Ask me anything - summarize, automate, analyze, create workflows..."
                   />
                   <button 
                     className="ai-send"
@@ -572,16 +708,7 @@ function App() {
         )}
       </div>
 
-      {/* Advanced Feature Panels */}
-      <PageSummaryPanel 
-        currentUrl={currentUrl}
-        summary={advancedFeatures.summary}
-        summaryLoading={advancedFeatures.summaryLoading}
-        onGetSummary={advancedFeatures.getPageSummary}
-        visible={summaryVisible}
-        onClose={() => setSummaryVisible(false)}
-      />
-      
+      {/* Voice Command Panel - Only separate interface that needs special UI */}
       <VoiceCommandPanel 
         visible={voiceVisible}
         onClose={() => setVoiceVisible(false)}
@@ -590,36 +717,6 @@ function App() {
         onProcessVoiceCommand={advancedFeatures.processVoiceCommand}
         availableShortcuts={advancedFeatures.availableShortcuts}
       />
-
-      {/* System Status Panel */}
-      {systemStatusVisible && advancedFeatures.systemStatus && (
-        <div className="status-panel-overlay" onClick={() => setSystemStatusVisible(false)}>
-          <div className="status-panel" onClick={e => e.stopPropagation()}>
-            <div className="status-header">
-              <h3>📊 System Status</h3>
-              <button onClick={() => setSystemStatusVisible(false)}>×</button>
-            </div>
-            <div className="status-content">
-              <div className="status-item">
-                <span>Status:</span>
-                <span className="status-value">{advancedFeatures.systemStatus.status}</span>
-              </div>
-              <div className="status-item">
-                <span>Version:</span>
-                <span className="status-value">{advancedFeatures.systemStatus.version}</span>
-              </div>
-              <div className="status-item">
-                <span>Recent Tabs:</span>
-                <span className="status-value">{advancedFeatures.systemStatus.stats?.recent_tabs || 0}</span>
-              </div>
-              <div className="status-item">
-                <span>Chat Sessions:</span>
-                <span className="status-value">{advancedFeatures.systemStatus.stats?.chat_sessions || 0}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
