@@ -67,7 +67,7 @@ function App() {
     if (currentUrl) {
       loadAutomationSuggestions();
     }
-  }, [currentUrl]);
+  }, [currentUrl, loadAutomationSuggestions]);
 
   // Load context-aware automation suggestions
   const loadAutomationSuggestions = async () => {
