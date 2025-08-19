@@ -22,12 +22,15 @@ logger = logging.getLogger(__name__)
 
 # Import enhanced automation capabilities
 try:
-    from enhanced_server import enhanced_chat_with_ai, task_executor, nlp_processor
+    from enhanced_server import enhanced_chat_with_ai
+    from enhanced_automation import nlp_processor, initialize_task_executor, get_task_executor
     ENHANCED_MODE = True
     logger.info("Enhanced automation capabilities loaded successfully")
-except ImportError:
+except ImportError as e:
     ENHANCED_MODE = False
-    logger.warning("Enhanced automation not available, running in basic mode")
+    nlp_processor = None
+    get_task_executor = lambda: None
+    logger.warning(f"Enhanced automation not available: {e}")
 
 # Import ALL CRITICAL GAPS - Enhanced server integration
 try:
@@ -61,8 +64,10 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
 db = client.aether_browser
 
-# Initialize Enhanced Systems (ALL CRITICAL GAPS)
+# Initialize Enhanced Systems (ALL CRITICAL GAPS) + Task Executor
 enhanced_integration = None
+task_executor = None
+
 if ENHANCED_SYSTEMS_AVAILABLE:
     try:
         enhanced_integration = initialize_enhanced_server_integration(client)
@@ -74,6 +79,14 @@ if ENHANCED_SYSTEMS_AVAILABLE:
     except Exception as e:
         logger.error(f"Failed to initialize enhanced systems: {e}")
         ENHANCED_SYSTEMS_AVAILABLE = False
+
+if ENHANCED_MODE:
+    try:
+        task_executor = initialize_task_executor(client)
+        logger.info("🚀 Task Executor initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize task executor: {e}")
+        task_executor = None
 
 # AI clients initialization
 groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
