@@ -20,13 +20,13 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app - Clean initialization
+# Create FastAPI app
 app = FastAPI(
     title="AETHER Enhanced Browser API", 
     version="4.0.0"
 )
 
-# CORS middleware
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
