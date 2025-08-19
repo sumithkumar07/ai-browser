@@ -549,105 +549,154 @@ function App() {
 
   return (
     <div className="browser-app">
-      {/* Onboarding Tour */}
-      <OnboardingTour 
-        isVisible={shouldShowTour}
-        onComplete={hideTour}
-      />
-
-      {/* Tab Bar */}
-      <div className="tab-bar">
-        <div className="tabs-container">
-          {tabs.map(tab => (
-            <div 
-              key={tab.id}
-              className={`tab ${tab.id === activeTab ? 'active' : ''}`}
-              onClick={() => switchTab(tab.id)}
-              role="tab"
-              aria-selected={tab.id === activeTab}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  switchTab(tab.id);
-                }
+      {/* INTERFACE MODE SELECTION: Fellou.ai Style vs Traditional */}
+      {interfaceMode === 'fellou' ? (
+        <>
+          {/* FELLOU.AI-STYLE INTERFACE - Simplified & Command-First */}
+          <SimplifiedInterface 
+            onCommand={processEnhancedCommand}
+            currentUrl={currentUrl}
+            sessionId={sessionId}
+            aiLoading={aiLoading}
+            nativeAPI={nativeAPI}
+          />
+          
+          {/* Native Chromium Browser Engine */}
+          {nativeAPI?.hasNativeChromium() ? (
+            <NativeBrowserEngine 
+              currentUrl={currentUrl}
+              onUrlChange={setCurrentUrl}
+              onNavigationChange={(data) => {
+                setCanGoBack(data.canGoBack);
+                setCanGoForward(data.canGoForward);
+                setIsLoading(data.isLoading);
               }}
-            >
-              <span className="tab-favicon" role="img" aria-label="Tab icon">{tab.favicon}</span>
-              <span className="tab-title">{tab.title}</span>
-              {tabs.length > 1 && (
-                <button 
-                  className="tab-close"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(tab.id);
-                  }}
-                  title={`Close ${tab.title}`}
-                  aria-label={`Close ${tab.title} tab`}
-                >
-                  ×
-                </button>
+              nativeAPI={nativeAPI}
+            />
+          ) : (
+            /* Enhanced iframe browser for web version */
+            <div className="browser-container enhanced-iframe">
+              <iframe
+                ref={iframeRef}
+                src={currentUrl}
+                className="browser-frame"
+                title="AETHER Browser"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"
+                allow="camera; microphone; geolocation; autoplay; encrypted-media; fullscreen"
+                onLoad={() => setIsLoading(false)}
+              />
+              
+              {isLoading && (
+                <div className="loading-overlay">
+                  <div className="loading-spinner"></div>
+                  <span>Loading with enhanced engine...</span>
+                </div>
               )}
             </div>
-          ))}
-          <button 
-            className="new-tab-btn" 
-            onClick={createNewTab}
-            title="Open new tab (Ctrl+T)"
-            aria-label="Open new tab"
-          >
-            +
-          </button>
-        </div>
-      </div>
+          )}
+        </>
+      ) : (
+        /* TRADITIONAL AETHER INTERFACE - Full Feature Mode */
+        <>
+          {/* Onboarding Tour */}
+          <OnboardingTour 
+            isVisible={shouldShowTour}
+            onComplete={hideTour}
+          />
 
-      {/* Navigation Bar - Enhanced with accessibility */}
-      <div className="nav-bar">
-        <div className="nav-controls">
-          <button 
-            className={`nav-btn ${!canGoBack ? 'disabled' : ''}`}
-            onClick={handleGoBack}
-            disabled={!canGoBack}
-            title="Go back (Alt+←)"
-            aria-label="Navigate back"
-          >
-            ←
-          </button>
-          <button 
-            className={`nav-btn ${!canGoForward ? 'disabled' : ''}`}
-            onClick={handleGoForward}
-            disabled={!canGoForward}
-            title="Go forward (Alt+→)"
-            aria-label="Navigate forward"
-          >
-            →
-          </button>
-          <button 
-            className="nav-btn"
-            onClick={handleRefresh}
-            title="Refresh (Ctrl+R)"
-            aria-label="Refresh page"
-          >
-            {isLoading ? '⟳' : '↻'}
-          </button>
-        </div>
-
-        <div className="address-bar">
-          <div className="security-indicator" title={isSecure ? 'Secure connection' : 'Not secure'}>
-            {isSecure ? (
-              <span className="secure" role="img" aria-label="Secure connection">🔒</span>
-            ) : (
-              <span className="insecure" role="img" aria-label="Not secure">⚠️</span>
-            )}
+          {/* Tab Bar */}
+          <div className="tab-bar">
+            <div className="tabs-container">
+              {tabs.map(tab => (
+                <div 
+                  key={tab.id}
+                  className={`tab ${tab.id === activeTab ? 'active' : ''}`}
+                  onClick={() => switchTab(tab.id)}
+                  role="tab"
+                  aria-selected={tab.id === activeTab}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      switchTab(tab.id);
+                    }
+                  }}
+                >
+                  <span className="tab-favicon" role="img" aria-label="Tab icon">{tab.favicon}</span>
+                  <span className="tab-title">{tab.title}</span>
+                  {tabs.length > 1 && (
+                    <button 
+                      className="tab-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeTab(tab.id);
+                      }}
+                      title={`Close ${tab.title}`}
+                      aria-label={`Close ${tab.title} tab`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button 
+                className="new-tab-btn" 
+                onClick={createNewTab}
+                title="Open new tab (Ctrl+T)"
+                aria-label="Open new tab"
+              >
+                +
+              </button>
+            </div>
           </div>
-          
-          {/* Enhanced Smart Search Bar */}
-          <SmartSearchBar 
-            urlInput={urlInput}
-            setUrlInput={setUrlInput}
-            onNavigate={handleNavigate}
-            searchSuggestions={advancedFeatures.searchSuggestions}
-            showSuggestions={advancedFeatures.showSuggestions}
+
+          {/* Navigation Bar - Enhanced with accessibility */}
+          <div className="nav-bar">
+            <div className="nav-controls">
+              <button 
+                className={`nav-btn ${!canGoBack ? 'disabled' : ''}`}
+                onClick={handleGoBack}
+                disabled={!canGoBack}
+                title="Go back (Alt+←)"
+                aria-label="Navigate back"
+              >
+                ←
+              </button>
+              <button 
+                className={`nav-btn ${!canGoForward ? 'disabled' : ''}`}
+                onClick={handleGoForward}
+                disabled={!canGoForward}
+                title="Go forward (Alt+→)"
+                aria-label="Navigate forward"
+              >
+                →
+              </button>
+              <button 
+                className="nav-btn"
+                onClick={handleRefresh}
+                title="Refresh (Ctrl+R)"
+                aria-label="Refresh page"
+              >
+                {isLoading ? '⟳' : '↻'}
+              </button>
+            </div>
+
+            <div className="address-bar">
+              <div className="security-indicator" title={isSecure ? 'Secure connection' : 'Not secure'}>
+                {isSecure ? (
+                  <span className="secure" role="img" aria-label="Secure connection">🔒</span>
+                ) : (
+                  <span className="insecure" role="img" aria-label="Not secure">⚠️</span>
+                )}
+              </div>
+              
+              {/* Enhanced Smart Search Bar */}
+              <SmartSearchBar 
+                urlInput={urlInput}
+                setUrlInput={setUrlInput}
+                onNavigate={handleNavigate}
+                searchSuggestions={advancedFeatures.searchSuggestions}
+                showSuggestions={advancedFeatures.showSuggestions}
             onGetSuggestions={advancedFeatures.getSearchSuggestions}
             setShowSuggestions={advancedFeatures.setShowSuggestions}
           />
