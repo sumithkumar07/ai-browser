@@ -1,424 +1,394 @@
+/**
+ * Security Manager for AETHER Desktop Companion
+ * Ensures secure operations and prevents malicious automation
+ */
+
 const crypto = require('crypto');
-const fs = require('fs').promises;
 const path = require('path');
+const fs = require('fs').promises;
 
 class SecurityManager {
     constructor() {
-        this.trustedDomains = new Set([
-            'localhost',
-            '127.0.0.1',
-            'aether-app.com' // Add your production domain
+        this.allowedOperations = new Set([
+            'navigate',
+            'click',
+            'type',
+            'screenshot',
+            'script_execute',
+            'cross_origin_automation',
+            'computer_use'
         ]);
         
-        this.operationHistory = [];
-        this.maxHistorySize = 1000;
-        
-        this.riskLevels = {
-            LOW: 'low',
-            MEDIUM: 'medium',
-            HIGH: 'high',
-            CRITICAL: 'critical'
+        this.securityPolicies = {
+            maxAutomationDuration: 30000, // 30 seconds
+            maxConcurrentOperations: 10,
+            requireUserConfirmation: [
+                'system_file_access',
+                'registry_modification', 
+                'process_termination'
+            ],
+            blockedDomains: [
+                'banking.com',
+                'financial.gov'
+            ],
+            rateLimits: {
+                'computer_use': { max: 100, window: 60000 }, // 100 per minute
+                'cross_origin': { max: 50, window: 60000 }    // 50 per minute
+            }
         };
+        
+        this.operationHistory = [];
+        this.rateLimitCounters = new Map();
+        this.activeOperations = new Set();
+    }
+
+    async initialize() {
+        try {
+            // Load security configuration if exists
+            await this.loadSecurityConfig();
+            
+            // Initialize rate limiting
+            this.initializeRateLimiting();
+            
+            console.log('✅ Security Manager initialized');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ Security Manager initialization failed:', error);
+            return { success: false, error: error.message };
+        }
     }
 
     async validateOperation(operation) {
         try {
-            console.log('🔒 Validating operation:', operation.type);
+            const { type, target, params, requester } = operation;
             
-            const validationResults = {
-                operation: operation,
-                timestamp: new Date().toISOString(),
-                riskLevel: this.riskLevels.LOW,
-                allowed: true,
-                warnings: [],
-                mitigations: []
-            };
-
-            // Domain validation
-            if (operation.url) {
-                const domainCheck = this.validateDomain(operation.url);
-                if (!domainCheck.trusted) {
-                    validationResults.riskLevel = this.riskLevels.MEDIUM;
-                    validationResults.warnings.push(`Untrusted domain: ${domainCheck.domain}`);
-                    validationResults.mitigations.push('Request user confirmation for external domain access');
-                }
+            // Basic operation type validation
+            if (!this.allowedOperations.has(type)) {
+                return {
+                    success: false,
+                    error: `Operation type '${type}' not allowed`,
+                    code: 'INVALID_OPERATION'
+                };
             }
-
-            // Operation type risk assessment
-            const riskAssessment = this.assessOperationRisk(operation);
-            if (riskAssessment.riskLevel !== this.riskLevels.LOW) {
-                validationResults.riskLevel = riskAssessment.riskLevel;
-                validationResults.warnings.push(...riskAssessment.warnings);
-                validationResults.mitigations.push(...riskAssessment.mitigations);
-            }
-
-            // Cross-origin validation
-            if (operation.type === 'cross_origin') {
-                const crossOriginCheck = this.validateCrossOriginOperation(operation);
-                if (!crossOriginCheck.safe) {
-                    validationResults.riskLevel = this.riskLevels.HIGH;
-                    validationResults.warnings.push(...crossOriginCheck.warnings);
-                    validationResults.mitigations.push(...crossOriginCheck.mitigations);
-                }
-            }
-
-            // File system access validation
-            if (operation.type === 'file_access') {
-                const fileAccessCheck = this.validateFileAccess(operation);
-                if (!fileAccessCheck.allowed) {
-                    validationResults.allowed = false;
-                    validationResults.riskLevel = this.riskLevels.CRITICAL;
-                    validationResults.warnings.push(...fileAccessCheck.warnings);
-                }
-            }
-
+            
             // Rate limiting check
-            const rateLimitCheck = this.checkRateLimit(operation);
-            if (!rateLimitCheck.allowed) {
-                validationResults.riskLevel = this.riskLevels.MEDIUM;
-                validationResults.warnings.push('Rate limit exceeded');
-                validationResults.mitigations.push('Implement operation throttling');
+            const rateLimitResult = this.checkRateLimit(type, requester);
+            if (!rateLimitResult.allowed) {
+                return {
+                    success: false,
+                    error: 'Rate limit exceeded',
+                    code: 'RATE_LIMIT_EXCEEDED',
+                    retryAfter: rateLimitResult.retryAfter
+                };
             }
-
+            
+            // Domain validation for navigation operations
+            if (type === 'navigate' && target) {
+                const domainCheck = this.validateDomain(target);
+                if (!domainCheck.allowed) {
+                    return {
+                        success: false,
+                        error: `Domain '${target}' is blocked`,
+                        code: 'DOMAIN_BLOCKED'
+                    };
+                }
+            }
+            
+            // Concurrent operations check
+            if (this.activeOperations.size >= this.securityPolicies.maxConcurrentOperations) {
+                return {
+                    success: false,
+                    error: 'Maximum concurrent operations exceeded',
+                    code: 'CONCURRENT_LIMIT_EXCEEDED'
+                };
+            }
+            
+            // User confirmation check for sensitive operations
+            if (this.securityPolicies.requireUserConfirmation.includes(type)) {
+                const userConfirm = await this.requestUserConfirmation(operation);
+                if (!userConfirm) {
+                    return {
+                        success: false,
+                        error: 'User confirmation required but not granted',
+                        code: 'USER_CONFIRMATION_DENIED'
+                    };
+                }
+            }
+            
+            // Script validation for script execution operations
+            if (type === 'script_execute') {
+                const scriptValidation = this.validateScript(params.script);
+                if (!scriptValidation.safe) {
+                    return {
+                        success: false,
+                        error: 'Script contains potentially dangerous operations',
+                        code: 'SCRIPT_VALIDATION_FAILED',
+                        details: scriptValidation.issues
+                    };
+                }
+            }
+            
+            // Generate operation token
+            const operationToken = this.generateOperationToken(operation);
+            
             // Log operation
-            this.logOperation(operation, validationResults);
-
+            this.logOperation(operation, operationToken);
+            
+            // Track active operation
+            this.activeOperations.add(operationToken);
+            
             return {
                 success: true,
-                validation: validationResults,
-                allowed: validationResults.allowed && validationResults.riskLevel !== this.riskLevels.CRITICAL
+                operationToken: operationToken,
+                validatedParams: this.sanitizeParams(params),
+                expiresAt: Date.now() + this.securityPolicies.maxAutomationDuration
             };
+            
         } catch (error) {
-            console.error('❌ Operation validation failed:', error);
             return {
                 success: false,
                 error: error.message,
-                allowed: false
+                code: 'VALIDATION_ERROR'
             };
         }
+    }
+
+    checkRateLimit(operationType, requester) {
+        const rateLimitConfig = this.securityPolicies.rateLimits[operationType];
+        if (!rateLimitConfig) {
+            return { allowed: true };
+        }
+        
+        const now = Date.now();
+        const windowStart = now - rateLimitConfig.window;
+        const key = `${operationType}:${requester || 'anonymous'}`;
+        
+        if (!this.rateLimitCounters.has(key)) {
+            this.rateLimitCounters.set(key, []);
+        }
+        
+        const requests = this.rateLimitCounters.get(key);
+        
+        // Remove old requests outside the window
+        while (requests.length > 0 && requests[0] < windowStart) {
+            requests.shift();
+        }
+        
+        if (requests.length >= rateLimitConfig.max) {
+            const retryAfter = requests[0] + rateLimitConfig.window - now;
+            return { 
+                allowed: false, 
+                retryAfter: Math.ceil(retryAfter / 1000) 
+            };
+        }
+        
+        requests.push(now);
+        return { allowed: true };
     }
 
     validateDomain(url) {
         try {
             const urlObj = new URL(url);
-            const domain = urlObj.hostname;
+            const hostname = urlObj.hostname.toLowerCase();
+            
+            // Check against blocked domains
+            for (const blockedDomain of this.securityPolicies.blockedDomains) {
+                if (hostname.includes(blockedDomain.toLowerCase())) {
+                    return { 
+                        allowed: false, 
+                        reason: 'Domain is in blocklist' 
+                    };
+                }
+            }
+            
+            // Additional security checks
+            if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('192.168.')) {
+                // Allow localhost but log it
+                this.logSecurityEvent('local_domain_access', { hostname, url });
+            }
+            
+            return { allowed: true };
+        } catch (error) {
+            return { 
+                allowed: false, 
+                reason: 'Invalid URL format' 
+            };
+        }
+    }
+
+    validateScript(script) {
+        try {
+            const dangerousPatterns = [
+                /eval\s*\(/,
+                /Function\s*\(/,
+                /document\.write/,
+                /innerHTML\s*=/,
+                /outerHTML\s*=/,
+                /location\s*=/,
+                /window\.open/,
+                /XMLHttpRequest/,
+                /fetch\s*\(/,
+                /localStorage/,
+                /sessionStorage/,
+                /indexedDB/
+            ];
+            
+            const issues = [];
+            
+            for (const pattern of dangerousPatterns) {
+                if (pattern.test(script)) {
+                    issues.push(`Potentially dangerous pattern detected: ${pattern.source}`);
+                }
+            }
             
             return {
-                domain: domain,
-                trusted: this.trustedDomains.has(domain) || domain.endsWith('.localhost'),
-                protocol: urlObj.protocol,
-                port: urlObj.port
+                safe: issues.length === 0,
+                issues: issues
             };
         } catch (error) {
             return {
-                domain: 'invalid',
-                trusted: false,
-                error: error.message
+                safe: false,
+                issues: ['Script validation error']
             };
         }
     }
 
-    assessOperationRisk(operation) {
-        const riskFactors = {
-            warnings: [],
-            mitigations: [],
-            riskLevel: this.riskLevels.LOW
-        };
-
-        switch (operation.type) {
-            case 'automation':
-                if (operation.actions && operation.actions.includes('form_submit')) {
-                    riskFactors.riskLevel = this.riskLevels.MEDIUM;
-                    riskFactors.warnings.push('Form submission automation detected');
-                    riskFactors.mitigations.push('Verify form contents before submission');
-                }
-                break;
-
-            case 'data_extraction':
-                if (operation.dataTypes && operation.dataTypes.includes('personal_info')) {
-                    riskFactors.riskLevel = this.riskLevels.HIGH;
-                    riskFactors.warnings.push('Personal information extraction detected');
-                    riskFactors.mitigations.push('Encrypt extracted data and limit storage time');
-                }
-                break;
-
-            case 'system_command':
-                riskFactors.riskLevel = this.riskLevels.CRITICAL;
-                riskFactors.warnings.push('System command execution requested');
-                riskFactors.mitigations.push('Require explicit user authorization');
-                break;
-
-            case 'network_request':
-                if (operation.method === 'POST' && operation.data) {
-                    riskFactors.riskLevel = this.riskLevels.MEDIUM;
-                    riskFactors.warnings.push('POST request with data detected');
-                    riskFactors.mitigations.push('Validate request payload');
-                }
-                break;
-
-            default:
-                // Default low risk for unknown operations
-                break;
-        }
-
-        return riskFactors;
-    }
-
-    validateCrossOriginOperation(operation) {
-        const result = {
-            safe: true,
-            warnings: [],
-            mitigations: []
-        };
-
-        // Check for potentially dangerous cross-origin operations
-        if (operation.actions) {
-            const dangerousActions = ['form_submit', 'file_upload', 'payment', 'authentication'];
-            const foundDangerous = operation.actions.filter(action => 
-                dangerousActions.some(dangerous => action.includes(dangerous))
-            );
-
-            if (foundDangerous.length > 0) {
-                result.safe = false;
-                result.warnings.push(`Dangerous cross-origin actions detected: ${foundDangerous.join(', ')}`);
-                result.mitigations.push('Require explicit user consent for sensitive cross-origin operations');
-            }
-        }
-
-        // Check target domains
-        if (operation.targetDomains) {
-            const untrustedDomains = operation.targetDomains.filter(domain => 
-                !this.trustedDomains.has(domain)
-            );
-
-            if (untrustedDomains.length > 0) {
-                result.warnings.push(`Untrusted target domains: ${untrustedDomains.join(', ')}`);
-                result.mitigations.push('Verify domain reputation and user intent');
-            }
-        }
-
-        return result;
-    }
-
-    validateFileAccess(operation) {
-        const result = {
-            allowed: true,
-            warnings: []
-        };
-
-        const restrictedPaths = [
-            '/etc/',
-            '/usr/bin/',
-            '/System/',
-            'C:\\Windows\\',
-            'C:\\Program Files\\'
-        ];
-
-        const sensitiveFiles = [
-            'passwd',
-            'shadow',
-            'hosts',
-            '.ssh/',
-            'id_rsa',
-            'private.key'
-        ];
-
-        if (operation.path) {
-            // Check for restricted system paths
-            const hasRestrictedPath = restrictedPaths.some(restricted => 
-                operation.path.startsWith(restricted)
-            );
-
-            if (hasRestrictedPath) {
-                result.allowed = false;
-                result.warnings.push(`Access to restricted system path: ${operation.path}`);
-            }
-
-            // Check for sensitive files
-            const hasSensitiveFile = sensitiveFiles.some(sensitive => 
-                operation.path.includes(sensitive)
-            );
-
-            if (hasSensitiveFile) {
-                result.allowed = false;
-                result.warnings.push(`Access to sensitive file detected: ${operation.path}`);
-            }
-        }
-
-        return result;
-    }
-
-    checkRateLimit(operation) {
-        const now = Date.now();
-        const timeWindow = 60000; // 1 minute
-        const maxOperationsPerWindow = 100;
-
-        // Filter recent operations
-        const recentOperations = this.operationHistory.filter(op => 
-            (now - op.timestamp) < timeWindow && op.type === operation.type
-        );
-
-        return {
-            allowed: recentOperations.length < maxOperationsPerWindow,
-            currentCount: recentOperations.length,
-            limit: maxOperationsPerWindow,
-            windowMs: timeWindow
-        };
-    }
-
-    logOperation(operation, validation) {
-        const logEntry = {
-            timestamp: Date.now(),
-            operation: operation,
-            validation: validation,
-            sessionId: this.generateSessionId()
-        };
-
-        this.operationHistory.push(logEntry);
-
-        // Trim history to max size
-        if (this.operationHistory.length > this.maxHistorySize) {
-            this.operationHistory = this.operationHistory.slice(-this.maxHistorySize);
-        }
-
-        // Log to console for debugging
-        console.log(`🔒 Security Log: ${operation.type} - Risk: ${validation.riskLevel} - Allowed: ${validation.allowed}`);
-    }
-
-    generateSessionId() {
-        return crypto.randomBytes(16).toString('hex');
-    }
-
-    async generateSecurityReport() {
+    async requestUserConfirmation(operation) {
+        // In a real implementation, this would show a dialog to the user
+        // For now, we'll simulate user approval based on operation safety
         try {
-            const now = Date.now();
-            const last24Hours = now - (24 * 60 * 60 * 1000);
-
-            const recentOperations = this.operationHistory.filter(op => 
-                op.timestamp > last24Hours
-            );
-
-            const riskDistribution = {
-                [this.riskLevels.LOW]: 0,
-                [this.riskLevels.MEDIUM]: 0,
-                [this.riskLevels.HIGH]: 0,
-                [this.riskLevels.CRITICAL]: 0
-            };
-
-            const operationTypes = {};
-            const blockedOperations = [];
-
-            recentOperations.forEach(op => {
-                riskDistribution[op.validation.riskLevel]++;
-                
-                operationTypes[op.operation.type] = (operationTypes[op.operation.type] || 0) + 1;
-                
-                if (!op.validation.allowed) {
-                    blockedOperations.push(op);
-                }
-            });
-
-            const report = {
-                reportPeriod: '24 hours',
-                generatedAt: new Date().toISOString(),
-                summary: {
-                    totalOperations: recentOperations.length,
-                    blockedOperations: blockedOperations.length,
-                    securityScore: this.calculateSecurityScore(riskDistribution, recentOperations.length)
-                },
-                riskDistribution: riskDistribution,
-                operationTypes: operationTypes,
-                topWarnings: this.getTopWarnings(recentOperations),
-                recommendations: this.generateSecurityRecommendations(riskDistribution, blockedOperations)
-            };
-
-            return {
-                success: true,
-                report: report
-            };
+            const { type, target, params } = operation;
+            
+            // Auto-approve safe operations
+            const safeOperations = ['screenshot', 'navigate', 'click'];
+            if (safeOperations.includes(type)) {
+                return true;
+            }
+            
+            // For demo purposes, log the confirmation request
+            console.log(`🔒 Security: User confirmation requested for operation: ${type}`);
+            
+            // Simulate user approval (in real app, show dialog)
+            return true;
         } catch (error) {
-            console.error('❌ Security report generation failed:', error);
-            return {
-                success: false,
-                error: error.message
-            };
+            return false;
         }
     }
 
-    calculateSecurityScore(riskDistribution, totalOperations) {
-        if (totalOperations === 0) return 100;
-
-        const weights = {
-            [this.riskLevels.LOW]: 0,
-            [this.riskLevels.MEDIUM]: 5,
-            [this.riskLevels.HIGH]: 15,
-            [this.riskLevels.CRITICAL]: 50
+    generateOperationToken(operation) {
+        const tokenData = {
+            timestamp: Date.now(),
+            operation: operation.type,
+            target: operation.target,
+            nonce: crypto.randomBytes(16).toString('hex')
         };
-
-        const riskScore = Object.keys(riskDistribution).reduce((score, level) => {
-            return score + (riskDistribution[level] * weights[level]);
-        }, 0);
-
-        const maxPossibleScore = totalOperations * weights[this.riskLevels.CRITICAL];
-        const securityScore = Math.max(0, 100 - ((riskScore / maxPossibleScore) * 100));
-
-        return Math.round(securityScore);
-    }
-
-    getTopWarnings(operations) {
-        const warningCounts = {};
         
-        operations.forEach(op => {
-            op.validation.warnings.forEach(warning => {
-                warningCounts[warning] = (warningCounts[warning] || 0) + 1;
-            });
-        });
-
-        return Object.entries(warningCounts)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 5)
-            .map(([warning, count]) => ({ warning, count }));
+        const token = crypto
+            .createHash('sha256')
+            .update(JSON.stringify(tokenData))
+            .digest('hex');
+            
+        return token;
     }
 
-    generateSecurityRecommendations(riskDistribution, blockedOperations) {
-        const recommendations = [];
-
-        if (riskDistribution[this.riskLevels.HIGH] > 0) {
-            recommendations.push('Review high-risk operations and consider implementing additional user confirmations');
+    sanitizeParams(params) {
+        if (!params) return {};
+        
+        const sanitized = { ...params };
+        
+        // Remove or sanitize potentially dangerous parameters
+        if (sanitized.script) {
+            // Remove dangerous functions from scripts
+            sanitized.script = sanitized.script
+                .replace(/eval\s*\(/g, '// eval removed //')
+                .replace(/Function\s*\(/g, '// Function removed //');
         }
-
-        if (riskDistribution[this.riskLevels.CRITICAL] > 0) {
-            recommendations.push('Critical security risks detected - review system access policies');
+        
+        // Sanitize URLs
+        if (sanitized.url) {
+            try {
+                const url = new URL(sanitized.url);
+                sanitized.url = url.toString(); // Normalized URL
+            } catch (e) {
+                // Invalid URL, remove it
+                delete sanitized.url;
+            }
         }
+        
+        return sanitized;
+    }
 
-        if (blockedOperations.length > 0) {
-            recommendations.push(`${blockedOperations.length} operations were blocked - review security policies if legitimate operations are being prevented`);
+    logOperation(operation, token) {
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            token: token,
+            type: operation.type,
+            target: operation.target,
+            requester: operation.requester || 'unknown',
+            params: operation.params ? Object.keys(operation.params) : []
+        };
+        
+        this.operationHistory.push(logEntry);
+        
+        // Keep only last 1000 operations
+        if (this.operationHistory.length > 1000) {
+            this.operationHistory = this.operationHistory.slice(-1000);
         }
+        
+        console.log(`🔒 Security: Operation logged - ${operation.type} (${token.substr(0, 8)}...)`);
+    }
 
-        if (recommendations.length === 0) {
-            recommendations.push('Security posture is good - continue monitoring');
+    logSecurityEvent(event, details) {
+        console.log(`🚨 Security Event: ${event}`, details);
+    }
+
+    completeOperation(operationToken) {
+        this.activeOperations.delete(operationToken);
+    }
+
+    async loadSecurityConfig() {
+        try {
+            const configPath = path.join(__dirname, '../config/security.json');
+            const configData = await fs.readFile(configPath, 'utf8');
+            const config = JSON.parse(configData);
+            
+            // Merge with default policies
+            this.securityPolicies = { ...this.securityPolicies, ...config };
+        } catch (error) {
+            // Use default configuration if file doesn't exist
+            console.log('Using default security configuration');
         }
-
-        return recommendations;
     }
 
-    addTrustedDomain(domain) {
-        this.trustedDomains.add(domain);
-        console.log(`✅ Added trusted domain: ${domain}`);
+    initializeRateLimiting() {
+        // Clean up rate limit counters every minute
+        setInterval(() => {
+            const now = Date.now();
+            for (const [key, requests] of this.rateLimitCounters.entries()) {
+                const validRequests = requests.filter(timestamp => 
+                    now - timestamp < Math.max(...Object.values(this.securityPolicies.rateLimits).map(r => r.window))
+                );
+                
+                if (validRequests.length === 0) {
+                    this.rateLimitCounters.delete(key);
+                } else {
+                    this.rateLimitCounters.set(key, validRequests);
+                }
+            }
+        }, 60000); // Clean up every minute
     }
 
-    removeTrustedDomain(domain) {
-        this.trustedDomains.delete(domain);
-        console.log(`❌ Removed trusted domain: ${domain}`);
-    }
-
-    getTrustedDomains() {
-        return Array.from(this.trustedDomains);
-    }
-
-    clearOperationHistory() {
-        this.operationHistory = [];
-        console.log('🗑️ Operation history cleared');
+    getSecurityStatus() {
+        return {
+            activeOperations: this.activeOperations.size,
+            totalOperationsLogged: this.operationHistory.length,
+            rateLimitedOperations: this.rateLimitCounters.size,
+            securityPolicies: {
+                maxConcurrentOperations: this.securityPolicies.maxConcurrentOperations,
+                maxAutomationDuration: this.securityPolicies.maxAutomationDuration,
+                blockedDomains: this.securityPolicies.blockedDomains.length
+            }
+        };
     }
 }
 

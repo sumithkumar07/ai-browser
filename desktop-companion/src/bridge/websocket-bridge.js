@@ -1,248 +1,346 @@
+/**
+ * WebSocket Bridge for AETHER Desktop Companion
+ * Connects desktop app with web interface
+ */
+
 const WebSocket = require('ws');
-const express = require('express');
-const cors = require('cors');
+const axios = require('axios');
 
 class WebSocketBridge {
     constructor(webAppURL) {
         this.webAppURL = webAppURL;
-        this.websocket = null;
+        this.wsServer = null;
+        this.connections = new Map();
+        this.backendURL = webAppURL.replace(':3000', ':8001'); // Assuming backend on 8001
         this.isConnected = false;
         this.messageQueue = [];
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
-        
-        // Set up HTTP server for receiving messages from web app
-        this.setupHttpServer();
+        this.syncData = {
+            recentTabs: [],
+            activeAutomations: [],
+            chatSessions: [],
+            userPreferences: {}
+        };
     }
 
     async initialize() {
         try {
-            await this.connectToWebApp();
-            console.log('✅ WebSocket Bridge initialized');
-            return { success: true };
+            // Start WebSocket server for desktop-web communication
+            this.wsServer = new WebSocket.Server({ port: 8080 });
+            
+            this.wsServer.on('connection', (ws) => {
+                const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                this.connections.set(connectionId, ws);
+                
+                console.log(`🔗 Desktop Bridge: New connection ${connectionId}`);
+                
+                ws.on('message', (data) => {
+                    this.handleWebMessage(JSON.parse(data.toString()), connectionId);
+                });
+                
+                ws.on('close', () => {
+                    this.connections.delete(connectionId);
+                    console.log(`🔗 Desktop Bridge: Connection ${connectionId} closed`);
+                });
+                
+                // Send initial sync data
+                this.sendSyncData(ws);
+            });
+            
+            // Connect to backend API
+            await this.connectToBackend();
+            
+            console.log('✅ WebSocket Bridge initialized on port 8080');
+            return { success: true, port: 8080 };
         } catch (error) {
-            console.error('❌ WebSocket Bridge initialization failed:', error);
+            console.error('❌ Failed to initialize WebSocket Bridge:', error);
             return { success: false, error: error.message };
         }
     }
 
-    setupHttpServer() {
-        this.app = express();
-        this.app.use(cors());
-        this.app.use(express.json());
-
-        // Endpoint for web app to send messages to desktop
-        this.app.post('/desktop-message', (req, res) => {
-            this.handleWebAppMessage(req.body);
-            res.json({ success: true, message: 'Message received' });
-        });
-
-        // Health check endpoint
-        this.app.get('/health', (req, res) => {
-            res.json({
-                status: 'healthy',
-                connected: this.isConnected,
-                webAppURL: this.webAppURL
-            });
-        });
-
-        // Start HTTP server on port 3001 (desktop companion port)
-        this.server = this.app.listen(3001, () => {
-            console.log('🌉 Desktop Bridge HTTP server running on port 3001');
-        });
-    }
-
-    async connectToWebApp() {
+    async connectToBackend() {
         try {
-            // For now, we'll simulate the WebSocket connection since the web app 
-            // doesn't have a WebSocket server running. In production, this would
-            // connect to ws://localhost:3000/ws or similar
+            // Test backend connection
+            const response = await axios.get(`${this.backendURL}/api/health`);
+            this.isConnected = response.status === 200;
             
-            console.log(`Attempting to connect to ${this.webAppURL}`);
-            
-            // Simulate connection success
-            this.isConnected = true;
-            this.reconnectAttempts = 0;
-            
-            // Process any queued messages
-            this.processMessageQueue();
-            
-            console.log('✅ Connected to web application');
-            return true;
-        } catch (error) {
-            console.error('❌ Failed to connect to web app:', error);
-            this.isConnected = false;
-            
-            // Attempt reconnection
-            if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                this.reconnectAttempts++;
-                console.log(`Retrying connection (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-                setTimeout(() => this.connectToWebApp(), 5000);
+            if (this.isConnected) {
+                console.log('✅ Connected to AETHER backend');
+                
+                // Process queued messages
+                while (this.messageQueue.length > 0) {
+                    const message = this.messageQueue.shift();
+                    await this.sendToBackend(message);
+                }
             }
             
-            throw error;
+            return { success: this.isConnected };
+        } catch (error) {
+            console.log('⚠️ Backend not available, queuing messages');
+            this.isConnected = false;
+            return { success: false, error: error.message };
+        }
+    }
+
+    async handleWebMessage(message, connectionId) {
+        try {
+            const { type, data } = message;
+            
+            switch (type) {
+                case 'desktop_navigate':
+                    // Handle navigation request from web interface
+                    return await this.handleDesktopNavigation(data);
+                    
+                case 'cross_origin_request':
+                    // Handle cross-origin automation request
+                    return await this.handleCrossOriginRequest(data);
+                    
+                case 'computer_use_request':
+                    // Handle computer use API request
+                    return await this.handleComputerUseRequest(data);
+                    
+                case 'sync_request':
+                    // Handle data synchronization request
+                    return await this.handleSyncRequest(data, connectionId);
+                    
+                case 'automation_command':
+                    // Handle automation commands
+                    return await this.handleAutomationCommand(data);
+                    
+                default:
+                    console.log(`Unknown message type: ${type}`);
+                    return { success: false, error: 'Unknown message type' };
+            }
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async handleDesktopNavigation(data) {
+        try {
+            const { url, options = {} } = data;
+            
+            // Send to native browser
+            const result = await window.aetherDesktop?.navigateTo(url);
+            
+            // Sync with backend
+            if (this.isConnected) {
+                await this.sendToBackend({
+                    endpoint: '/api/browse',
+                    method: 'POST',
+                    data: { url, source: 'desktop' }
+                });
+            }
+            
+            // Broadcast to all connections
+            this.broadcast({
+                type: 'navigation_update',
+                data: { url, result }
+            });
+            
+            return { success: true, result };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async handleCrossOriginRequest(data) {
+        try {
+            const { sites, actions, coordination } = data;
+            
+            // Execute cross-origin automation
+            const result = await window.aetherDesktop?.executeCrossOriginAutomation({
+                sites,
+                actions,
+                coordination
+            });
+            
+            // Log to backend for analytics
+            if (this.isConnected) {
+                await this.sendToBackend({
+                    endpoint: '/api/automation-analytics',
+                    method: 'POST',
+                    data: {
+                        type: 'cross_origin',
+                        sites: sites.length,
+                        actions: actions.length,
+                        success: result.success,
+                        source: 'desktop'
+                    }
+                });
+            }
+            
+            // Broadcast result
+            this.broadcast({
+                type: 'cross_origin_result',
+                data: result
+            });
+            
+            return result;
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async handleComputerUseRequest(data) {
+        try {
+            const { action, params } = data;
+            let result;
+            
+            switch (action) {
+                case 'screenshot':
+                    result = await window.aetherDesktop?.takeScreenshot();
+                    break;
+                case 'click':
+                    result = await window.aetherDesktop?.clickAt(params.x, params.y);
+                    break;
+                case 'type':
+                    result = await window.aetherDesktop?.typeText(params.text);
+                    break;
+                case 'keypress':
+                    result = await window.aetherDesktop?.sendKeyPress(params.key, params.modifiers);
+                    break;
+                default:
+                    throw new Error(`Unknown computer use action: ${action}`);
+            }
+            
+            // Log action to backend
+            if (this.isConnected) {
+                await this.sendToBackend({
+                    endpoint: '/api/computer-use-log',
+                    method: 'POST',
+                    data: {
+                        action,
+                        params,
+                        result: result.success,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+            
+            return result;
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async handleSyncRequest(data, connectionId) {
+        try {
+            const { syncType } = data;
+            
+            switch (syncType) {
+                case 'full_sync':
+                    await this.performFullSync();
+                    break;
+                case 'tabs_sync':
+                    await this.syncTabs();
+                    break;
+                case 'automations_sync':
+                    await this.syncAutomations();
+                    break;
+                case 'chat_sync':
+                    await this.syncChatSessions();
+                    break;
+            }
+            
+            // Send updated data to requester
+            const connection = this.connections.get(connectionId);
+            if (connection) {
+                this.sendSyncData(connection);
+            }
+            
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async performFullSync() {
+        try {
+            if (!this.isConnected) {
+                await this.connectToBackend();
+            }
+            
+            if (this.isConnected) {
+                // Sync recent tabs
+                const tabsResponse = await axios.get(`${this.backendURL}/api/recent-tabs`);
+                this.syncData.recentTabs = tabsResponse.data.tabs || [];
+                
+                // Sync active automations
+                const automationsResponse = await axios.get(`${this.backendURL}/api/active-automations`);
+                this.syncData.activeAutomations = automationsResponse.data.active_tasks || [];
+                
+                // Sync chat sessions (if available)
+                try {
+                    const chatResponse = await axios.get(`${this.backendURL}/api/chat-sessions`);
+                    this.syncData.chatSessions = chatResponse.data.sessions || [];
+                } catch (e) {
+                    // Chat sessions endpoint might not exist
+                    this.syncData.chatSessions = [];
+                }
+            }
+            
+            return { success: true };
+        } catch (error) {
+            console.error('Full sync failed:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async sendToBackend(message) {
+        try {
+            if (!this.isConnected) {
+                this.messageQueue.push(message);
+                return { success: false, queued: true };
+            }
+            
+            const { endpoint, method = 'GET', data } = message;
+            const config = {
+                method,
+                url: `${this.backendURL}${endpoint}`,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            
+            if (data && (method === 'POST' || method === 'PUT')) {
+                config.data = data;
+            }
+            
+            const response = await axios(config);
+            return { success: true, data: response.data };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    broadcast(message) {
+        const messageString = JSON.stringify(message);
+        for (const connection of this.connections.values()) {
+            if (connection.readyState === WebSocket.OPEN) {
+                connection.send(messageString);
+            }
+        }
+    }
+
+    sendSyncData(connection) {
+        if (connection.readyState === WebSocket.OPEN) {
+            connection.send(JSON.stringify({
+                type: 'sync_data',
+                data: this.syncData
+            }));
         }
     }
 
     async sendMessage(message) {
+        // Main interface for external message sending
         try {
-            if (!this.isConnected) {
-                // Queue message for later sending
-                this.messageQueue.push(message);
-                console.log('Message queued - not connected to web app');
-                return { success: false, error: 'Not connected to web app', queued: true };
-            }
-
-            // In production, this would send via WebSocket
-            console.log('📤 Sending message to web app:', message);
+            this.broadcast({
+                type: 'external_message',
+                data: message
+            });
             
-            // Simulate sending message to web app
-            // In real implementation: this.websocket.send(JSON.stringify(message));
-            
-            return { 
-                success: true, 
-                message: 'Message sent to web app',
-                data: message 
-            };
+            return { success: true };
         } catch (error) {
-            console.error('❌ Failed to send message:', error);
             return { success: false, error: error.message };
         }
-    }
-
-    handleWebAppMessage(message) {
-        try {
-            console.log('📥 Received message from web app:', message);
-            
-            // Process different message types
-            switch (message.type) {
-                case 'automation_request':
-                    this.handleAutomationRequest(message.data);
-                    break;
-                case 'screenshot_request':
-                    this.handleScreenshotRequest(message.data);
-                    break;
-                case 'status_request':
-                    this.handleStatusRequest(message.data);
-                    break;
-                default:
-                    console.log('Unknown message type:', message.type);
-            }
-        } catch (error) {
-            console.error('❌ Error handling web app message:', error);
-        }
-    }
-
-    async handleAutomationRequest(data) {
-        try {
-            console.log('🤖 Processing automation request:', data);
-            
-            // In production, this would trigger actual automation
-            const result = {
-                success: true,
-                automationId: data.automationId,
-                result: 'Automation completed successfully',
-                timestamp: new Date().toISOString()
-            };
-            
-            // Send result back to web app
-            await this.sendMessage({
-                type: 'automation_result',
-                data: result
-            });
-        } catch (error) {
-            console.error('❌ Automation request failed:', error);
-        }
-    }
-
-    async handleScreenshotRequest(data) {
-        try {
-            console.log('📸 Processing screenshot request:', data);
-            
-            // In production, this would take actual screenshot
-            const result = {
-                success: true,
-                screenshotId: data.screenshotId,
-                filepath: '/desktop/screenshots/screenshot_' + Date.now() + '.png',
-                timestamp: new Date().toISOString()
-            };
-            
-            // Send result back to web app
-            await this.sendMessage({
-                type: 'screenshot_result',
-                data: result
-            });
-        } catch (error) {
-            console.error('❌ Screenshot request failed:', error);
-        }
-    }
-
-    async handleStatusRequest(data) {
-        try {
-            console.log('📊 Processing status request:', data);
-            
-            const status = {
-                connected: this.isConnected,
-                uptime: process.uptime(),
-                memoryUsage: process.memoryUsage(),
-                version: '1.0.0',
-                capabilities: [
-                    'screenshot',
-                    'automation',
-                    'cross_origin_access',
-                    'file_system',
-                    'system_integration'
-                ]
-            };
-            
-            // Send status back to web app
-            await this.sendMessage({
-                type: 'status_result',
-                data: status
-            });
-        } catch (error) {
-            console.error('❌ Status request failed:', error);
-        }
-    }
-
-    processMessageQueue() {
-        if (this.messageQueue.length === 0) return;
-        
-        console.log(`Processing ${this.messageQueue.length} queued messages`);
-        
-        const queuedMessages = [...this.messageQueue];
-        this.messageQueue = [];
-        
-        queuedMessages.forEach(async (message) => {
-            await this.sendMessage(message);
-        });
-    }
-
-    async disconnect() {
-        try {
-            if (this.websocket) {
-                this.websocket.close();
-                this.websocket = null;
-            }
-            
-            if (this.server) {
-                this.server.close();
-            }
-            
-            this.isConnected = false;
-            console.log('🔌 Disconnected from web app');
-        } catch (error) {
-            console.error('❌ Error during disconnect:', error);
-        }
-    }
-
-    getConnectionStatus() {
-        return {
-            connected: this.isConnected,
-            webAppURL: this.webAppURL,
-            queuedMessages: this.messageQueue.length,
-            reconnectAttempts: this.reconnectAttempts
-        };
     }
 }
 
