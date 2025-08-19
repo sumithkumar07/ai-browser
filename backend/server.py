@@ -695,6 +695,238 @@ async def execute_keyboard_shortcut(request: Dict[str, Any]):
         return {"success": False, "error": str(e)}
 
 # ===============================
+# ENHANCED BROWSER ENGINE ENDPOINTS
+# ===============================
+
+@app.post("/api/enhanced-browser/navigate")
+async def enhanced_browser_navigate(request: Dict[str, Any]):
+    """Enhanced browser navigation with comprehensive analysis"""
+    start_time = time.time()
+    
+    try:
+        url = request.get("url")
+        options = request.get("options", {})
+        
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        # Use advanced browser engine
+        navigation_result = await browser_engine.enhanced_navigate(url, options)
+        
+        response_time = time.time() - start_time
+        record_api_call("/api/enhanced-browser/navigate", "POST", response_time, 
+                       200 if navigation_result.get("success") else 400)
+        
+        return navigation_result
+        
+    except Exception as e:
+        response_time = time.time() - start_time
+        record_api_call("/api/enhanced-browser/navigate", "POST", response_time, 500)
+        raise HTTPException(status_code=500, detail=f"Enhanced navigation failed: {str(e)}")
+
+@app.get("/api/enhanced-browser/capabilities")
+async def get_browser_capabilities():
+    """Get comprehensive browser engine capabilities"""
+    try:
+        capabilities = await browser_engine.get_browser_capabilities()
+        return capabilities
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ===============================
+# ADVANCED AI INTELLIGENCE ENDPOINTS
+# ===============================
+
+@app.post("/api/ai/intelligent-chat")
+async def intelligent_chat(request: Dict[str, Any]):
+    """Enhanced AI chat with multi-modal support and intelligence"""
+    start_time = time.time()
+    
+    try:
+        message = request.get("message", "")
+        session_id = request.get("session_id", str(uuid.uuid4()))
+        context = request.get("context")
+        image_data = request.get("image_data")
+        url_context = request.get("url_context")
+        user_preferences = request.get("user_preferences")
+        
+        if not message:
+            raise HTTPException(status_code=400, detail="Message is required")
+        
+        # Process with advanced AI intelligence
+        intelligent_response = await ai_intelligence_engine.process_intelligent_conversation(
+            message=message,
+            session_id=session_id,
+            context=context,
+            image_data=image_data,
+            url_context=url_context,
+            user_preferences=user_preferences
+        )
+        
+        response_time = time.time() - start_time
+        record_api_call("/api/ai/intelligent-chat", "POST", response_time, 200)
+        
+        # Record user action
+        record_user_action(session_id, "intelligent_chat", response_time, True, {
+            "message_length": len(message),
+            "has_context": bool(context),
+            "has_image": bool(image_data),
+            "response_type": intelligent_response.response_type
+        })
+        
+        return {
+            "response": intelligent_response.content,
+            "session_id": session_id,
+            "confidence_score": intelligent_response.confidence_score,
+            "response_type": intelligent_response.response_type,
+            "suggested_actions": intelligent_response.suggested_actions,
+            "processing_time": intelligent_response.processing_time,
+            "enhanced_features": ["intelligent_conversation", "multi_modal", "predictive_behavior", "context_awareness"]
+        }
+        
+    except Exception as e:
+        response_time = time.time() - start_time
+        record_api_call("/api/ai/intelligent-chat", "POST", response_time, 500)
+        raise HTTPException(status_code=500, detail=f"Intelligent chat failed: {str(e)}")
+
+@app.get("/api/ai/intelligence-analytics")
+async def get_intelligence_analytics():
+    """Get AI intelligence analytics and insights"""
+    try:
+        analytics = ai_intelligence_engine.get_intelligence_analytics()
+        return analytics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ===============================
+# PERFORMANCE MONITORING ENDPOINTS
+# ===============================
+
+@app.get("/api/performance/real-time")
+async def get_real_time_performance():
+    """Get real-time performance metrics"""
+    try:
+        metrics = performance_monitor.get_real_time_metrics()
+        return metrics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/performance/historical")
+async def get_historical_performance(hours: int = 1):
+    """Get historical performance metrics"""
+    try:
+        if hours < 1 or hours > 24:
+            raise HTTPException(status_code=400, detail="Hours must be between 1 and 24")
+        
+        metrics = performance_monitor.get_historical_metrics(hours)
+        return metrics
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/performance/export")
+async def export_performance_metrics(format_type: str = "json"):
+    """Export performance metrics in various formats"""
+    try:
+        if format_type not in ["json", "summary"]:
+            raise HTTPException(status_code=400, detail="Format must be 'json' or 'summary'")
+        
+        export_data = performance_monitor.export_metrics(format_type)
+        
+        if format_type == "summary":
+            return {"content": export_data, "format": "text"}
+        else:
+            return json.loads(export_data)
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ===============================
+# ADVANCED CACHING ENDPOINTS
+# ===============================
+
+@app.get("/api/cache/stats")
+async def get_cache_statistics():
+    """Get comprehensive cache statistics"""
+    try:
+        stats = cache_system.get_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/cache/clear")
+async def clear_cache(request: Dict[str, Any]):
+    """Clear cache by namespace"""
+    try:
+        namespace = request.get("namespace", "default")
+        cleared_count = await cache_system.clear_namespace(namespace)
+        
+        return {
+            "success": True,
+            "cleared_count": cleared_count,
+            "namespace": namespace
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ===============================
+# COMPREHENSIVE SYSTEM STATUS
+# ===============================
+
+@app.get("/api/system/comprehensive-status")
+async def get_comprehensive_system_status():
+    """Get comprehensive system status with all enhanced features"""
+    try:
+        # Gather all system information
+        performance_metrics = performance_monitor.get_real_time_metrics()
+        cache_stats = cache_system.get_stats()
+        ai_analytics = ai_intelligence_engine.get_intelligence_analytics()
+        browser_capabilities = await browser_engine.get_browser_capabilities()
+        
+        # System health assessment
+        health_score = performance_metrics.get('health_score', 50)
+        
+        # Database status
+        try:
+            db.command("ping")
+            database_status = "operational"
+        except:
+            database_status = "error"
+            health_score -= 20
+        
+        return {
+            "status": "enhanced_operational",
+            "version": "4.0.0",
+            "timestamp": datetime.utcnow().isoformat(),
+            "health_score": health_score,
+            "components": {
+                "database": database_status,
+                "cache_system": "operational",
+                "performance_monitor": "operational",
+                "ai_intelligence": "operational",
+                "browser_engine": "operational"
+            },
+            "performance": performance_metrics,
+            "cache": cache_stats,
+            "ai_analytics": ai_analytics,
+            "browser_capabilities": browser_capabilities,
+            "enhanced_features": [
+                "multi_tier_caching",
+                "real_time_performance_monitoring",
+                "intelligent_ai_conversations",
+                "advanced_browser_engine",
+                "predictive_user_behavior",
+                "multi_modal_processing",
+                "comprehensive_content_analysis",
+                "security_analysis",
+                "performance_optimization"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Comprehensive status error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ===============================
 # CUTTING-EDGE AI FEATURES  
 # ===============================
 
