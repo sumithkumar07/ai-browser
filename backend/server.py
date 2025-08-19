@@ -145,14 +145,14 @@ async def get_page_content(url: str) -> Dict[str, Any]:
     except Exception as e:
         return {"title": url, "content": f"Error loading page: {str(e)}", "url": url}
 
-async def get_ai_response(message: str, context: Optional[str] = None, session_id: Optional[str] = None) -> str:
-    """Get AI response using Groq API"""
+async def get_ai_response(message: str, context: Optional[str] = None, session_id: Optional[str] = None, provider: str = "groq") -> str:
+    """Enhanced AI response with multi-provider support"""
     try:
-        # Get conversation history
+        # Prepare messages
         messages = [
             {
                 "role": "system", 
-                "content": "You are AETHER AI Assistant, an intelligent browser companion. You help users with web browsing, answer questions, and provide helpful information. Be concise but informative."
+                "content": "You are AETHER AI Assistant, an intelligent browser companion. You help users with web browsing, research, summarization, automation, and workflow creation. Be concise but comprehensive. Format responses with markdown when helpful."
             }
         ]
         
@@ -173,17 +173,52 @@ async def get_ai_response(message: str, context: Optional[str] = None, session_i
         
         messages.append({"role": "user", "content": message})
         
-        # Get response from Groq
-        chat_completion = groq_client.chat.completions.create(
-            messages=messages,
-            model="llama-3.3-70b-versatile",  # Using latest available Llama model
-            temperature=0.7,
-            max_tokens=1000
-        )
-        
-        return chat_completion.choices[0].message.content
+        # Route to appropriate AI provider
+        if provider == "openai" and openai_client:
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1000
+            )
+            return response.choices[0].message.content
+            
+        elif provider == "anthropic" and anthropic_client:
+            # Convert messages to Anthropic format
+            system_messages = [msg["content"] for msg in messages if msg["role"] == "system"]
+            user_messages = [msg for msg in messages if msg["role"] != "system"]
+            
+            response = anthropic_client.messages.create(
+                model="claude-3-haiku-20240307",
+                system="\n".join(system_messages) if system_messages else "You are a helpful AI assistant.",
+                messages=user_messages,
+                max_tokens=1000
+            )
+            return response.content[0].text
+            
+        elif provider == "google" and genai_model:
+            # Convert to Google format
+            prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+            response = genai_model.generate_content(prompt)
+            return response.text
+            
+        else:
+            # Default to Groq
+            chat_completion = groq_client.chat.completions.create(
+                messages=messages,
+                model="llama-3.3-70b-versatile",
+                temperature=0.7,
+                max_tokens=1000
+            )
+            return chat_completion.choices[0].message.content
         
     except Exception as e:
+        # Fallback to Groq if other providers fail
+        if provider != "groq":
+            try:
+                return await get_ai_response(message, context, session_id, "groq")
+            except:
+                return f"AI Assistant temporarily unavailable. Please try again."
         return f"Sorry, I'm having trouble processing your request: {str(e)}"
 
 # API Routes
