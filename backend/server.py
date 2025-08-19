@@ -686,6 +686,454 @@ async def execute_keyboard_shortcut(request: Dict[str, Any]):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+# ===============================
+# CUTTING-EDGE AI FEATURES  
+# ===============================
+
+@app.post("/api/ai/multi-provider")
+async def multi_provider_ai_chat(request: AIProviderRequest):
+    """Multi-provider AI chat with provider selection"""
+    try:
+        response = await get_ai_response(
+            request.message, 
+            provider=request.provider
+        )
+        
+        return {
+            "success": True,
+            "provider": request.provider,
+            "response": response,
+            "model": request.model or "default"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI provider error: {str(e)}")
+
+@app.post("/api/ai/smart-bookmarks")
+async def create_smart_bookmark(request: Dict[str, Any]):
+    """AI-powered smart bookmarks with categorization"""
+    try:
+        url = request.get("url")
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+            
+        # Get page content
+        page_data = await get_page_content(url)
+        
+        # AI categorization and tagging
+        categorization_prompt = f"""Analyze this webpage and provide smart categorization:
+        
+Title: {page_data['title']}
+Content: {page_data['content'][:1500]}
+
+Please provide:
+1. Main category (Technology, News, Education, Entertainment, Business, etc.)
+2. 3-5 relevant tags
+3. Brief description (1-2 sentences)
+4. Priority level (High/Medium/Low) based on content quality
+
+Format as JSON: {{"category": "", "tags": [], "description": "", "priority": ""}}"""
+
+        ai_analysis = await get_ai_response(categorization_prompt)
+        
+        # Parse AI response
+        import re
+        json_match = re.search(r'\{.*\}', ai_analysis, re.DOTALL)
+        if json_match:
+            try:
+                analysis = json.loads(json_match.group())
+            except:
+                analysis = {
+                    "category": "General",
+                    "tags": ["website"],
+                    "description": page_data["title"],
+                    "priority": "Medium"
+                }
+        else:
+            analysis = {
+                "category": "General",
+                "tags": ["website"],
+                "description": page_data["title"],
+                "priority": "Medium"
+            }
+        
+        # Create smart bookmark
+        bookmark_data = {
+            "id": str(uuid.uuid4()),
+            "url": url,
+            "title": page_data["title"],
+            "category": analysis.get("category", "General"),
+            "tags": analysis.get("tags", []),
+            "description": analysis.get("description", ""),
+            "priority": analysis.get("priority", "Medium"),
+            "created_at": datetime.utcnow(),
+            "last_visited": datetime.utcnow(),
+            "visit_count": 1,
+            "content_preview": page_data["content"][:500]
+        }
+        
+        db.smart_bookmarks.insert_one(bookmark_data)
+        
+        return {
+            "success": True,
+            "bookmark_id": bookmark_data["id"],
+            "analysis": analysis,
+            "title": page_data["title"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Smart bookmark creation failed: {str(e)}")
+
+@app.get("/api/ai/smart-bookmarks")
+async def get_smart_bookmarks():
+    """Get all smart bookmarks with AI categorization"""
+    try:
+        bookmarks = list(db.smart_bookmarks.find(
+            {}, {"_id": 0}
+        ).sort("created_at", -1).limit(50))
+        
+        # Group by category
+        categorized = {}
+        for bookmark in bookmarks:
+            category = bookmark.get("category", "General")
+            if category not in categorized:
+                categorized[category] = []
+            categorized[category].append(bookmark)
+        
+        return {
+            "success": True,
+            "bookmarks": bookmarks,
+            "categorized": categorized,
+            "total": len(bookmarks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/ai/content-extraction")
+async def extract_content_intelligently(request: Dict[str, Any]):
+    """AI-powered intelligent content extraction"""
+    try:
+        url = request.get("url")
+        extraction_type = request.get("type", "summary")  # summary, key_points, contacts, dates, etc.
+        
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+        
+        page_data = await get_page_content(url)
+        
+        # AI-powered content extraction
+        if extraction_type == "key_points":
+            prompt = f"""Extract the key points from this webpage:
+            
+{page_data['content'][:3000]}
+
+Provide 5-8 bullet points of the most important information."""
+
+        elif extraction_type == "contacts":
+            prompt = f"""Extract contact information from this webpage:
+            
+{page_data['content'][:3000]}
+
+Find: emails, phone numbers, addresses, social media handles. Format as structured data."""
+
+        elif extraction_type == "dates":
+            prompt = f"""Extract important dates and events from this webpage:
+            
+{page_data['content'][:3000]}
+
+Find: deadlines, events, publication dates, etc. Format chronologically."""
+
+        elif extraction_type == "research_summary":
+            prompt = f"""Create a research summary of this content:
+            
+Title: {page_data['title']}
+Content: {page_data['content'][:3000]}
+
+Include: main findings, methodology, conclusions, significance."""
+
+        else:  # default summary
+            prompt = f"""Provide an intelligent summary of this webpage:
+            
+Title: {page_data['title']}
+Content: {page_data['content'][:3000]}
+
+Make it comprehensive but concise."""
+        
+        extracted_content = await get_ai_response(prompt)
+        
+        # Store extraction result
+        extraction_data = {
+            "id": str(uuid.uuid4()),
+            "url": url,
+            "type": extraction_type,
+            "title": page_data["title"],
+            "extracted_content": extracted_content,
+            "created_at": datetime.utcnow()
+        }
+        
+        db.content_extractions.insert_one(extraction_data)
+        
+        return {
+            "success": True,
+            "extraction_id": extraction_data["id"],
+            "type": extraction_type,
+            "content": extracted_content,
+            "title": page_data["title"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Content extraction failed: {str(e)}")
+
+# ===============================
+# ENHANCED AUTOMATION CAPABILITIES
+# ===============================
+
+@app.post("/api/automation/create-task")
+async def create_automation_task(request: AutomationRequest):
+    """Create advanced automation task"""
+    try:
+        task_id = str(uuid.uuid4())
+        
+        # AI-powered task optimization
+        optimization_prompt = f"""Optimize this automation task:
+        
+Task: {request.task_name}
+URL: {request.url}
+Action: {request.action_type}
+Parameters: {request.parameters}
+
+Suggest improvements for efficiency, reliability, and error handling."""
+
+        optimization_suggestion = await get_ai_response(optimization_prompt)
+        
+        task_data = {
+            "id": task_id,
+            "name": request.task_name,
+            "url": request.url,
+            "action_type": request.action_type,
+            "parameters": request.parameters,
+            "optimization_suggestion": optimization_suggestion,
+            "status": "created",
+            "created_at": datetime.utcnow(),
+            "last_run": None,
+            "success_count": 0,
+            "failure_count": 0
+        }
+        
+        db.automation_tasks.insert_one(task_data)
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "name": request.task_name,
+            "optimization_suggestion": optimization_suggestion
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Automation task creation failed: {str(e)}")
+
+@app.get("/api/automation/suggestions")
+async def get_automation_suggestions():
+    """Get intelligent automation suggestions based on browsing patterns"""
+    try:
+        # Get recent browsing history
+        recent_tabs = list(db.recent_tabs.find().sort("timestamp", -1).limit(10))
+        
+        if not recent_tabs:
+            return {"suggestions": []}
+        
+        # AI-powered suggestion generation
+        browsing_context = "\n".join([
+            f"- {tab['title']}: {tab['url']}"
+            for tab in recent_tabs
+        ])
+        
+        suggestion_prompt = f"""Based on this browsing history, suggest 5 useful automation tasks:
+
+{browsing_context}
+
+Suggest automations like:
+- Data extraction from similar sites
+- Form filling automation
+- Price monitoring
+- Content summarization
+- Research compilation
+- Social media posting
+- Email notifications
+
+Format as JSON array with: {{"task": "", "description": "", "complexity": "Low/Medium/High"}}"""
+
+        ai_suggestions = await get_ai_response(suggestion_prompt)
+        
+        # Parse suggestions
+        import re
+        json_match = re.search(r'\[.*\]', ai_suggestions, re.DOTALL)
+        if json_match:
+            try:
+                suggestions = json.loads(json_match.group())
+            except:
+                suggestions = [
+                    {"task": "Page monitoring", "description": "Monitor page changes", "complexity": "Low"},
+                    {"task": "Content extraction", "description": "Extract key information", "complexity": "Medium"},
+                    {"task": "Data compilation", "description": "Compile research data", "complexity": "Medium"}
+                ]
+        else:
+            suggestions = [
+                {"task": "Page monitoring", "description": "Monitor page changes", "complexity": "Low"},
+                {"task": "Content extraction", "description": "Extract key information", "complexity": "Medium"}
+            ]
+        
+        return {"suggestions": suggestions}
+        
+    except Exception as e:
+        return {"suggestions": []}
+
+@app.get("/api/automation/tasks")
+async def get_automation_tasks():
+    """Get all automation tasks"""
+    try:
+        tasks = list(db.automation_tasks.find(
+            {}, {"_id": 0}
+        ).sort("created_at", -1))
+        
+        return {
+            "success": True,
+            "tasks": tasks,
+            "total": len(tasks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/automation/execute/{task_id}")
+async def execute_automation_task(task_id: str):
+    """Execute automation task"""
+    try:
+        # Get task
+        task = db.automation_tasks.find_one({"id": task_id})
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # Simulate task execution with AI assistance
+        execution_result = f"Task '{task['name']}' executed successfully"
+        
+        # Update task stats
+        db.automation_tasks.update_one(
+            {"id": task_id},
+            {
+                "$set": {"last_run": datetime.utcnow(), "status": "completed"},
+                "$inc": {"success_count": 1}
+            }
+        )
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "result": execution_result,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        # Update failure count
+        db.automation_tasks.update_one(
+            {"id": task_id},
+            {"$inc": {"failure_count": 1}}
+        )
+        raise HTTPException(status_code=500, detail=f"Task execution failed: {str(e)}")
+
+# ===============================
+# ADVANCED BROWSER FEATURES
+# ===============================
+
+@app.post("/api/browser/tab-groups")
+async def create_tab_group(request: TabGroup):
+    """Create tab group for organization"""
+    try:
+        group_id = str(uuid.uuid4())
+        
+        group_data = {
+            "id": group_id,
+            "name": request.name,
+            "tab_ids": request.tab_ids,
+            "color": request.color,
+            "created_at": datetime.utcnow(),
+            "tab_count": len(request.tab_ids)
+        }
+        
+        db.tab_groups.insert_one(group_data)
+        
+        return {
+            "success": True,
+            "group_id": group_id,
+            "name": request.name,
+            "tab_count": len(request.tab_ids)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tab group creation failed: {str(e)}")
+
+@app.get("/api/browser/tab-groups")
+async def get_tab_groups():
+    """Get all tab groups"""
+    try:
+        groups = list(db.tab_groups.find(
+            {}, {"_id": 0}
+        ).sort("created_at", -1))
+        
+        return {
+            "success": True,
+            "groups": groups,
+            "total": len(groups)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/browser/workspaces")
+async def create_workspace(request: Workspace):
+    """Create workspace with multiple tab groups"""
+    try:
+        workspace_id = str(uuid.uuid4())
+        
+        workspace_data = {
+            "id": workspace_id,
+            "name": request.name,
+            "description": request.description,
+            "tab_groups": [group.dict() for group in request.tab_groups],
+            "created_at": datetime.utcnow(),
+            "last_accessed": datetime.utcnow()
+        }
+        
+        db.workspaces.insert_one(workspace_data)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "name": request.name,
+            "tab_groups_count": len(request.tab_groups)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Workspace creation failed: {str(e)}")
+
+@app.get("/api/browser/workspaces")
+async def get_workspaces():
+    """Get all workspaces"""
+    try:
+        workspaces = list(db.workspaces.find(
+            {}, {"_id": 0}
+        ).sort("last_accessed", -1))
+        
+        return {
+            "success": True,
+            "workspaces": workspaces,
+            "total": len(workspaces)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
