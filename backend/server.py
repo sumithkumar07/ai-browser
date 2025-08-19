@@ -926,7 +926,7 @@ async def execute_autonomous_action(request: Dict[str, Any]):
 async def execute_automation_command(command: AutomationCommand):
     """Execute single natural language automation command"""
     try:
-        if not ENHANCED_MODE:
+        if not ENHANCED_MODE or not task_executor:
             return {
                 "success": False,
                 "message": "Enhanced automation not available. Command processed as regular chat.",
