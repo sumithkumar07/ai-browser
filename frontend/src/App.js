@@ -6,6 +6,7 @@ import AdvancedFeatures from './components/AdvancedFeatures';
 import SmartSearchBar from './components/SmartSearchBar';
 import VoiceCommandPanel from './components/VoiceCommandPanel';
 import EnhancedAIPanel from './components/EnhancedAIPanel';
+import EnhancedCapabilities from './components/EnhancedCapabilities';
 import OnboardingTour, { useOnboardingTour } from './components/OnboardingTour';
 
 function App() {
