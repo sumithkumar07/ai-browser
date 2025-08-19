@@ -20,10 +20,19 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import enhanced automation capabilities
+try:
+    from enhanced_server import enhanced_chat_with_ai, task_executor, nlp_processor
+    ENHANCED_MODE = True
+    logger.info("Enhanced automation capabilities loaded successfully")
+except ImportError:
+    ENHANCED_MODE = False
+    logger.warning("Enhanced automation not available, running in basic mode")
+
 # Create FastAPI app
 app = FastAPI(
     title="AETHER Enhanced Browser API", 
-    version="4.0.0"
+    version="5.0.0"  # Updated version for enhanced capabilities
 )
 
 # Add CORS middleware
