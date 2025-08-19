@@ -1260,5 +1260,13 @@ async def get_enhanced_system_status():
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
+    # Setup enhanced endpoints if available
+    if PHASE_123_AVAILABLE:
+        try:
+            setup_enhanced_endpoints(app, enhanced_ai_intelligence, native_chromium)
+            logger.info("🔥 Phase 1-3 enhanced endpoints configured successfully")
+        except Exception as e:
+            logger.error(f"Failed to setup enhanced endpoints: {e}")
+    
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
