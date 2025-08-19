@@ -33,10 +33,7 @@ except ImportError:
 try:
     from enhanced_server_integration import (
         initialize_enhanced_server_integration, 
-        get_enhanced_server_integration,
-        ShadowTaskRequest, VisualWorkflowCreateRequest, WorkflowNodeRequest,
-        NodeConnectionRequest, SplitViewCreateRequest, SplitViewNavigateRequest,
-        PlatformConnectionRequest, PlatformActionRequest, BatchActionRequest
+        get_enhanced_server_integration
     )
     ENHANCED_SYSTEMS_AVAILABLE = True
     logger.info("🚀 ALL CRITICAL GAPS - Enhanced systems loaded successfully")
