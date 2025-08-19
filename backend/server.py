@@ -511,20 +511,18 @@ async def create_workflow(request: WorkflowRequest):
         raise HTTPException(status_code=500, detail=f"Workflow creation failed: {str(e)}")
 
 @app.post("/api/voice-command")
-async def process_voice_command(request: Dict[str, Any]):
+async def process_voice_command(request: VoiceCommandRequest):
     """Process voice commands"""
-    try:
-        command = request.get("command", "")
-        
+    try:        
         # Process different voice commands
-        if "navigate" in command.lower():
+        if "navigate" in request.command.lower():
             return {"success": True, "action": "navigate", "result": "Navigation command processed"}
-        elif "search" in command.lower():
+        elif "search" in request.command.lower():
             return {"success": True, "action": "search", "result": "Search command processed"}
-        elif "summarize" in command.lower():
+        elif "summarize" in request.command.lower():
             return {"success": True, "action": "summarize", "result": "Summarization command processed"}
         else:
-            return {"success": True, "action": "general", "result": f"Voice command processed: {command}"}
+            return {"success": True, "action": "general", "result": f"Voice command processed: {request.command}"}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Voice command failed: {str(e)}")
