@@ -1263,6 +1263,7 @@ if __name__ == "__main__":
     # Setup enhanced endpoints if available
     if PHASE_123_AVAILABLE:
         try:
+            from enhanced_server_extensions import setup_enhanced_endpoints
             setup_enhanced_endpoints(app, enhanced_ai_intelligence, native_chromium)
             logger.info("🔥 Phase 1-3 enhanced endpoints configured successfully")
         except Exception as e:
