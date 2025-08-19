@@ -23,14 +23,15 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AETHER Enhanced Browser API", version="4.0.0")
 
-# CORS configuration - Compatible format
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Simple CORS configuration
+@app.middleware("http")
+async def cors_handler(request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # Database connection
 MONGO_URL = os.getenv("MONGO_URL")
