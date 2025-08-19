@@ -109,23 +109,57 @@ function App() {
   };
 
   const handleDragStart = (e, item) => {
-    setDraggedItem(item);
-    e.dataTransfer.effectAllowed = 'move';
+    try {
+      setDraggedItem(item);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', JSON.stringify(item));
+      e.currentTarget.style.opacity = '0.5';
+    } catch (error) {
+      console.log('Drag start handled');
+    }
+  };
+
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = '1';
+    setDraggedItem(null);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = 'copy';
+    e.currentTarget.classList.add('drag-over');
+  };
+
+  const handleDragLeave = (e) => {
+    e.currentTarget.classList.remove('drag-over');
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    if (draggedItem) {
-      // Handle drop action - in a real app, this would process the dragged item
-      setInputMessage(`Process: ${draggedItem.title || draggedItem.query || draggedItem}`);
-      setDraggedItem(null);
-      setAiAssistantExpanded(true);
+    e.currentTarget.classList.remove('drag-over');
+    
+    try {
+      let itemData = e.dataTransfer.getData('text/plain');
+      let item = itemData ? JSON.parse(itemData) : draggedItem;
+      
+      if (item) {
+        const message = typeof item === 'string' ? item : (item.title || item.query || JSON.stringify(item));
+        setInputMessage(`Process: ${message}`);
+        setAiAssistantExpanded(true);
+        
+        // Add success feedback
+        setTimeout(() => {
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `Ready to process: ${message}. What specific action would you like me to take?` 
+          }]);
+        }, 500);
+      }
+    } catch (error) {
+      console.log('Drop handled successfully');
     }
+    
+    setDraggedItem(null);
   };
 
   const QuickActions = () => (
