@@ -72,6 +72,36 @@ class AutomationRequest(BaseModel):
     action_type: str
     parameters: Optional[Dict[str, Any]] = {}
 
+class AdvancedAutomationRequest(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    steps: List[Dict[str, Any]]
+    conditions: Optional[Dict[str, Any]] = {}
+    triggers: Optional[List[str]] = []
+
+class WorkflowTemplateRequest(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    category: Optional[str] = "general"
+    steps: List[Dict[str, Any]]
+    variables: Optional[Dict[str, Any]] = {}
+
+class OAuthRequest(BaseModel):
+    provider: str
+    redirect_uri: str
+
+class ApiKeyRequest(BaseModel):
+    service: str
+    api_key: str
+    key_name: Optional[str] = ""
+
+class VoiceCommandRequest(BaseModel):
+    command: str
+
+class KeyboardShortcutRequest(BaseModel):
+    shortcut: str
+    action: Optional[str] = ""
+
 # Helper functions
 async def get_page_content(url: str) -> Dict[str, Any]:
     """Fetch and parse web page content"""
