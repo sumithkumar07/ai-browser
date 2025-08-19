@@ -18,10 +18,18 @@ from typing import Union
 import asyncio
 from functools import lru_cache
 import logging
+import time
+
+# Import enhanced components
+from enhanced_server import *
+from advanced_browser_engine import browser_engine
+from cache_system import cache_system, cached, get_cached, set_cached
+from performance_monitor import performance_monitor, record_api_call, record_user_action
+from ai_intelligence_engine import ai_intelligence_engine
 
 load_dotenv()
 
-app = FastAPI(title="AETHER Browser API", version="1.0.0")
+app = FastAPI(title="AETHER Enhanced Browser API", version="4.0.0")
 
 # CORS middleware
 app.add_middleware(
