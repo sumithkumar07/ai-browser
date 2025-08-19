@@ -19,7 +19,7 @@
       "endpoint": "/health",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/health'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/health'",
       "response_time": 0.06607890129089355,
       "timestamp": "2025-08-19T14:01:11.691467"
     },
@@ -27,7 +27,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.008262872695922852,
       "timestamp": "2025-08-19T14:01:11.699820"
     },
@@ -35,7 +35,7 @@
       "endpoint": "/browse",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/browse'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/browse'",
       "response_time": 0.008959293365478516,
       "timestamp": "2025-08-19T14:01:11.708866"
     },
@@ -43,7 +43,7 @@
       "endpoint": "/summarize",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/summarize'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/summarize'",
       "response_time": 0.007016420364379883,
       "timestamp": "2025-08-19T14:01:11.715966"
     },
@@ -51,7 +51,7 @@
       "endpoint": "/search-suggestions",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/search-suggestions'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/search-suggestions'",
       "response_time": 0.006201744079589844,
       "timestamp": "2025-08-19T14:01:11.722230"
     },
@@ -59,7 +59,7 @@
       "endpoint": "/enhanced/system/full-status",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/system/full-status'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/system/full-status'",
       "response_time": 0.007461071014404297,
       "timestamp": "2025-08-19T14:01:11.729746"
     },
@@ -67,7 +67,7 @@
       "endpoint": "/enhanced/ai/providers",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/ai/providers'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/ai/providers'",
       "response_time": 0.006445646286010742,
       "timestamp": "2025-08-19T14:01:11.736254"
     },
@@ -75,7 +75,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.005846500396728516,
       "timestamp": "2025-08-19T14:01:11.742154"
     },
@@ -83,7 +83,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.0534672737121582,
       "timestamp": "2025-08-19T14:01:11.795684"
     },
@@ -91,7 +91,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.01579141616821289,
       "timestamp": "2025-08-19T14:01:11.811539"
     },
@@ -99,7 +99,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.006356954574584961,
       "timestamp": "2025-08-19T14:01:11.817953"
     },
@@ -107,7 +107,7 @@
       "endpoint": "/performance",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/performance'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/performance'",
       "response_time": 0.07097172737121582,
       "timestamp": "2025-08-19T14:01:11.888983"
     },
@@ -115,7 +115,7 @@
       "endpoint": "/enhanced/ai/personalized-suggestions",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/ai/personalized-suggestions'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/ai/personalized-suggestions'",
       "response_time": 0.010022163391113281,
       "timestamp": "2025-08-19T14:01:11.899069"
     },
@@ -123,7 +123,7 @@
       "endpoint": "/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457'",
       "response_time": 0.006285429000854492,
       "timestamp": "2025-08-19T14:01:11.905415"
     },
@@ -131,7 +131,7 @@
       "endpoint": "/enhanced/automation/create-advanced",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/automation/create-advanced'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/automation/create-advanced'",
       "response_time": 0.005502462387084961,
       "timestamp": "2025-08-19T14:01:11.910986"
     },
@@ -139,7 +139,7 @@
       "endpoint": "/active-automations",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/active-automations'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/active-automations'",
       "response_time": 0.0056438446044921875,
       "timestamp": "2025-08-19T14:01:11.916681"
     },
@@ -147,7 +147,7 @@
       "endpoint": "/enhanced/workflows/template/create",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/workflows/template/create'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/workflows/template/create'",
       "response_time": 0.004351139068603516,
       "timestamp": "2025-08-19T14:01:11.921079"
     },
@@ -155,7 +155,7 @@
       "endpoint": "/automation-suggestions",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/automation-suggestions?current_url=https://example.com'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/automation-suggestions?current_url=https://example.com'",
       "response_time": 0.006327390670776367,
       "timestamp": "2025-08-19T14:01:11.927460"
     },
@@ -163,7 +163,7 @@
       "endpoint": "/enhanced/automation/statistics",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/automation/statistics'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/automation/statistics'",
       "response_time": 0.07932782173156738,
       "timestamp": "2025-08-19T14:01:12.006858"
     },
@@ -171,7 +171,7 @@
       "endpoint": "/enhanced/performance/cache-analytics",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/performance/cache-analytics'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/performance/cache-analytics'",
       "response_time": 0.006092548370361328,
       "timestamp": "2025-08-19T14:01:12.013038"
     },
@@ -179,7 +179,7 @@
       "endpoint": "/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457'",
       "response_time": 0.00434112548828125,
       "timestamp": "2025-08-19T14:01:12.017437"
     },
@@ -187,7 +187,7 @@
       "endpoint": "/enhanced/performance/report",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/performance/report'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/performance/report'",
       "response_time": 0.004186391830444336,
       "timestamp": "2025-08-19T14:01:12.021676"
     },
@@ -195,7 +195,7 @@
       "endpoint": "/enhanced/system/overview",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/system/overview'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/system/overview'",
       "response_time": 0.005998849868774414,
       "timestamp": "2025-08-19T14:01:12.027722"
     },
@@ -203,7 +203,7 @@
       "endpoint": "/recent-tabs",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/recent-tabs'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/recent-tabs'",
       "response_time": 0.0044403076171875,
       "timestamp": "2025-08-19T14:01:12.032210"
     },
@@ -211,7 +211,7 @@
       "endpoint": "/recommendations",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/recommendations'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/recommendations'",
       "response_time": 0.004258394241333008,
       "timestamp": "2025-08-19T14:01:12.036522"
     },
@@ -219,7 +219,7 @@
       "endpoint": "/enhanced/performance/optimize",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/performance/optimize'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/performance/optimize'",
       "response_time": 0.0063517093658447266,
       "timestamp": "2025-08-19T14:01:12.042933"
     },
@@ -227,7 +227,7 @@
       "endpoint": "/enhanced/integrations/available",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/available'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/available'",
       "response_time": 0.004726886749267578,
       "timestamp": "2025-08-19T14:01:12.047731"
     },
@@ -235,7 +235,7 @@
       "endpoint": "/enhanced/integrations/oauth/initiate",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/oauth/initiate'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/oauth/initiate'",
       "response_time": 0.00545048713684082,
       "timestamp": "2025-08-19T14:01:12.053240"
     },
@@ -243,7 +243,7 @@
       "endpoint": "/integration-auth/user/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/integration-auth/user/055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/integration-auth/user/055ddf23-7398-4e9e-bdf9-6246966db457'",
       "response_time": 0.005091428756713867,
       "timestamp": "2025-08-19T14:01:12.058399"
     },
@@ -251,7 +251,7 @@
       "endpoint": "/integration-auth/store",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/integration-auth/store'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/integration-auth/store'",
       "response_time": 0.004580259323120117,
       "timestamp": "2025-08-19T14:01:12.063046"
     },
@@ -259,7 +259,7 @@
       "endpoint": "/enhanced/integrations/api-key/store",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/api-key/store'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/api-key/store'",
       "response_time": 0.00680994987487793,
       "timestamp": "2025-08-19T14:01:12.069917"
     },
@@ -267,7 +267,7 @@
       "endpoint": "/integration-auth/validate",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/integration-auth/validate'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/integration-auth/validate'",
       "response_time": 0.005409717559814453,
       "timestamp": "2025-08-19T14:01:12.075385"
     },
@@ -275,7 +275,7 @@
       "endpoint": "/voice-command",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/voice-command'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/voice-command'",
       "response_time": 0.004057407379150391,
       "timestamp": "2025-08-19T14:01:12.079515"
     },
@@ -283,7 +283,7 @@
       "endpoint": "/keyboard-shortcuts",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts?category=navigation&user_session=055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts?category=navigation&user_session=feature-test-suite-1'",
       "response_time": 0.0051727294921875,
       "timestamp": "2025-08-19T14:01:12.084743"
     },
@@ -291,7 +291,7 @@
       "endpoint": "/keyboard-shortcuts",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts?category=automation&user_session=055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts?category=automation&user_session=feature-test-suite-1'",
       "response_time": 0.00528264045715332,
       "timestamp": "2025-08-19T14:01:12.090079"
     },
@@ -299,7 +299,7 @@
       "endpoint": "/keyboard-shortcuts/custom",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts/custom'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts/custom'",
       "response_time": 0.004455089569091797,
       "timestamp": "2025-08-19T14:01:12.094588"
     },
@@ -307,7 +307,7 @@
       "endpoint": "/voice-commands/available",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/voice-commands/available?user_session=055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/voice-commands/available?user_session=feature-test-suite-1'",
       "response_time": 0.11620497703552246,
       "timestamp": "2025-08-19T14:01:12.210869"
     },
@@ -315,7 +315,7 @@
       "endpoint": "/keyboard-shortcuts/usage-stats",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts/usage-stats?user_session=055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/keyboard-shortcuts/usage-stats?user_session=feature-test-suite-1'",
       "response_time": 0.03304743766784668,
       "timestamp": "2025-08-19T14:01:12.244003"
     },
@@ -323,7 +323,7 @@
       "endpoint": "/voice-commands/history/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/voice-commands/history/055ddf23-7398-4e9e-bdf9-6246966db457?limit=10'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/voice-commands/history/055ddf23-7398-4e9e-bdf9-6246966db457?limit=10'",
       "response_time": 0.004972696304321289,
       "timestamp": "2025-08-19T14:01:12.249044"
     },
@@ -331,7 +331,7 @@
       "endpoint": "/voice-commands/custom",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/voice-commands/custom'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/voice-commands/custom'",
       "response_time": 0.0066149234771728516,
       "timestamp": "2025-08-19T14:01:12.255742"
     },
@@ -339,7 +339,7 @@
       "endpoint": "/shortcuts/export",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/shortcuts/export'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/shortcuts/export'",
       "response_time": 0.003905057907104492,
       "timestamp": "2025-08-19T14:01:12.259717"
     },
@@ -347,7 +347,7 @@
       "endpoint": "/health",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/health'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/health'",
       "response_time": 0.0056018829345703125,
       "timestamp": "2025-08-19T14:01:12.265394"
     },
@@ -355,7 +355,7 @@
       "endpoint": "/browse",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/browse'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/browse'",
       "response_time": 0.0048940181732177734,
       "timestamp": "2025-08-19T14:01:12.270339"
     },
@@ -363,7 +363,7 @@
       "endpoint": "/recent-tabs",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/recent-tabs'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/recent-tabs'",
       "response_time": 0.005632162094116211,
       "timestamp": "2025-08-19T14:01:12.276024"
     },
@@ -371,7 +371,7 @@
       "endpoint": "/recommendations",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/recommendations'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/recommendations'",
       "response_time": 0.004344463348388672,
       "timestamp": "2025-08-19T14:01:12.280420"
     },
@@ -379,7 +379,7 @@
       "endpoint": "/clear-history",
       "method": "DELETE",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/clear-history'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/clear-history'",
       "response_time": 0.007497549057006836,
       "timestamp": "2025-08-19T14:01:12.287975"
     },
@@ -387,7 +387,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.04324626922607422,
       "timestamp": "2025-08-19T14:01:12.331303"
     },
@@ -395,7 +395,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.005342960357666016,
       "timestamp": "2025-08-19T14:01:12.336714"
     },
@@ -403,7 +403,7 @@
       "endpoint": "/chat",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/chat'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/chat'",
       "response_time": 0.005177736282348633,
       "timestamp": "2025-08-19T14:01:12.341943"
     },
@@ -411,7 +411,7 @@
       "endpoint": "/automate-task",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/automate-task'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/automate-task'",
       "response_time": 0.005800962448120117,
       "timestamp": "2025-08-19T14:01:12.347805"
     },
@@ -419,7 +419,7 @@
       "endpoint": "/automation-suggestions",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/automation-suggestions?current_url=https://example.com'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/automation-suggestions?current_url=https://example.com'",
       "response_time": 0.0039746761322021484,
       "timestamp": "2025-08-19T14:01:12.351830"
     },
@@ -427,7 +427,7 @@
       "endpoint": "/active-automations",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/active-automations'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/active-automations'",
       "response_time": 0.009926795959472656,
       "timestamp": "2025-08-19T14:01:12.361809"
     },
@@ -435,7 +435,7 @@
       "endpoint": "/enhanced/ai/providers",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/ai/providers'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/ai/providers'",
       "response_time": 0.004860639572143555,
       "timestamp": "2025-08-19T14:01:12.366736"
     },
@@ -443,7 +443,7 @@
       "endpoint": "/enhanced/ai/personalized-suggestions",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/ai/personalized-suggestions'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/ai/personalized-suggestions'",
       "response_time": 0.005264997482299805,
       "timestamp": "2025-08-19T14:01:12.372055"
     },
@@ -451,7 +451,7 @@
       "endpoint": "/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/memory/user-insights/055ddf23-7398-4e9e-bdf9-6246966db457'",
       "response_time": 0.0050771236419677734,
       "timestamp": "2025-08-19T14:01:12.377194"
     },
@@ -459,7 +459,7 @@
       "endpoint": "/enhanced/memory/recommendations/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/memory/recommendations/055ddf23-7398-4e9e-bdf9-6246966db457?context=technology'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/memory/recommendations/055ddf23-7398-4e9e-bdf9-6246966db457?context=technology'",
       "response_time": 0.005354642868041992,
       "timestamp": "2025-08-19T14:01:12.382614"
     },
@@ -467,7 +467,7 @@
       "endpoint": "/health",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/health'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/health'",
       "response_time": 0.0050847530364990234,
       "timestamp": "2025-08-19T14:01:12.387785"
     },
@@ -475,7 +475,7 @@
       "endpoint": "/performance",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/performance'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/performance'",
       "response_time": 0.004636049270629883,
       "timestamp": "2025-08-19T14:01:12.392482"
     },
@@ -483,7 +483,7 @@
       "endpoint": "/enhanced/performance/report",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/performance/report'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/performance/report'",
       "response_time": 0.004894256591796875,
       "timestamp": "2025-08-19T14:01:12.397438"
     },
@@ -491,7 +491,7 @@
       "endpoint": "/enhanced/performance/cache-analytics",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/performance/cache-analytics'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/performance/cache-analytics'",
       "response_time": 0.0052776336669921875,
       "timestamp": "2025-08-19T14:01:12.402788"
     },
@@ -499,7 +499,7 @@
       "endpoint": "/enhanced/system/overview",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/system/overview'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/system/overview'",
       "response_time": 0.005287647247314453,
       "timestamp": "2025-08-19T14:01:12.408135"
     },
@@ -507,7 +507,7 @@
       "endpoint": "/workflow-templates",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/workflow-templates'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/workflow-templates'",
       "response_time": 0.003987312316894531,
       "timestamp": "2025-08-19T14:01:12.412189"
     },
@@ -515,7 +515,7 @@
       "endpoint": "/enhanced/workflows/templates",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/workflows/templates?user_session=055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/workflows/templates?user_session=feature-test-suite-1'",
       "response_time": 0.004270792007446289,
       "timestamp": "2025-08-19T14:01:12.416511"
     },
@@ -523,7 +523,7 @@
       "endpoint": "/create-workflow",
       "method": "POST",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/create-workflow'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/create-workflow'",
       "response_time": 0.0038161277770996094,
       "timestamp": "2025-08-19T14:01:12.420387"
     },
@@ -531,7 +531,7 @@
       "endpoint": "/user-workflows/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/user-workflows/055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/user-workflows/055ddf23-7398-4e9e-bdf9-6246966db457'",
       "response_time": 0.005216360092163086,
       "timestamp": "2025-08-19T14:01:12.425673"
     },
@@ -539,7 +539,7 @@
       "endpoint": "/personalized-suggestions/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/personalized-suggestions/055ddf23-7398-4e9e-bdf9-6246966db457?current_url=https://example.com'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/personalized-suggestions/055ddf23-7398-4e9e-bdf9-6246966db457?current_url=https://example.com'",
       "response_time": 0.0052490234375,
       "timestamp": "2025-08-19T14:01:12.430973"
     },
@@ -547,7 +547,7 @@
       "endpoint": "/integrations",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/integrations'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/integrations'",
       "response_time": 0.004075288772583008,
       "timestamp": "2025-08-19T14:01:12.435116"
     },
@@ -555,7 +555,7 @@
       "endpoint": "/enhanced/integrations/available",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/available'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/enhanced/integrations/available'",
       "response_time": 0.00539708137512207,
       "timestamp": "2025-08-19T14:01:12.440571"
     },
@@ -563,12 +563,12 @@
       "endpoint": "/integration-auth/user/055ddf23-7398-4e9e-bdf9-6246966db457",
       "method": "GET",
       "status": "FAIL",
-      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://app-test-suite-1.preview.emergentagent.com/api/integration-auth/user/055ddf23-7398-4e9e-bdf9-6246966db457'",
+      "details": "Exception: 502, message='Attempt to decode JSON with unexpected mimetype: ', url='https://feature-test-suite-1.preview.emergentagent.com/api/integration-auth/user/055ddf23-7398-4e9e-bdf9-6246966db457'",
       "response_time": 0.004105806350708008,
       "timestamp": "2025-08-19T14:01:12.444781"
     }
   ],
   "test_session": "055ddf23-7398-4e9e-bdf9-6246966db457",
   "timestamp": "2025-08-19T14:01:12.446278",
-  "backend_url": "https://app-test-suite-1.preview.emergentagent.com"
+  "backend_url": "https://feature-test-suite-1.preview.emergentagent.com"
 }
