@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import './components/AdvancedFeatures.css';
+import './components/SmartSearchSuggestions.css';
 import AdvancedFeatures from './components/AdvancedFeatures';
 import SmartSearchBar from './components/SmartSearchBar';
 import VoiceCommandPanel from './components/VoiceCommandPanel';
+import EnhancedAIPanel from './components/EnhancedAIPanel';
+import OnboardingTour, { useOnboardingTour } from './components/OnboardingTour';
 
 function App() {
   // Browser state
