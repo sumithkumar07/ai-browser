@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Any
 
 # Backend URL from environment
-BACKEND_URL = "https://engine-parallel-dev.preview.emergentagent.com"
+BACKEND_URL = "https://aether-overhaul.preview.emergentagent.com"
 
 class CoreBackendTester:
     def __init__(self):
