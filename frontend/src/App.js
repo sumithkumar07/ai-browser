@@ -114,7 +114,52 @@ function App() {
     }
   }, [backendUrl]);
 
-  // Handle URL navigation
+  // Enhanced command processor for Fellou.ai-style interface
+  const processEnhancedCommand = useCallback(async (commandData) => {
+    setAiLoading(true);
+    
+    try {
+      const response = await fetch(`${backendUrl}/api/process-command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: commandData.command,
+          context: commandData.context,
+          user_session: sessionId,
+          enable_proactive: true,
+          behavioral_learning: true
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Handle AI response
+        if (result.ai_response) {
+          const aiMessage = {
+            role: 'assistant',
+            content: result.ai_response,
+            suggestions: result.proactive_suggestions || [],
+            patterns_detected: result.patterns_detected
+          };
+          setChatMessages(prev => [...prev, aiMessage]);
+        }
+        
+        // Handle native navigation if available
+        if (result.native_navigation?.success) {
+          handleNavigate(result.native_navigation.url);
+        }
+        
+        return result;
+      }
+    } catch (error) {
+      console.error('Enhanced command processing error:', error);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [backendUrl, sessionId]);
+
+  // Handle URL navigation with native API support
   async function handleNavigate(url) {
     if (!url) return;
     
@@ -127,6 +172,18 @@ function App() {
     setCurrentUrl(url);
     setUrlInput(url);
     setIsSecure(url.startsWith('https://'));
+    
+    // Use native API if available
+    if (nativeAPI?.navigateTo) {
+      try {
+        const result = await nativeAPI.navigateTo(url);
+        if (result.success) {
+          console.log('✅ Native navigation successful');
+        }
+      } catch (error) {
+        console.error('Native navigation error:', error);
+      }
+    }
     
     // Update tab
     const updatedTabs = tabs.map(tab => 
