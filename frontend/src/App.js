@@ -9,6 +9,12 @@ import EnhancedAIPanel from './components/EnhancedAIPanel';
 import EnhancedCapabilities from './components/EnhancedCapabilities';
 import OnboardingTour, { useOnboardingTour } from './components/OnboardingTour';
 
+// Import ALL 4 CRITICAL GAPS COMPONENTS
+import ShadowWorkspaceManager from './components/ShadowWorkspaceManager';
+import SplitViewManager from './components/SplitViewManager';
+import PlatformIntegrationsManager from './components/PlatformIntegrationsManager';
+import VisualWorkflowBuilder from './components/VisualWorkflowBuilder';
+
 function App() {
   // Browser state
   const [currentUrl, setCurrentUrl] = useState('');
