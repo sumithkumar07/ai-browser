@@ -76,4 +76,4 @@ SpeechRecognition==3.10.0
 pydub==0.25.1
 pynput==1.8.1
 protobuf
-dataclasses-json==0.6.4
+dataclasses-json==0.6.4aiohttp
