@@ -828,6 +828,96 @@ async def execute_autonomous_action(request: Dict[str, Any]):
         logger.error(f"Autonomous action error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Enhanced automation endpoints
+@app.post("/api/automation/execute")
+async def execute_automation_command(command: AutomationCommand):
+    """Execute single natural language automation command"""
+    try:
+        if not ENHANCED_MODE:
+            return {
+                "success": False,
+                "message": "Enhanced automation not available. Command processed as regular chat.",
+                "fallback": True
+            }
+        
+        # Parse and execute command
+        task_context = {
+            "session_id": command.user_session,
+            "timestamp": datetime.utcnow()
+        }
+        
+        task = await nlp_processor.parse_command(command.command, task_context)
+        task_id = await task_executor.execute_task(task)
+        
+        return {
+            "success": True,
+            "message": f"🚀 Automation started: {command.command}",
+            "task_id": task_id,
+            "background_execution": command.background,
+            "estimated_steps": len(task.steps)
+        }
+        
+    except Exception as e:
+        logger.error(f"Automation execution error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/automation/status/{task_id}")
+async def get_automation_task_status(task_id: str):
+    """Get status of automation task"""
+    try:
+        if not ENHANCED_MODE:
+            return {"error": "Enhanced automation not available"}
+        
+        status = await task_executor.get_task_status(task_id)
+        return status
+        
+    except Exception as e:
+        logger.error(f"Task status error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/automation/user-tasks/{user_session}")
+async def get_user_automation_tasks(user_session: str):
+    """Get all automation tasks for user"""
+    try:
+        if not ENHANCED_MODE:
+            return {"active_tasks": [], "completed_tasks": [], "total_active": 0}
+        
+        tasks = await task_executor.get_user_tasks(user_session)
+        return tasks
+        
+    except Exception as e:
+        logger.error(f"User tasks error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/automation/quick-command")
+async def execute_quick_automation(request: Dict[str, Any]):
+    """Execute quick automation commands through existing interface"""
+    try:
+        command = request.get("command", "")
+        user_session = request.get("user_session", str(uuid.uuid4()))
+        
+        if not ENHANCED_MODE:
+            # Fallback to basic processing
+            return {
+                "success": True,
+                "message": f"Command noted: {command}. Enhanced automation will be available soon!",
+                "type": "fallback"
+            }
+        
+        # Quick automation execution
+        automation_cmd = AutomationCommand(
+            command=command,
+            user_session=user_session,
+            background=True
+        )
+        
+        result = await execute_automation_command(automation_cmd)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Quick automation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
