@@ -1,539 +1,483 @@
-"""
-Enhanced Server Integration - Adding All New Features to Main Server
-"""
+# Enhanced Server Integration - All Critical Gaps Implementation
+# Integrates Shadow Workspace, Visual Workflow Builder, Split View, Platform Integrations
 
-# Additional imports for enhanced features
-from advanced_workflow_builder import initialize_advanced_workflow_builder
-from cross_platform_integration_hub import initialize_cross_platform_hub
-from enhanced_browser_engine import initialize_enhanced_browser_engine
-from professional_report_generator import initialize_professional_report_generator
-from realtime_analytics_dashboard import initialize_realtime_analytics_dashboard
-from timeline_navigation_system import initialize_timeline_navigation_system
+import asyncio
+import logging
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+from fastapi import HTTPException
+from pydantic import BaseModel
 
-# Enhanced API endpoint additions
-ENHANCED_API_ENDPOINTS = """
+# Import all new systems
+from shadow_workspace import (
+    initialize_shadow_workspace, get_shadow_workspace, 
+    ShadowWorkspace, TaskPriority
+)
+from visual_workflow_builder import (
+    initialize_visual_workflow_builder, get_visual_workflow_builder,
+    VisualWorkflowBuilder
+)
+from split_view_engine import (
+    initialize_split_view_engine, get_split_view_engine,
+    SplitViewEngine
+)
+from platform_integrations import (
+    initialize_platform_integration_engine, get_platform_integration_engine,
+    PlatformIntegrationEngine
+)
 
-# ====================================
-# ADVANCED WORKFLOW BUILDER ENDPOINTS
-# ====================================
+logger = logging.getLogger(__name__)
 
-@app.get("/api/advanced/workflow-templates")
-async def get_advanced_workflow_templates(category: str = None):
-    \"\"\"Get advanced workflow templates\"\"\"
-    try:
-        templates = await advanced_workflow_builder.get_workflow_templates(category)
-        return {
-            "success": True,
-            "templates": templates
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+# Enhanced Pydantic Models for new features
+class ShadowTaskRequest(BaseModel):
+    command: str
+    user_session: str
+    current_url: Optional[str] = None
+    priority: str = "normal"
+    background_mode: bool = True
 
-@app.post("/api/advanced/workflow/create-from-template")
-async def create_workflow_from_template(request: Dict[str, Any]):
-    \"\"\"Create workflow from template\"\"\"
-    try:
-        workflow_id = await advanced_workflow_builder.create_workflow_from_template(
-            template_id=request["template_id"],
-            user_session=request["user_session"],
-            custom_config=request.get("config", {})
-        )
+class VisualWorkflowCreateRequest(BaseModel):
+    name: str
+    description: str
+    created_by: str
+
+class WorkflowNodeRequest(BaseModel):
+    workflow_id: str
+    template_key: str
+    position_x: float
+    position_y: float
+    parameters: Optional[Dict[str, Any]] = None
+
+class NodeConnectionRequest(BaseModel):
+    workflow_id: str
+    source_node: str
+    target_node: str
+    source_output: str
+    target_input: str
+    connection_type: str = "success"
+
+class SplitViewCreateRequest(BaseModel):
+    user_session: str
+    layout: str = "horizontal"
+    initial_urls: Optional[List[str]] = None
+
+class SplitViewNavigateRequest(BaseModel):
+    session_id: str
+    pane_id: str
+    url: str
+    sync_all: bool = False
+
+class PlatformConnectionRequest(BaseModel):
+    user_session: str
+    platform_id: str
+    auth_data: Dict[str, Any]
+
+class PlatformActionRequest(BaseModel):
+    user_session: str
+    platform_id: str
+    capability_id: str
+    parameters: Dict[str, Any]
+
+class BatchActionRequest(BaseModel):
+    user_session: str
+    actions: List[Dict[str, Any]]
+
+class EnhancedServerIntegration:
+    """Enhanced server integration for all new capabilities"""
+    
+    def __init__(self, mongo_client):
+        self.mongo_client = mongo_client
         
-        return {
-            "success": bool(workflow_id),
-            "workflow_id": workflow_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/advanced/workflow/create-custom")
-async def create_custom_workflow(request: Dict[str, Any]):
-    \"\"\"Create custom workflow\"\"\"
-    try:
-        workflow_id = await advanced_workflow_builder.create_custom_workflow(
-            user_session=request["user_session"],
-            workflow_data=request["workflow_data"]
-        )
+        # Initialize all systems
+        self.shadow_workspace = initialize_shadow_workspace(mongo_client)
+        self.workflow_builder = initialize_visual_workflow_builder(mongo_client)
+        self.split_view_engine = initialize_split_view_engine(mongo_client)
+        self.platform_engine = initialize_platform_integration_engine(mongo_client)
         
-        return {
-            "success": bool(workflow_id),
-            "workflow_id": workflow_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+        # Start shadow workspace
+        asyncio.create_task(self._start_enhanced_systems())
+    
+    async def _start_enhanced_systems(self):
+        """Start all enhanced systems"""
+        try:
+            await self.shadow_workspace.start_shadow_workspace()
+            logger.info("🚀 All enhanced systems started successfully")
+        except Exception as e:
+            logger.error(f"Error starting enhanced systems: {e}")
+    
+    # ==================== SHADOW WORKSPACE API METHODS ====================
+    
+    async def create_shadow_task(self, request: ShadowTaskRequest) -> Dict[str, Any]:
+        """Create shadow task for background execution"""
+        try:
+            priority_map = {
+                "low": TaskPriority.LOW,
+                "normal": TaskPriority.NORMAL,
+                "high": TaskPriority.HIGH,
+                "urgent": TaskPriority.URGENT
+            }
+            
+            task_id = await self.shadow_workspace.create_shadow_task(
+                command=request.command,
+                user_session=request.user_session,
+                current_url=request.current_url,
+                priority=priority_map.get(request.priority, TaskPriority.NORMAL),
+                background_mode=request.background_mode
+            )
+            
+            return {
+                "success": True,
+                "task_id": task_id,
+                "message": f"🌟 Shadow task created: {request.command}",
+                "background_mode": request.background_mode,
+                "estimated_completion": "2-5 minutes"
+            }
+            
+        except Exception as e:
+            logger.error(f"Shadow task creation error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_shadow_task_status(self, task_id: str) -> Dict[str, Any]:
+        """Get shadow task status"""
+        try:
+            status = await self.shadow_workspace.get_shadow_task_status(task_id)
+            if status:
+                return {"success": True, "task_status": status}
+            else:
+                return {"success": False, "error": "Task not found"}
+        except Exception as e:
+            logger.error(f"Shadow task status error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_active_shadow_tasks(self, user_session: str) -> Dict[str, Any]:
+        """Get active shadow tasks for user"""
+        try:
+            tasks = await self.shadow_workspace.get_active_shadow_tasks(user_session)
+            return {"success": True, "active_tasks": tasks}
+        except Exception as e:
+            logger.error(f"Active shadow tasks error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def control_shadow_task(self, task_id: str, action: str) -> Dict[str, Any]:
+        """Control shadow task (pause/resume/cancel)"""
+        try:
+            if action == "pause":
+                result = await self.shadow_workspace.pause_shadow_task(task_id)
+            elif action == "resume":
+                result = await self.shadow_workspace.resume_shadow_task(task_id)
+            elif action == "cancel":
+                result = await self.shadow_workspace.cancel_shadow_task(task_id)
+            else:
+                return {"success": False, "error": "Invalid action"}
+            
+            return {
+                "success": result,
+                "task_id": task_id,
+                "action": action,
+                "message": f"Task {action}{'d' if action.endswith('e') else 'ed'} successfully"
+            }
+        except Exception as e:
+            logger.error(f"Shadow task control error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # ==================== VISUAL WORKFLOW BUILDER API METHODS ====================
+    
+    async def get_workflow_templates(self) -> Dict[str, Any]:
+        """Get available workflow node templates"""
+        try:
+            templates = await self.workflow_builder.get_node_templates()
+            return {"success": True, "templates": templates}
+        except Exception as e:
+            logger.error(f"Workflow templates error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def create_visual_workflow(self, request: VisualWorkflowCreateRequest) -> Dict[str, Any]:
+        """Create new visual workflow"""
+        try:
+            workflow_id = await self.workflow_builder.create_visual_workflow(
+                name=request.name,
+                description=request.description,
+                created_by=request.created_by
+            )
+            
+            return {
+                "success": True,
+                "workflow_id": workflow_id,
+                "name": request.name,
+                "message": f"🎨 Visual workflow created: {request.name}"
+            }
+        except Exception as e:
+            logger.error(f"Visual workflow creation error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def add_workflow_node(self, request: WorkflowNodeRequest) -> Dict[str, Any]:
+        """Add node to visual workflow"""
+        try:
+            node_id = await self.workflow_builder.add_node_to_workflow(
+                workflow_id=request.workflow_id,
+                template_key=request.template_key,
+                position=(request.position_x, request.position_y),
+                custom_parameters=request.parameters
+            )
+            
+            return {
+                "success": True,
+                "node_id": node_id,
+                "workflow_id": request.workflow_id,
+                "message": f"➕ Node added to workflow"
+            }
+        except Exception as e:
+            logger.error(f"Workflow node addition error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def connect_workflow_nodes(self, request: NodeConnectionRequest) -> Dict[str, Any]:
+        """Connect nodes in visual workflow"""
+        try:
+            connection_id = await self.workflow_builder.connect_nodes(
+                workflow_id=request.workflow_id,
+                source_node=request.source_node,
+                target_node=request.target_node,
+                source_output=request.source_output,
+                target_input=request.target_input,
+                connection_type=request.connection_type
+            )
+            
+            return {
+                "success": True,
+                "connection_id": connection_id,
+                "message": "🔗 Nodes connected successfully"
+            }
+        except Exception as e:
+            logger.error(f"Node connection error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_workflow_definition(self, workflow_id: str) -> Dict[str, Any]:
+        """Get complete workflow definition"""
+        try:
+            workflow = await self.workflow_builder.get_workflow_definition(workflow_id)
+            if workflow:
+                return {"success": True, "workflow": workflow}
+            else:
+                return {"success": False, "error": "Workflow not found"}
+        except Exception as e:
+            logger.error(f"Workflow definition error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def list_user_workflows(self, created_by: str) -> Dict[str, Any]:
+        """List user's workflows"""
+        try:
+            workflows = await self.workflow_builder.list_user_workflows(created_by)
+            return {"success": True, "workflows": workflows}
+        except Exception as e:
+            logger.error(f"User workflows error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # ==================== SPLIT VIEW ENGINE API METHODS ====================
+    
+    async def create_split_view_session(self, request: SplitViewCreateRequest) -> Dict[str, Any]:
+        """Create split view session"""
+        try:
+            session_id = await self.split_view_engine.create_split_view_session(
+                user_session=request.user_session,
+                layout=request.layout,
+                initial_urls=request.initial_urls
+            )
+            
+            return {
+                "success": True,
+                "session_id": session_id,
+                "layout": request.layout,
+                "panes_count": len(request.initial_urls) if request.initial_urls else 0,
+                "message": f"🔲 Split view session created ({request.layout})"
+            }
+        except Exception as e:
+            logger.error(f"Split view creation error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def add_split_pane(
+        self, 
+        session_id: str, 
+        url: str, 
+        position_row: Optional[int] = None,
+        position_col: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Add pane to split view"""
+        try:
+            position = (position_row, position_col) if position_row is not None and position_col is not None else None
+            
+            pane_id = await self.split_view_engine.add_pane_to_session(
+                session_id=session_id,
+                url=url,
+                position=position
+            )
+            
+            if pane_id:
+                return {
+                    "success": True,
+                    "pane_id": pane_id,
+                    "session_id": session_id,
+                    "message": f"➕ Pane added to split view: {url}"
+                }
+            else:
+                return {"success": False, "error": "Could not add pane (maximum reached?)"}
+        except Exception as e:
+            logger.error(f"Split pane addition error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def navigate_split_pane(self, request: SplitViewNavigateRequest) -> Dict[str, Any]:
+        """Navigate split view pane"""
+        try:
+            result = await self.split_view_engine.navigate_pane(
+                session_id=request.session_id,
+                pane_id=request.pane_id,
+                url=request.url,
+                sync_all=request.sync_all
+            )
+            
+            return {
+                "success": result,
+                "session_id": request.session_id,
+                "pane_id": request.pane_id,
+                "url": request.url,
+                "synchronized": request.sync_all,
+                "message": f"🌐 Pane navigated to {request.url}"
+            }
+        except Exception as e:
+            logger.error(f"Split pane navigation error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_split_view_state(self, session_id: str) -> Dict[str, Any]:
+        """Get split view session state"""
+        try:
+            state = await self.split_view_engine.get_session_state(session_id)
+            if state:
+                return {"success": True, "split_view": state}
+            else:
+                return {"success": False, "error": "Session not found"}
+        except Exception as e:
+            logger.error(f"Split view state error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def change_split_layout(self, session_id: str, layout: str) -> Dict[str, Any]:
+        """Change split view layout"""
+        try:
+            result = await self.split_view_engine.change_layout(session_id, layout)
+            return {
+                "success": result,
+                "session_id": session_id,
+                "new_layout": layout,
+                "message": f"🔄 Layout changed to {layout}"
+            }
+        except Exception as e:
+            logger.error(f"Split layout change error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # ==================== PLATFORM INTEGRATIONS API METHODS ====================
+    
+    async def get_available_integrations(self, integration_type: Optional[str] = None) -> Dict[str, Any]:
+        """Get available platform integrations"""
+        try:
+            integrations = await self.platform_engine.get_available_integrations(integration_type)
+            return {
+                "success": True,
+                "integrations": integrations,
+                "total_platforms": len(integrations)
+            }
+        except Exception as e:
+            logger.error(f"Available integrations error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def connect_platform(self, request: PlatformConnectionRequest) -> Dict[str, Any]:
+        """Connect user to platform"""
+        try:
+            connection_id = await self.platform_engine.connect_user_to_platform(
+                user_session=request.user_session,
+                platform_id=request.platform_id,
+                auth_data=request.auth_data
+            )
+            
+            return {
+                "success": True,
+                "connection_id": connection_id,
+                "platform_id": request.platform_id,
+                "message": f"🔗 Connected to {request.platform_id}"
+            }
+        except Exception as e:
+            logger.error(f"Platform connection error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def execute_platform_action(self, request: PlatformActionRequest) -> Dict[str, Any]:
+        """Execute action on connected platform"""
+        try:
+            result = await self.platform_engine.execute_platform_action(
+                user_session=request.user_session,
+                platform_id=request.platform_id,
+                capability_id=request.capability_id,
+                parameters=request.parameters
+            )
+            
+            return result
+        except Exception as e:
+            logger.error(f"Platform action error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def batch_execute_platform_actions(self, request: BatchActionRequest) -> Dict[str, Any]:
+        """Execute multiple platform actions (Fellou.ai-style)"""
+        try:
+            results = await self.platform_engine.batch_execute_actions(
+                user_session=request.user_session,
+                actions=request.actions
+            )
+            
+            return {
+                "success": True,
+                "batch_results": results,
+                "total_actions": len(results),
+                "message": f"🚀 Executed {len(results)} platform actions"
+            }
+        except Exception as e:
+            logger.error(f"Batch platform actions error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_user_integrations(self, user_session: str) -> Dict[str, Any]:
+        """Get user's connected integrations"""
+        try:
+            integrations = await self.platform_engine.get_user_integrations(user_session)
+            return {
+                "success": True,
+                "connected_integrations": integrations,
+                "total_connected": len(integrations)
+            }
+        except Exception as e:
+            logger.error(f"User integrations error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def disconnect_platform(self, user_session: str, platform_id: str) -> Dict[str, Any]:
+        """Disconnect user from platform"""
+        try:
+            result = await self.platform_engine.disconnect_user_from_platform(
+                user_session=user_session,
+                platform_id=platform_id
+            )
+            
+            return {
+                "success": result,
+                "platform_id": platform_id,
+                "message": f"🔌 Disconnected from {platform_id}" if result else "Disconnection failed"
+            }
+        except Exception as e:
+            logger.error(f"Platform disconnection error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/advanced/workflow/execute/{workflow_id}")
-async def execute_advanced_workflow(workflow_id: str, input_data: Dict[str, Any] = None):
-    \"\"\"Execute advanced workflow\"\"\"
-    try:
-        execution_id = await advanced_workflow_builder.execute_workflow(workflow_id, input_data)
-        
-        return {
-            "success": bool(execution_id),
-            "execution_id": execution_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+# Global enhanced server integration instance
+enhanced_server_integration: Optional[EnhancedServerIntegration] = None
 
-@app.get("/api/advanced/workflow/execution-status/{execution_id}")
-async def get_workflow_execution_status(execution_id: str):
-    \"\"\"Get workflow execution status\"\"\"
-    try:
-        status = await advanced_workflow_builder.get_execution_status(execution_id)
-        return {
-            "success": True,
-            "status": status
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+def initialize_enhanced_server_integration(mongo_client) -> EnhancedServerIntegration:
+    """Initialize the global enhanced server integration"""
+    global enhanced_server_integration
+    enhanced_server_integration = EnhancedServerIntegration(mongo_client)
+    return enhanced_server_integration
 
-# ====================================
-# CROSS-PLATFORM INTEGRATION ENDPOINTS
-# ====================================
-
-@app.get("/api/integrations/platforms")
-async def get_available_platforms():
-    \"\"\"Get all available integration platforms\"\"\"
-    try:
-        platforms = await cross_platform_hub.get_available_platforms()
-        return {
-            "success": True,
-            "platforms": platforms
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/integrations/store-credentials")
-async def store_platform_credentials(request: Dict[str, Any]):
-    \"\"\"Store platform credentials\"\"\"
-    try:
-        success = await cross_platform_hub.store_credentials(
-            user_session=request["user_session"],
-            platform=request["platform"],
-            access_token=request["access_token"],
-            refresh_token=request.get("refresh_token"),
-            additional_data=request.get("additional_data", {})
-        )
-        
-        return {"success": success}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/integrations/execute-action")
-async def execute_platform_action(request: Dict[str, Any]):
-    \"\"\"Execute action on platform\"\"\"
-    try:
-        result = await cross_platform_hub.execute_platform_action(
-            user_session=request["user_session"],
-            platform=request["platform"],
-            action=request["action"],
-            parameters=request.get("parameters", {})
-        )
-        
-        return {
-            "success": "error" not in result,
-            "result": result
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/integrations/multi-platform-action")
-async def execute_multi_platform_action(request: Dict[str, Any]):
-    \"\"\"Execute actions across multiple platforms\"\"\"
-    try:
-        result = await cross_platform_hub.execute_multi_platform_action(
-            user_session=request["user_session"],
-            platform_actions=request["platform_actions"]
-        )
-        
-        return {
-            "success": True,
-            "result": result
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/integrations/user/{user_session}")
-async def get_user_integrations(user_session: str):
-    \"\"\"Get user's connected integrations\"\"\"
-    try:
-        integrations = await cross_platform_hub.get_user_integrations(user_session)
-        return {
-            "success": True,
-            "integrations": integrations
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/integrations/analytics/{user_session}")
-async def get_integration_analytics(user_session: str, days: int = 30):
-    \"\"\"Get integration usage analytics\"\"\"
-    try:
-        analytics = await cross_platform_hub.get_integration_analytics(user_session, days)
-        return {
-            "success": True,
-            "analytics": analytics
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# ====================================
-# ENHANCED BROWSER ENGINE ENDPOINTS
-# ====================================
-
-@app.post("/api/browser/create-enhanced-session")
-async def create_enhanced_browser_session(request: Dict[str, Any]):
-    \"\"\"Create enhanced browser session\"\"\"
-    try:
-        result = await enhanced_browser_engine.create_enhanced_session(
-            user_session=request["user_session"],
-            stealth_config=request.get("stealth_config", {})
-        )
-        
-        return result
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/browser/navigate-intelligently")
-async def navigate_intelligently(request: Dict[str, Any]):
-    \"\"\"Navigate with intelligent capabilities\"\"\"
-    try:
-        result = await enhanced_browser_engine.navigate_intelligently(
-            session_id=request["session_id"],
-            url=request["url"],
-            options=request.get("options", {})
-        )
-        
-        return result
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/browser/extract-advanced-data")
-async def extract_advanced_page_data(request: Dict[str, Any]):
-    \"\"\"Extract advanced page data\"\"\"
-    try:
-        result = await enhanced_browser_engine.extract_page_data_advanced(
-            session_id=request["session_id"],
-            extraction_config=request.get("extraction_config", {})
-        )
-        
-        return result
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/browser/automate-form")
-async def automate_form_interaction(request: Dict[str, Any]):
-    \"\"\"Intelligent form automation\"\"\"
-    try:
-        result = await enhanced_browser_engine.automate_form_interaction(
-            session_id=request["session_id"],
-            form_data=request["form_data"]
-        )
-        
-        return result
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/browser/capture-screenshot")
-async def capture_enhanced_screenshot(request: Dict[str, Any]):
-    \"\"\"Advanced screenshot capabilities\"\"\"
-    try:
-        result = await enhanced_browser_engine.capture_advanced_screenshot(
-            session_id=request["session_id"],
-            options=request.get("options", {})
-        )
-        
-        return result
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.delete("/api/browser/close-session/{session_id}")
-async def close_enhanced_browser_session(session_id: str):
-    \"\"\"Close enhanced browser session\"\"\"
-    try:
-        result = await enhanced_browser_engine.close_session(session_id)
-        return result
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/browser/active-sessions/{user_session}")
-async def get_active_browser_sessions(user_session: str):
-    \"\"\"Get user's active browser sessions\"\"\"
-    try:
-        sessions = await enhanced_browser_engine.get_active_sessions(user_session)
-        return {
-            "success": True,
-            "sessions": sessions
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# ====================================
-# PROFESSIONAL REPORT GENERATOR ENDPOINTS
-# ====================================
-
-@app.get("/api/reports/templates")
-async def get_report_templates():
-    \"\"\"Get available report templates\"\"\"
-    try:
-        templates = await professional_report_generator.get_available_templates()
-        return {
-            "success": True,
-            "templates": templates
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/reports/generate")
-async def generate_professional_report(request: Dict[str, Any]):
-    \"\"\"Generate professional report\"\"\"
-    try:
-        report_id = await professional_report_generator.generate_report(
-            user_session=request["user_session"],
-            template_id=request["template_id"],
-            data_sources=request["data_sources"],
-            custom_config=request.get("custom_config", {})
-        )
-        
-        return {
-            "success": bool(report_id),
-            "report_id": report_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/reports/status/{report_id}")
-async def get_report_status(report_id: str):
-    \"\"\"Get report generation status\"\"\"
-    try:
-        status = await professional_report_generator.get_report_status(report_id)
-        return {
-            "success": True,
-            "status": status
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/reports/user/{user_session}")
-async def get_user_reports(user_session: str):
-    \"\"\"Get user's generated reports\"\"\"
-    try:
-        reports = await professional_report_generator.get_user_reports(user_session)
-        return {
-            "success": True,
-            "reports": reports
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# ====================================
-# REAL-TIME ANALYTICS DASHBOARD ENDPOINTS
-# ====================================
-
-@app.get("/api/analytics/dashboard/{user_session}")
-async def get_analytics_dashboard(user_session: str, dashboard_type: str = "overview"):
-    \"\"\"Get analytics dashboard data\"\"\"
-    try:
-        dashboard_data = await realtime_analytics_dashboard.get_dashboard_data(user_session, dashboard_type)
-        return {
-            "success": True,
-            "dashboard": dashboard_data
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/analytics/metrics/history")
-async def get_metric_history(metric_name: str, hours: int = 24):
-    \"\"\"Get historical metric data\"\"\"
-    try:
-        history = await realtime_analytics_dashboard.get_metric_history(metric_name, hours)
-        return {
-            "success": True,
-            "history": history
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/analytics/alerts/create")
-async def create_custom_alert(request: Dict[str, Any]):
-    \"\"\"Create custom alert rule\"\"\"
-    try:
-        alert_id = await realtime_analytics_dashboard.create_custom_alert(
-            user_session=request["user_session"],
-            alert_config=request["alert_config"]
-        )
-        
-        return {
-            "success": bool(alert_id),
-            "alert_id": alert_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/analytics/alerts/summary")
-async def get_alerts_summary(hours: int = 24):
-    \"\"\"Get alerts summary\"\"\"
-    try:
-        summary = await realtime_analytics_dashboard.get_alerts_summary(hours)
-        return {
-            "success": True,
-            "summary": summary
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-# ====================================
-# TIMELINE NAVIGATION ENDPOINTS
-# ====================================
-
-@app.post("/api/timeline/record-navigation")
-async def record_navigation_event(request: Dict[str, Any]):
-    \"\"\"Record navigation event in timeline\"\"\"
-    try:
-        event_id = await timeline_navigation_system.record_navigation_event(
-            user_session=request["user_session"],
-            url=request["url"],
-            title=request.get("title"),
-            screenshot=request.get("screenshot")
-        )
-        
-        return {
-            "success": bool(event_id),
-            "event_id": event_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/timeline/record-chat")
-async def record_chat_event(request: Dict[str, Any]):
-    \"\"\"Record chat event in timeline\"\"\"
-    try:
-        event_id = await timeline_navigation_system.record_chat_event(
-            user_session=request["user_session"],
-            message=request["message"],
-            ai_response=request["ai_response"],
-            url=request.get("url")
-        )
-        
-        return {
-            "success": bool(event_id),
-            "event_id": event_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/timeline/record-automation")
-async def record_automation_event(request: Dict[str, Any]):
-    \"\"\"Record automation event in timeline\"\"\"
-    try:
-        event_id = await timeline_navigation_system.record_automation_event(
-            user_session=request["user_session"],
-            automation_type=request["automation_type"],
-            description=request["description"],
-            status=request.get("status", "started")
-        )
-        
-        return {
-            "success": bool(event_id),
-            "event_id": event_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/timeline/{user_session}")
-async def get_user_timeline(user_session: str, hours: int = 24, event_types: str = None):
-    \"\"\"Get user timeline\"\"\"
-    try:
-        event_type_list = event_types.split(",") if event_types else None
-        timeline = await timeline_navigation_system.get_timeline(user_session, hours, event_type_list)
-        
-        return {
-            "success": True,
-            "timeline": timeline
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/timeline/{user_session}/grouped")
-async def get_grouped_timeline(user_session: str, hours: int = 24, group_by: str = "hour"):
-    \"\"\"Get grouped timeline\"\"\"
-    try:
-        timeline = await timeline_navigation_system.get_grouped_timeline(user_session, hours, group_by)
-        
-        return {
-            "success": True,
-            "timeline": timeline
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/timeline/{user_session}/search")
-async def search_timeline(user_session: str, query: str, hours: int = 168):
-    \"\"\"Search timeline events\"\"\"
-    try:
-        results = await timeline_navigation_system.search_timeline(user_session, query, hours)
-        
-        return {
-            "success": True,
-            "results": results
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/timeline/{user_session}/statistics")
-async def get_timeline_statistics(user_session: str, days: int = 7):
-    \"\"\"Get timeline statistics\"\"\"
-    try:
-        stats = await timeline_navigation_system.get_timeline_statistics(user_session, days)
-        
-        return {
-            "success": True,
-            "statistics": stats
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/timeline/related-events/{event_id}")
-async def get_related_events(event_id: str, time_window_minutes: int = 30):
-    \"\"\"Get events related to specific event\"\"\"
-    try:
-        related = await timeline_navigation_system.get_related_events(event_id, time_window_minutes)
-        
-        return {
-            "success": True,
-            "related_events": related
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/timeline/{user_session}/snapshot")
-async def create_timeline_snapshot(user_session: str, request: Dict[str, Any]):
-    \"\"\"Create timeline snapshot\"\"\"
-    try:
-        snapshot_id = await timeline_navigation_system.create_timeline_snapshot(
-            user_session=user_session,
-            title=request["title"],
-            description=request.get("description", "")
-        )
-        
-        return {
-            "success": bool(snapshot_id),
-            "snapshot_id": snapshot_id
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/timeline/{user_session}/snapshots")
-async def get_timeline_snapshots(user_session: str):
-    \"\"\"Get user's timeline snapshots\"\"\"
-    try:
-        snapshots = await timeline_navigation_system.get_timeline_snapshots(user_session)
-        
-        return {
-            "success": True,
-            "snapshots": snapshots
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-\"\"\"
+def get_enhanced_server_integration() -> Optional[EnhancedServerIntegration]:
+    """Get the global enhanced server integration instance"""
+    return enhanced_server_integration
