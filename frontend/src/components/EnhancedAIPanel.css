@@ -78,11 +78,50 @@
   margin: 0 0 4px 0;
 }
 
-.ai-status {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin: 0;
+/* Background task indicator */
+.background-tasks-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: rgba(139, 92, 246, 0.8);
+}
+
+.task-dot {
+  width: 6px;
+  height: 6px;
+  background: #8b5cf6;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.task-dot.pulsing {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.2);
+  }
+}
+
+.task-text {
+  font-size: 0.7rem;
   font-weight: 500;
+  color: rgba(139, 92, 246, 0.9);
+}
+
+/* Enhanced AI status */
+.ai-status {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
 }
 
 .ai-controls {
