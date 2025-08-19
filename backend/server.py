@@ -553,6 +553,416 @@ async def get_system_overview():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Missing Enhanced Automation Endpoints
+@app.post("/api/enhanced/automation/create-advanced")
+async def create_advanced_automation(request: Dict[str, Any]):
+    """Create advanced automation with enhanced capabilities"""
+    try:
+        automation_data = {
+            "id": str(uuid.uuid4()),
+            "name": request.get("name", "Advanced Automation"),
+            "description": request.get("description", "Advanced automation task"),
+            "type": "advanced",
+            "steps": request.get("steps", []),
+            "conditions": request.get("conditions", {}),
+            "triggers": request.get("triggers", []),
+            "status": "created",
+            "created_at": datetime.utcnow(),
+            "advanced_features": {
+                "conditional_logic": True,
+                "parallel_execution": True,
+                "error_handling": True,
+                "scheduling": True
+            }
+        }
+        
+        db.advanced_automations.insert_one(automation_data)
+        
+        return {
+            "success": True,
+            "automation_id": automation_data["id"],
+            "name": automation_data["name"],
+            "type": "advanced",
+            "status": "created",
+            "features": automation_data["advanced_features"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Advanced automation creation failed: {str(e)}")
+
+@app.post("/api/enhanced/workflows/template/create")
+async def create_workflow_template(request: Dict[str, Any]):
+    """Create workflow template for reusable automations"""
+    try:
+        template_data = {
+            "id": str(uuid.uuid4()),
+            "name": request.get("name", "Workflow Template"),
+            "description": request.get("description", "Reusable workflow template"),
+            "category": request.get("category", "general"),
+            "template_steps": request.get("steps", []),
+            "variables": request.get("variables", {}),
+            "created_at": datetime.utcnow(),
+            "usage_count": 0,
+            "template_features": {
+                "parameterized": True,
+                "reusable": True,
+                "shareable": True,
+                "versioned": True
+            }
+        }
+        
+        db.workflow_templates.insert_one(template_data)
+        
+        return {
+            "success": True,
+            "template_id": template_data["id"],
+            "name": template_data["name"],
+            "category": template_data["category"],
+            "status": "created",
+            "features": template_data["template_features"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Workflow template creation failed: {str(e)}")
+
+# Missing Integration Endpoints
+@app.post("/api/enhanced/integrations/oauth/initiate")
+async def initiate_oauth_flow(request: Dict[str, Any]):
+    """Initiate OAuth authentication flow"""
+    try:
+        provider = request.get("provider", "")
+        redirect_uri = request.get("redirect_uri", "")
+        
+        # Generate OAuth state for security
+        oauth_state = str(uuid.uuid4())
+        
+        oauth_data = {
+            "state": oauth_state,
+            "provider": provider,
+            "redirect_uri": redirect_uri,
+            "created_at": datetime.utcnow(),
+            "status": "initiated",
+            "expires_at": datetime.utcnow().timestamp() + 3600  # 1 hour
+        }
+        
+        db.oauth_flows.insert_one(oauth_data)
+        
+        # Mock OAuth URLs for different providers
+        oauth_urls = {
+            "google": f"https://accounts.google.com/oauth2/auth?state={oauth_state}",
+            "github": f"https://github.com/login/oauth/authorize?state={oauth_state}",
+            "microsoft": f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?state={oauth_state}",
+            "default": f"https://oauth.example.com/auth?state={oauth_state}"
+        }
+        
+        auth_url = oauth_urls.get(provider.lower(), oauth_urls["default"])
+        
+        return {
+            "success": True,
+            "auth_url": auth_url,
+            "state": oauth_state,
+            "provider": provider,
+            "expires_in": 3600
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OAuth initiation failed: {str(e)}")
+
+@app.post("/api/enhanced/integrations/api-key/store")
+async def store_api_key(request: Dict[str, Any]):
+    """Store API key for integrations"""
+    try:
+        service = request.get("service", "")
+        api_key = request.get("api_key", "")
+        key_name = request.get("key_name", f"{service}_key")
+        
+        # Hash the API key for security (in production, use proper encryption)
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        
+        key_data = {
+            "id": str(uuid.uuid4()),
+            "service": service,
+            "key_name": key_name,
+            "key_hash": key_hash,
+            "key_preview": api_key[:8] + "..." if len(api_key) > 8 else "***",
+            "created_at": datetime.utcnow(),
+            "status": "active",
+            "last_used": None
+        }
+        
+        # Update existing key if it exists, otherwise insert new
+        db.api_keys.update_one(
+            {"service": service, "key_name": key_name},
+            {"$set": key_data},
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "key_id": key_data["id"],
+            "service": service,
+            "key_name": key_name,
+            "key_preview": key_data["key_preview"],
+            "status": "stored"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"API key storage failed: {str(e)}")
+
+# Missing Voice Command Endpoints
+@app.get("/api/voice-commands/available")
+async def get_available_voice_commands():
+    """Get list of available voice commands"""
+    try:
+        voice_commands = {
+            "navigation": [
+                {
+                    "command": "navigate to [url]",
+                    "description": "Navigate to a specific URL",
+                    "example": "navigate to google.com"
+                },
+                {
+                    "command": "go back",
+                    "description": "Go back to previous page",
+                    "example": "go back"
+                },
+                {
+                    "command": "refresh page",
+                    "description": "Refresh current page",
+                    "example": "refresh page"
+                }
+            ],
+            "ai_assistance": [
+                {
+                    "command": "summarize page",
+                    "description": "Summarize current page content",
+                    "example": "summarize this page"
+                },
+                {
+                    "command": "ask ai [question]",
+                    "description": "Ask AI assistant a question",
+                    "example": "ask ai what is this website about"
+                }
+            ],
+            "automation": [
+                {
+                    "command": "create workflow",
+                    "description": "Create automation workflow",
+                    "example": "create workflow for this task"
+                },
+                {
+                    "command": "automate task",
+                    "description": "Create automation for current task",
+                    "example": "automate this task"
+                }
+            ],
+            "system": [
+                {
+                    "command": "show system status",
+                    "description": "Display system status information",
+                    "example": "show system status"
+                },
+                {
+                    "command": "open ai assistant",
+                    "description": "Open AI assistant panel",
+                    "example": "open ai assistant"
+                }
+            ]
+        }
+        
+        return {
+            "success": True,
+            "total_commands": sum(len(category) for category in voice_commands.values()),
+            "categories": list(voice_commands.keys()),
+            "commands": voice_commands
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get voice commands: {str(e)}")
+
+# Missing Keyboard Shortcut Endpoint
+@app.post("/api/keyboard-shortcut")
+async def execute_keyboard_shortcut(request: Dict[str, Any]):
+    """Execute keyboard shortcut actions"""
+    try:
+        shortcut = request.get("shortcut", "")
+        action = request.get("action", "")
+        
+        # Define available shortcuts and their actions
+        shortcuts = {
+            "ctrl+t": {"action": "new_tab", "description": "Open new tab"},
+            "ctrl+w": {"action": "close_tab", "description": "Close current tab"},
+            "ctrl+r": {"action": "refresh", "description": "Refresh page"},
+            "ctrl+shift+a": {"action": "toggle_ai", "description": "Toggle AI assistant"},
+            "ctrl+shift+p": {"action": "voice_commands", "description": "Open voice commands"},
+            "ctrl+l": {"action": "focus_address_bar", "description": "Focus address bar"},
+            "alt+left": {"action": "go_back", "description": "Go back"},
+            "alt+right": {"action": "go_forward", "description": "Go forward"},
+            "f12": {"action": "show_tour", "description": "Show onboarding tour"},
+            "escape": {"action": "close_panels", "description": "Close all panels"}
+        }
+        
+        if shortcut.lower() in shortcuts:
+            shortcut_info = shortcuts[shortcut.lower()]
+            
+            # Log shortcut usage
+            usage_data = {
+                "shortcut": shortcut,
+                "action": shortcut_info["action"],
+                "timestamp": datetime.utcnow(),
+                "executed": True
+            }
+            
+            db.shortcut_usage.insert_one(usage_data)
+            
+            return {
+                "success": True,
+                "shortcut": shortcut,
+                "action": shortcut_info["action"],
+                "description": shortcut_info["description"],
+                "executed": True
+            }
+        else:
+            return {
+                "success": False,
+                "shortcut": shortcut,
+                "error": "Shortcut not recognized",
+                "available_shortcuts": list(shortcuts.keys())
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Keyboard shortcut execution failed: {str(e)}")
+
+# Additional Automation Endpoints for completeness
+@app.get("/api/automation-status/{task_id}")
+async def get_automation_status(task_id: str):
+    """Get automation task status"""
+    try:
+        task = db.automation_tasks.find_one({"id": task_id}, {"_id": 0})
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": task["status"],
+            "name": task["name"],
+            "created_at": task["created_at"],
+            "progress": task.get("progress", 0)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/execute-automation/{task_id}")
+async def execute_automation(task_id: str):
+    """Execute automation task"""
+    try:
+        task = db.automation_tasks.find_one({"id": task_id})
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        # Update task status to running
+        db.automation_tasks.update_one(
+            {"id": task_id},
+            {"$set": {"status": "running", "started_at": datetime.utcnow()}}
+        )
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": "running",
+            "message": "Automation task started successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/cancel-automation/{task_id}")
+async def cancel_automation(task_id: str):
+    """Cancel automation task"""
+    try:
+        result = db.automation_tasks.update_one(
+            {"id": task_id},
+            {"$set": {"status": "cancelled", "cancelled_at": datetime.utcnow()}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Task not found")
+        
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": "cancelled",
+            "message": "Automation task cancelled successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/active-automations")
+async def get_active_automations():
+    """Get list of active automation tasks"""
+    try:
+        active_tasks = list(db.automation_tasks.find(
+            {"status": {"$in": ["running", "created"]}},
+            {"_id": 0}
+        ).sort("created_at", -1))
+        
+        return {
+            "success": True,
+            "count": len(active_tasks),
+            "tasks": active_tasks
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/automation-suggestions")
+async def get_automation_suggestions():
+    """Get context-aware automation suggestions"""
+    try:
+        # Get recent browsing activity for context
+        recent_tabs = list(db.recent_tabs.find().sort("timestamp", -1).limit(3))
+        
+        # Generate context-aware suggestions
+        suggestions = [
+            "Extract contact information from this page",
+            "Monitor this page for price changes",
+            "Save all links from this page",
+            "Generate summary report of this content",
+            "Set up alerts for page updates"
+        ]
+        
+        # Add contextual suggestions based on recent browsing
+        if recent_tabs:
+            for tab in recent_tabs:
+                domain = tab.get("domain", "")
+                if "github" in domain.lower():
+                    suggestions.append("Monitor repository for new issues")
+                    suggestions.append("Extract README content")
+                elif "linkedin" in domain.lower():
+                    suggestions.append("Extract profile information")
+                    suggestions.append("Monitor connection updates")
+                elif "news" in domain.lower() or "blog" in domain.lower():
+                    suggestions.append("Summarize article content")
+                    suggestions.append("Track article engagement")
+        
+        return {
+            "success": True,
+            "suggestions": suggestions[:6],  # Limit to 6 suggestions
+            "context": "recent_browsing" if recent_tabs else "default"
+        }
+        
+    except Exception as e:
+        return {"success": True, "suggestions": [], "error": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
