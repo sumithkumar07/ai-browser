@@ -44,6 +44,33 @@ class BrowsingSession(BaseModel):
     url: str
     title: Optional[str] = None
 
+class SummarizationRequest(BaseModel):
+    url: str
+    length: str = "medium"
+
+class SearchSuggestionRequest(BaseModel):
+    query: str
+
+class WorkflowRequest(BaseModel):
+    name: str
+    description: str
+    steps: List[Dict[str, Any]]
+
+class VoiceCommandRequest(BaseModel):
+    voice_text: Optional[str] = None
+    command: Optional[str] = None
+    user_session: Optional[str] = None
+
+class KeyboardShortcutRequest(BaseModel):
+    shortcut: str
+    user_session: Optional[str] = None
+
+class AutomationRequest(BaseModel):
+    task_name: str
+    task_type: str = "basic"
+    current_url: Optional[str] = None
+    session_id: Optional[str] = None
+
 # Helper functions
 async def get_page_content(url: str) -> Dict[str, Any]:
     """Fetch and parse web page content"""
