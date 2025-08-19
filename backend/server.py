@@ -44,6 +44,17 @@ except ImportError as e:
     ENHANCED_SYSTEMS_AVAILABLE = False
     logger.warning(f"Enhanced systems not available: {e}")
 
+# Import NEW ENHANCED CAPABILITIES - Phase 1, 2 & 3
+try:
+    from enhanced_ai_intelligence import initialize_enhanced_ai_intelligence
+    from native_chromium_integration import initialize_native_chromium
+    from enhanced_server_extensions import setup_enhanced_endpoints
+    PHASE_123_AVAILABLE = True
+    logger.info("🔥 PHASE 1-3 ENHANCEMENTS - Advanced capabilities loaded successfully")
+except ImportError as e:
+    PHASE_123_AVAILABLE = False
+    logger.warning(f"Phase 1-3 enhancements not available: {e}")
+
 # Create FastAPI app
 app = FastAPI(
     title="AETHER Enhanced Browser API", 
