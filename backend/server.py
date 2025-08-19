@@ -958,7 +958,7 @@ async def execute_automation_command(command: AutomationCommand):
 async def get_automation_task_status(task_id: str):
     """Get status of automation task"""
     try:
-        if not ENHANCED_MODE:
+        if not ENHANCED_MODE or not task_executor:
             return {"error": "Enhanced automation not available"}
         
         status = await task_executor.get_task_status(task_id)
@@ -972,7 +972,7 @@ async def get_automation_task_status(task_id: str):
 async def get_user_automation_tasks(user_session: str):
     """Get all automation tasks for user"""
     try:
-        if not ENHANCED_MODE:
+        if not ENHANCED_MODE or not task_executor:
             return {"active_tasks": [], "completed_tasks": [], "total_active": 0}
         
         tasks = await task_executor.get_user_tasks(user_session)
