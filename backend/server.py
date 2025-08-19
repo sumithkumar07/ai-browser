@@ -29,6 +29,21 @@ except ImportError:
     ENHANCED_MODE = False
     logger.warning("Enhanced automation not available, running in basic mode")
 
+# Import ALL CRITICAL GAPS - Enhanced server integration
+try:
+    from enhanced_server_integration import (
+        initialize_enhanced_server_integration, 
+        get_enhanced_server_integration,
+        ShadowTaskRequest, VisualWorkflowCreateRequest, WorkflowNodeRequest,
+        NodeConnectionRequest, SplitViewCreateRequest, SplitViewNavigateRequest,
+        PlatformConnectionRequest, PlatformActionRequest, BatchActionRequest
+    )
+    ENHANCED_SYSTEMS_AVAILABLE = True
+    logger.info("🚀 ALL CRITICAL GAPS - Enhanced systems loaded successfully")
+except ImportError as e:
+    ENHANCED_SYSTEMS_AVAILABLE = False
+    logger.warning(f"Enhanced systems not available: {e}")
+
 # Create FastAPI app
 app = FastAPI(
     title="AETHER Enhanced Browser API", 
