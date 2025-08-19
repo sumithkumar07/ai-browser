@@ -1,0 +1,344 @@
+{
+  "total_tests": 37,
+  "successful_tests": 0,
+  "failed_tests": 37,
+  "success_rate": 0.0,
+  "total_time": 0.3817260265350342,
+  "avg_response_time": 0.012208435986493085,
+  "assessment": "\u274c NEEDS WORK: Significant issues require attention",
+  "results": [
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.06757259368896484,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.015548"
+    },
+    {
+      "endpoint": "/api/browse",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.012177228927612305,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.027828"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.009806394577026367,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.037755"
+    },
+    {
+      "endpoint": "/api/recent-tabs",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.010499238967895508,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.048348"
+    },
+    {
+      "endpoint": "/api/recommendations",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.010477781295776367,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.058918"
+    },
+    {
+      "endpoint": "/api/clear-history",
+      "method": "DELETE",
+      "status_code": 500,
+      "response_time": 0.010453224182128906,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.069477"
+    },
+    {
+      "endpoint": "/api/summarize",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.009360790252685547,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.078956"
+    },
+    {
+      "endpoint": "/api/search-suggestions",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.009122371673583984,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.088206"
+    },
+    {
+      "endpoint": "/api/create-workflow",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.00869607925415039,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.097035"
+    },
+    {
+      "endpoint": "/api/enhanced/system/overview",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.008542299270629883,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.105680"
+    },
+    {
+      "endpoint": "/api/voice-command",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.00825357437133789,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.114067"
+    },
+    {
+      "endpoint": "/api/voice-commands/available",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.008499860763549805,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.122661"
+    },
+    {
+      "endpoint": "/api/keyboard-shortcut",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008740901947021484,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.131522"
+    },
+    {
+      "endpoint": "/api/keyboard-shortcuts/available",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.00832986831665039,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.139980"
+    },
+    {
+      "endpoint": "/api/automate-task",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008493185043334961,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.148638"
+    },
+    {
+      "endpoint": "/api/automation-suggestions",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.007884025573730469,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.156633"
+    },
+    {
+      "endpoint": "/api/active-automations",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.008084774017333984,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.164808"
+    },
+    {
+      "endpoint": "/api/execute-automation/60dc477f-da6f-42a3-b6b5-056089cad104",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008159160614013672,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.173058"
+    },
+    {
+      "endpoint": "/api/automation-status/60dc477f-da6f-42a3-b6b5-056089cad104",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.009491682052612305,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.182640"
+    },
+    {
+      "endpoint": "/api/cancel-automation/60dc477f-da6f-42a3-b6b5-056089cad104",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008622407913208008,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.191360"
+    },
+    {
+      "endpoint": "/api/proactive-suggestions",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.00835418701171875,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.199813"
+    },
+    {
+      "endpoint": "/api/autonomous-action",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008131980895996094,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.208074"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.00892782211303711,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.217139"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008214473724365234,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.225475"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008947134017944336,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.234539"
+    },
+    {
+      "endpoint": "/api/browse",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.008144140243530273,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.242783"
+    },
+    {
+      "endpoint": "/api/recent-tabs",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.008031606674194336,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.250907"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.007814645767211914,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.258856"
+    },
+    {
+      "endpoint": "/api/automate-task",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.00843191146850586,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.267383"
+    },
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.009076595306396484,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.277406"
+    },
+    {
+      "endpoint": "/api/recommendations",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.022899627685546875,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.292235"
+    },
+    {
+      "endpoint": "/api/voice-commands/available",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.02354598045349121,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.293289"
+    },
+    {
+      "endpoint": "/api/automation-suggestions",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.023395776748657227,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.294552"
+    },
+    {
+      "endpoint": "/api/enhanced/system/overview",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.02404308319091797,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.296198"
+    },
+    {
+      "endpoint": "/api/nonexistent",
+      "method": "GET",
+      "status_code": 500,
+      "response_time": 0.011629343032836914,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.308503"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.00897359848022461,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.317579"
+    },
+    {
+      "endpoint": "/api/browse",
+      "method": "POST",
+      "status_code": 500,
+      "response_time": 0.011882781982421875,
+      "success": false,
+      "details": "Text response: Internal Server Error...",
+      "timestamp": "2025-08-19T15:50:51.329572"
+    }
+  ]
+}
