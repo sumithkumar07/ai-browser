@@ -385,6 +385,7 @@ function App() {
                       className="recent-card"
                       draggable
                       onDragStart={(e) => handleDragStart(e, item)}
+                      onDragEnd={handleDragEnd}
                     >
                       <div className="recent-icon">🔍</div>
                       <div className="recent-content">
