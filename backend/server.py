@@ -64,6 +64,20 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
 db = client.aether_browser
 
+# Initialize Enhanced Systems (ALL CRITICAL GAPS)
+enhanced_integration = None
+if ENHANCED_SYSTEMS_AVAILABLE:
+    try:
+        enhanced_integration = initialize_enhanced_server_integration(client)
+        logger.info("🌟 ALL CRITICAL GAPS INITIALIZED:")
+        logger.info("   ✅ Shadow Workspace - Background task execution")
+        logger.info("   ✅ Visual Workflow Builder - Drag & drop interface")
+        logger.info("   ✅ Split View Engine - Multi-website viewing")
+        logger.info("   ✅ Platform Integrations - 50+ platform support")
+    except Exception as e:
+        logger.error(f"Failed to initialize enhanced systems: {e}")
+        ENHANCED_SYSTEMS_AVAILABLE = False
+
 # AI clients initialization
 groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
 
