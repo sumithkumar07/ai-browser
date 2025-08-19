@@ -1,0 +1,344 @@
+{
+  "total_tests": 37,
+  "successful_tests": 4,
+  "failed_tests": 33,
+  "success_rate": 10.81081081081081,
+  "total_time": 0.30163121223449707,
+  "avg_response_time": 0.009783828580701674,
+  "assessment": "\u274c NEEDS WORK: Significant issues require attention",
+  "results": [
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.060376644134521484,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.897028"
+    },
+    {
+      "endpoint": "/api/browse",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006916046142578125,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.904037"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006429195404052734,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.910576"
+    },
+    {
+      "endpoint": "/api/recent-tabs",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.0069200992584228516,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.917572"
+    },
+    {
+      "endpoint": "/api/recommendations",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.007117271423339844,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.924762"
+    },
+    {
+      "endpoint": "/api/clear-history",
+      "method": "DELETE",
+      "status_code": 404,
+      "response_time": 0.006208658218383789,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.931047"
+    },
+    {
+      "endpoint": "/api/summarize",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.007142543792724609,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.938269"
+    },
+    {
+      "endpoint": "/api/search-suggestions",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006505489349365234,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.944855"
+    },
+    {
+      "endpoint": "/api/create-workflow",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006613492965698242,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.951551"
+    },
+    {
+      "endpoint": "/api/enhanced/system/overview",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.007063865661621094,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.958683"
+    },
+    {
+      "endpoint": "/api/voice-command",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006337165832519531,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.965110"
+    },
+    {
+      "endpoint": "/api/voice-commands/available",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.0063440799713134766,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.971550"
+    },
+    {
+      "endpoint": "/api/keyboard-shortcut",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006074666976928711,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.977716"
+    },
+    {
+      "endpoint": "/api/keyboard-shortcuts/available",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.005880117416381836,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.983667"
+    },
+    {
+      "endpoint": "/api/automate-task",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.005741119384765625,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.989500"
+    },
+    {
+      "endpoint": "/api/automation-suggestions",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.006293535232543945,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:13.995885"
+    },
+    {
+      "endpoint": "/api/active-automations",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.01090383529663086,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.006862"
+    },
+    {
+      "endpoint": "/api/execute-automation/c98618df-4514-4326-8044-2c29f0b2f857",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006238698959350586,
+      "success": true,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.013175"
+    },
+    {
+      "endpoint": "/api/automation-status/c98618df-4514-4326-8044-2c29f0b2f857",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.006946086883544922,
+      "success": true,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.020191"
+    },
+    {
+      "endpoint": "/api/cancel-automation/c98618df-4514-4326-8044-2c29f0b2f857",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006783246994018555,
+      "success": true,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.027042"
+    },
+    {
+      "endpoint": "/api/proactive-suggestions",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.006743431091308594,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.033859"
+    },
+    {
+      "endpoint": "/api/autonomous-action",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.0060656070709228516,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.040020"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.005852699279785156,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.045975"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.005906820297241211,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.051977"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.0066432952880859375,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.058711"
+    },
+    {
+      "endpoint": "/api/browse",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.007127523422241211,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.065920"
+    },
+    {
+      "endpoint": "/api/recent-tabs",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.00697016716003418,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.072962"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.005519866943359375,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.078564"
+    },
+    {
+      "endpoint": "/api/automate-task",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.006100177764892578,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.084734"
+    },
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.006293773651123047,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.091910"
+    },
+    {
+      "endpoint": "/api/recommendations",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.02089095115661621,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.107543"
+    },
+    {
+      "endpoint": "/api/automation-suggestions",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.019757509231567383,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.108124"
+    },
+    {
+      "endpoint": "/api/enhanced/system/overview",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.019425153732299805,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.108675"
+    },
+    {
+      "endpoint": "/api/voice-commands/available",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.02547311782836914,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.112921"
+    },
+    {
+      "endpoint": "/api/nonexistent",
+      "method": "GET",
+      "status_code": 404,
+      "response_time": 0.009143829345703125,
+      "success": true,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.122711"
+    },
+    {
+      "endpoint": "/api/chat",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.008118391036987305,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.130938"
+    },
+    {
+      "endpoint": "/api/browse",
+      "method": "POST",
+      "status_code": 404,
+      "response_time": 0.00713348388671875,
+      "success": false,
+      "details": "Text response: 404 page not found\n...",
+      "timestamp": "2025-08-19T15:40:14.138166"
+    }
+  ]
+}
