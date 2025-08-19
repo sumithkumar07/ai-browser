@@ -575,6 +575,25 @@ function App() {
         </div>
 
         <div className="browser-actions">
+          {/* Split View Manager - Critical Gap #3 */}
+          <SplitViewManager 
+            backendUrl={backendUrl}
+            userSession={sessionId}
+            onNavigate={handleNavigate}
+          />
+          
+          {/* Platform Integrations Manager - Critical Gap #4 */}
+          <PlatformIntegrationsManager 
+            backendUrl={backendUrl}
+            userSession={sessionId}
+          />
+          
+          {/* Visual Workflow Builder - Critical Gap #2 */}
+          <VisualWorkflowBuilder 
+            backendUrl={backendUrl}
+            userSession={sessionId}
+          />
+          
           {/* Voice Command Button - Enhanced with accessibility */}
           <button 
             className={`nav-btn voice-btn ${advancedFeatures.voiceListening ? 'active listening' : ''}`}
