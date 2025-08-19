@@ -2,20 +2,41 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function App() {
-  const [currentView, setCurrentView] = useState('home');
-  const [chatMessages, setChatMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState('');
+  // Browser state
+  const [currentUrl, setCurrentUrl] = useState('');
+  const [urlInput, setUrlInput] = useState('https://example.com');
   const [isLoading, setIsLoading] = useState(false);
-  const [searchHistory, setSearchHistory] = useState([]);
-  const [draggedItem, setDraggedItem] = useState(null);
-  const [activeTimeline, setActiveTimeline] = useState([]);
-  const [showTimeline, setShowTimeline] = useState(false);
-  const [aiAssistantExpanded, setAiAssistantExpanded] = useState(false);
-  const messagesEndRef = useRef(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
+  const [isSecure, setIsSecure] = useState(true);
+  const [tabs, setTabs] = useState([
+    { id: 1, title: 'New Tab', url: '', active: true, favicon: '🌐' }
+  ]);
+  const [activeTab, setActiveTab] = useState(1);
+
+  // AI Assistant state
+  const [aiVisible, setAiVisible] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  
+  // Browser history
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  // Quick suggestions
+  const [suggestions, setSuggestions] = useState([
+    { title: 'Google', url: 'https://google.com', favicon: '🔍' },
+    { title: 'GitHub', url: 'https://github.com', favicon: '🐙' },
+    { title: 'Stack Overflow', url: 'https://stackoverflow.com', favicon: '📚' },
+    { title: 'ChatGPT', url: 'https://chat.openai.com', favicon: '🤖' }
+  ]);
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+  const iframeRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
-  // Smooth scrolling to bottom of chat
+  // Scroll to bottom of chat
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -24,57 +45,145 @@ function App() {
     scrollToBottom();
   }, [chatMessages]);
 
-  // Load initial data
-  useEffect(() => {
-    loadSearchHistory();
-    initializeTimeline();
-  }, []);
+  // Handle URL navigation
+  const handleNavigate = async (url) => {
+    if (!url) return;
+    
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    setIsLoading(true);
+    setCurrentUrl(url);
+    setUrlInput(url);
+    setIsSecure(url.startsWith('https://'));
+    
+    // Update tab
+    const updatedTabs = tabs.map(tab => 
+      tab.id === activeTab 
+        ? { ...tab, url: url, title: getDomainFromUrl(url) }
+        : tab
+    );
+    setTabs(updatedTabs);
+    
+    // Update history
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(url);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setCanGoBack(newHistory.length > 1);
+    setCanGoForward(false);
+    
+    // Simulate loading time
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
 
-  const loadSearchHistory = async () => {
+    // Store in browsing history
     try {
-      const response = await fetch(`${backendUrl}/api/search_history`);
-      if (response.ok) {
-        const history = await response.json();
-        setSearchHistory(history.slice(0, 6)); // Show recent 6 items
-      }
+      await fetch(`${backendUrl}/api/browse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+      });
     } catch (error) {
-      console.error('Error loading search history:', error);
+      console.error('Error storing browse history:', error);
     }
   };
 
-  const initializeTimeline = () => {
-    const sampleTimeline = [
-      { id: 1, type: 'search', title: 'AI Research Query', time: '2 mins ago', status: 'completed' },
-      { id: 2, type: 'analysis', title: 'Data Analysis Task', time: '5 mins ago', status: 'completed' },
-      { id: 3, type: 'workflow', title: 'Automation Setup', time: '10 mins ago', status: 'active' }
-    ];
-    setActiveTimeline(sampleTimeline);
+  const getDomainFromUrl = (url) => {
+    try {
+      const domain = new URL(url).hostname;
+      return domain.replace('www.', '');
+    } catch {
+      return 'New Tab';
+    }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+  const handleGoBack = () => {
+    if (canGoBack && historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      const url = history[newIndex];
+      setCurrentUrl(url);
+      setUrlInput(url);
+      setCanGoForward(true);
+      setCanGoBack(newIndex > 0);
+    }
+  };
 
-    const userMessage = { role: 'user', content: inputMessage };
-    setChatMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
+  const handleGoForward = () => {
+    if (canGoForward && historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      const url = history[newIndex];
+      setCurrentUrl(url);
+      setUrlInput(url);
+      setCanGoBack(true);
+      setCanGoForward(newIndex < history.length - 1);
+    }
+  };
 
-    // Add to timeline
-    const newTimelineItem = {
+  const handleRefresh = () => {
+    if (currentUrl) {
+      setIsLoading(true);
+      setTimeout(() => setIsLoading(false), 800);
+    }
+  };
+
+  const createNewTab = () => {
+    const newTab = {
       id: Date.now(),
-      type: 'query',
-      title: inputMessage.substring(0, 50) + '...',
-      time: 'Just now',
-      status: 'processing'
+      title: 'New Tab',
+      url: '',
+      active: false,
+      favicon: '🌐'
     };
-    setActiveTimeline(prev => [newTimelineItem, ...prev]);
+    setTabs([...tabs, newTab]);
+    setActiveTab(newTab.id);
+    setCurrentUrl('');
+    setUrlInput('');
+  };
+
+  const closeTab = (tabId) => {
+    if (tabs.length === 1) return; // Don't close last tab
+    
+    const updatedTabs = tabs.filter(tab => tab.id !== tabId);
+    setTabs(updatedTabs);
+    
+    if (activeTab === tabId) {
+      const newActiveTab = updatedTabs[0];
+      setActiveTab(newActiveTab.id);
+      setCurrentUrl(newActiveTab.url);
+      setUrlInput(newActiveTab.url);
+    }
+  };
+
+  const switchTab = (tabId) => {
+    setActiveTab(tabId);
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab) {
+      setCurrentUrl(tab.url);
+      setUrlInput(tab.url || '');
+    }
+  };
+
+  // AI Assistant functions
+  const handleAiMessage = async () => {
+    if (!aiInput.trim()) return;
+
+    const userMessage = { role: 'user', content: aiInput };
+    setChatMessages(prev => [...prev, userMessage]);
+    setAiLoading(true);
 
     try {
-      const response = await fetch(`${backendUrl}/api/search`, {
+      const response = await fetch(`${backendUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          query: inputMessage,
-          mode: 'comprehensive'
+          message: aiInput,
+          context: { current_url: currentUrl }
         })
       });
 
@@ -82,395 +191,285 @@ function App() {
         const result = await response.json();
         const aiMessage = { 
           role: 'assistant', 
-          content: result.summary || result.response || 'Task completed successfully',
-          data: result
+          content: result.response || 'I can help you with that!'
         };
         setChatMessages(prev => [...prev, aiMessage]);
-        
-        // Update timeline
-        setActiveTimeline(prev => 
-          prev.map(item => 
-            item.id === newTimelineItem.id 
-              ? { ...item, status: 'completed' }
-              : item
-          )
-        );
       }
     } catch (error) {
       console.error('Error:', error);
       setChatMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error processing your request.' 
+        content: 'Sorry, I encountered an error. Please try again.' 
       }]);
     } finally {
-      setIsLoading(false);
-      setInputMessage('');
+      setAiLoading(false);
+      setAiInput('');
     }
   };
 
-  const handleDragStart = (e, item) => {
-    try {
-      setDraggedItem(item);
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', JSON.stringify(item));
-      e.currentTarget.style.opacity = '0.5';
-    } catch (error) {
-      console.log('Drag start handled');
-    }
+  // AI Quick Actions
+  const aiQuickActions = [
+    { text: "Summarize this page", action: () => setAiInput("Summarize the content of this webpage") },
+    { text: "Find similar sites", action: () => setAiInput("Find websites similar to this one") },
+    { text: "Extract key points", action: () => setAiInput("Extract the key points from this page") },
+    { text: "Translate this page", action: () => setAiInput("Translate this page to English") }
+  ];
+
+  const handleQuickAction = (action) => {
+    action();
+    setAiVisible(true);
+    setTimeout(() => handleAiMessage(), 100);
   };
-
-  const handleDragEnd = (e) => {
-    e.currentTarget.style.opacity = '1';
-    setDraggedItem(null);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    e.currentTarget.classList.add('drag-over');
-  };
-
-  const handleDragLeave = (e) => {
-    e.currentTarget.classList.remove('drag-over');
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('drag-over');
-    
-    try {
-      let itemData = e.dataTransfer.getData('text/plain');
-      let item = itemData ? JSON.parse(itemData) : draggedItem;
-      
-      if (item) {
-        const message = typeof item === 'string' ? item : (item.title || item.query || JSON.stringify(item));
-        setInputMessage(`Process: ${message}`);
-        setAiAssistantExpanded(true);
-        
-        // Add success feedback
-        setTimeout(() => {
-          setChatMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: `Ready to process: ${message}. What specific action would you like me to take?` 
-          }]);
-        }, 500);
-      }
-    } catch (error) {
-      console.log('Drop handled successfully');
-    }
-    
-    setDraggedItem(null);
-  };
-
-  const QuickActions = () => (
-    <div className="quick-actions">
-      <h3>Quick Actions</h3>
-      <div className="action-grid">
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Research Report')} onDragEnd={handleDragEnd}>
-          <div className="action-icon">📊</div>
-          <span>Generate Report</span>
-        </div>
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Data Analysis')} onDragEnd={handleDragEnd}>
-          <div className="action-icon">📈</div>
-          <span>Analyze Data</span>
-        </div>
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Web Scraping')} onDragEnd={handleDragEnd}>
-          <div className="action-icon">🕷️</div>
-          <span>Extract Info</span>
-        </div>
-        <div className="action-card" draggable onDragStart={(e) => handleDragStart(e, 'Automation')} onDragEnd={handleDragEnd}>
-          <div className="action-icon">⚡</div>
-          <span>Automate Task</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  const Timeline = () => (
-    <div className={`timeline-panel ${showTimeline ? 'expanded' : ''}`}>
-      <div className="timeline-header">
-        <h3>Activity Timeline</h3>
-        <button onClick={() => setShowTimeline(!showTimeline)}>
-          {showTimeline ? '×' : '📋'}
-        </button>
-      </div>
-      {showTimeline && (
-        <div className="timeline-content">
-          {activeTimeline.map(item => (
-            <div key={item.id} className={`timeline-item ${item.status}`}>
-              <div className="timeline-marker"></div>
-              <div className="timeline-details">
-                <div className="timeline-title">{item.title}</div>
-                <div className="timeline-time">{item.time}</div>
-                <div className={`timeline-status ${item.status}`}>
-                  {item.status === 'processing' ? '⏳' : item.status === 'completed' ? '✅' : '🔄'}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const AIAssistant = () => (
-    <div className={`ai-assistant ${aiAssistantExpanded ? 'expanded' : ''}`}>
-      <div className="ai-header" onClick={() => setAiAssistantExpanded(!aiAssistantExpanded)}>
-        <div className="ai-avatar">🤖</div>
-        <div className="ai-info">
-          <div className="ai-name">AETHER AI</div>
-          <div className="ai-status">Ready to act</div>
-        </div>
-        <div className="expand-icon">{aiAssistantExpanded ? '−' : '+'}</div>
-      </div>
-      
-      {aiAssistantExpanded && (
-        <div className="ai-content">
-          <div className="chat-messages" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-            {chatMessages.length === 0 && (
-              <div className="welcome-message">
-                <div className="welcome-icon">✨</div>
-                <h3>Express Ideas, AETHER Acts</h3>
-                <p>Drag actions here or type your request. I'll handle the rest.</p>
-              </div>
-            )}
-            {chatMessages.map((message, index) => (
-              <div key={index} className={`message ${message.role}`}>
-                <div className="message-content">{message.content}</div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="message assistant loading">
-                <div className="typing-indicator">
-                  <span></span><span></span><span></span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-          
-          <div className="chat-input">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="What would you like me to do?"
-              className="message-input"
-            />
-            <button onClick={handleSendMessage} className="send-button" disabled={isLoading}>
-              {isLoading ? '⏳' : '➤'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   return (
-    <div className="app">
-      {/* Header */}
-      <header className="app-header">
-        <div className="header-left">
-          <div className="logo">
-            <div className="logo-icon">⚡</div>
-            <span className="logo-text">AETHER</span>
-          </div>
-          <nav className="main-nav">
-            <button 
-              className={currentView === 'home' ? 'nav-active' : ''}
-              onClick={() => setCurrentView('home')}
+    <div className="browser-app">
+      {/* Tab Bar */}
+      <div className="tab-bar">
+        <div className="tabs-container">
+          {tabs.map(tab => (
+            <div 
+              key={tab.id}
+              className={`tab ${tab.id === activeTab ? 'active' : ''}`}
+              onClick={() => switchTab(tab.id)}
             >
-              Home
-            </button>
-            <button 
-              className={currentView === 'workflows' ? 'nav-active' : ''}
-              onClick={() => setCurrentView('workflows')}
-            >
-              Workflows
-            </button>
-            <button 
-              className={currentView === 'agents' ? 'nav-active' : ''}
-              onClick={() => setCurrentView('agents')}
-            >
-              AI Agents
-            </button>
-          </nav>
-        </div>
-        
-        <div className="header-right">
-          <button className="header-btn" onClick={() => setShowTimeline(!showTimeline)}>
-            Timeline
-          </button>
-          <button className="header-btn primary" onClick={() => setAiAssistantExpanded(true)}>
-            AI Assistant
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="main-content">
-        {currentView === 'home' && (
-          <div className="home-view">
-            {/* Hero Section */}
-            <section className="hero-section">
-              <div className="hero-content">
-                <h1 className="hero-title">
-                  AETHER: Your AI-Powered
-                  <span className="gradient-text"> Action Browser</span>
-                </h1>
-                <p className="hero-subtitle">
-                  Beyond browsing, into intelligent action. Express ideas, AETHER acts.
-                </p>
-                <div className="hero-actions">
-                  <button 
-                    className="cta-button primary"
-                    onClick={() => setAiAssistantExpanded(true)}
-                  >
-                    Start Acting
-                  </button>
-                  <button className="cta-button secondary">
-                    Watch Demo
-                  </button>
-                </div>
-              </div>
-              <div className="hero-visual">
-                <div className="floating-cards">
-                  <div className="float-card">🔍 Deep Research</div>
-                  <div className="float-card">📊 Data Analysis</div>
-                  <div className="float-card">⚡ Automation</div>
-                  <div className="float-card">🤖 AI Workflows</div>
-                </div>
-              </div>
-            </section>
-
-            {/* Features Grid */}
-            <section className="features-section">
-              <h2>Intelligent Capabilities</h2>
-              <div className="features-grid">
-                <div className="feature-card">
-                  <div className="feature-icon">🎯</div>
-                  <h3>Express Ideas</h3>
-                  <p>Natural language commands that AETHER understands and executes</p>
-                </div>
-                <div className="feature-card">
-                  <div className="feature-icon">⚡</div>
-                  <h3>Instant Action</h3>
-                  <p>From research to automation, AETHER acts on your behalf</p>
-                </div>
-                <div className="feature-card">
-                  <div className="feature-icon">🔗</div>
-                  <h3>Smart Integration</h3>
-                  <p>Seamlessly connects and automates across platforms</p>
-                </div>
-                <div className="feature-card">
-                  <div className="feature-icon">📈</div>
-                  <h3>Workflow Intelligence</h3>
-                  <p>Learns and optimizes your browsing and work patterns</p>
-                </div>
-              </div>
-            </section>
-
-            {/* Action CTA Section */}
-            <section className="action-cta-section">
-              <div className="cta-content">
-                <h2>Express Ideas, AETHER Acts</h2>
-                <p>Deep Action — think, browse, and organize information hands-free.</p>
-                <div className="cta-examples">
-                  <div className="example-card" onClick={() => {setInputMessage("Research the latest AI trends and create a comprehensive report"); setAiAssistantExpanded(true);}}>
-                    <div className="example-icon">🔍</div>
-                    <span>"Research AI trends and create a report"</span>
-                  </div>
-                  <div className="example-card" onClick={() => {setInputMessage("Analyze website traffic data and generate insights"); setAiAssistantExpanded(true);}}>
-                    <div className="example-icon">📊</div>
-                    <span>"Analyze traffic data and generate insights"</span>
-                  </div>
-                  <div className="example-card" onClick={() => {setInputMessage("Automate social media posting workflow"); setAiAssistantExpanded(true);}}>
-                    <div className="example-icon">⚡</div>
-                    <span>"Automate social media workflow"</span>
-                  </div>
-                </div>
+              <span className="tab-favicon">{tab.favicon}</span>
+              <span className="tab-title">{tab.title}</span>
+              {tabs.length > 1 && (
                 <button 
-                  className="main-cta-button"
-                  onClick={() => setAiAssistantExpanded(true)}
+                  className="tab-close"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(tab.id);
+                  }}
                 >
-                  Start Acting Now
+                  ×
                 </button>
-              </div>
-            </section>
+              )}
+            </div>
+          ))}
+          <button className="new-tab-btn" onClick={createNewTab}>+</button>
+        </div>
+      </div>
 
-            {/* Quick Actions */}
-            <QuickActions />
+      {/* Navigation Bar */}
+      <div className="nav-bar">
+        <div className="nav-controls">
+          <button 
+            className={`nav-btn ${!canGoBack ? 'disabled' : ''}`}
+            onClick={handleGoBack}
+            disabled={!canGoBack}
+            title="Go back"
+          >
+            ←
+          </button>
+          <button 
+            className={`nav-btn ${!canGoForward ? 'disabled' : ''}`}
+            onClick={handleGoForward}
+            disabled={!canGoForward}
+            title="Go forward"
+          >
+            →
+          </button>
+          <button 
+            className="nav-btn"
+            onClick={handleRefresh}
+            title="Refresh"
+          >
+            {isLoading ? '⟳' : '↻'}
+          </button>
+        </div>
 
-            {/* Recent Activity */}
-            {searchHistory.length > 0 && (
-              <section className="recent-section">
-                <h2>Recent Activities</h2>
-                <div className="recent-grid">
-                  {searchHistory.map((item, index) => (
-                    <div 
-                      key={index} 
-                      className="recent-card"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item)}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <div className="recent-icon">🔍</div>
-                      <div className="recent-content">
-                        <div className="recent-title">{item.query || item.title}</div>
-                        <div className="recent-time">{item.timestamp || 'Recently'}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+        <div className="address-bar">
+          <div className="security-indicator">
+            {isSecure ? (
+              <span className="secure" title="Secure connection">🔒</span>
+            ) : (
+              <span className="insecure" title="Not secure">⚠️</span>
             )}
           </div>
-        )}
+          <input
+            type="text"
+            className="url-input"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleNavigate(urlInput)}
+            placeholder="Search or type a URL"
+          />
+          <button 
+            className="nav-btn go-btn"
+            onClick={() => handleNavigate(urlInput)}
+            title="Go"
+          >
+            →
+          </button>
+        </div>
 
-        {currentView === 'workflows' && (
-          <div className="workflows-view">
-            <h1>AI Workflows</h1>
-            <p>Create and manage intelligent automation workflows</p>
-            <div className="workflow-builder">
-              <div className="workflow-canvas">
-                <p>Drag actions here to build workflows</p>
+        <div className="browser-actions">
+          <button 
+            className={`ai-toggle ${aiVisible ? 'active' : ''}`}
+            onClick={() => setAiVisible(!aiVisible)}
+            title="AI Assistant"
+          >
+            🤖
+          </button>
+          <button className="menu-btn" title="Menu">⋮</button>
+        </div>
+      </div>
+
+      {/* Main Browser Content */}
+      <div className="browser-content">
+        {/* Web View */}
+        <div className={`web-view ${aiVisible ? 'with-ai' : ''}`}>
+          {currentUrl ? (
+            <div className="iframe-container">
+              {isLoading && (
+                <div className="loading-overlay">
+                  <div className="loading-spinner"></div>
+                  <div className="loading-text">Loading {getDomainFromUrl(currentUrl)}...</div>
+                </div>
+              )}
+              <iframe
+                ref={iframeRef}
+                src={currentUrl}
+                className="web-iframe"
+                title="Web Content"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-navigation allow-popups allow-popups-to-escape-sandbox"
+                onLoad={() => setIsLoading(false)}
+              />
+            </div>
+          ) : (
+            <div className="start-page">
+              <div className="start-content">
+                <div className="aether-logo">
+                  <div className="logo-icon">⚡</div>
+                  <h1>AETHER</h1>
+                  <p>AI-First Browser</p>
+                </div>
+                
+                <div className="quick-access">
+                  <h2>Quick Access</h2>
+                  <div className="suggestions-grid">
+                    {suggestions.map((site, index) => (
+                      <div 
+                        key={index}
+                        className="suggestion-card"
+                        onClick={() => handleNavigate(site.url)}
+                      >
+                        <div className="suggestion-favicon">{site.favicon}</div>
+                        <div className="suggestion-title">{site.title}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="ai-quick-actions">
+                  <h2>AI Actions</h2>
+                  <div className="actions-grid">
+                    {aiQuickActions.map((action, index) => (
+                      <button 
+                        key={index}
+                        className="action-btn"
+                        onClick={() => handleQuickAction(action.action)}
+                      >
+                        {action.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* AI Assistant Panel */}
+        {aiVisible && (
+          <div className="ai-panel">
+            <div className="ai-header">
+              <div className="ai-title">
+                <span className="ai-icon">🤖</span>
+                <span>AETHER AI</span>
+              </div>
+              <button 
+                className="ai-close"
+                onClick={() => setAiVisible(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="ai-content">
+              <div className="chat-messages">
+                {chatMessages.length === 0 ? (
+                  <div className="welcome-message">
+                    <div className="welcome-icon">✨</div>
+                    <h3>Hello! I'm your AI assistant</h3>
+                    <p>I can help you browse, research, summarize content, and much more. What would you like me to do?</p>
+                  </div>
+                ) : (
+                  chatMessages.map((message, index) => (
+                    <div key={index} className={`message ${message.role}`}>
+                      <div className="message-content">{message.content}</div>
+                    </div>
+                  ))
+                )}
+                
+                {aiLoading && (
+                  <div className="message assistant loading">
+                    <div className="typing-indicator">
+                      <span></span><span></span><span></span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="ai-input-area">
+                <div className="quick-suggestions">
+                  {currentUrl && (
+                    <>
+                      <button 
+                        className="suggestion-chip"
+                        onClick={() => handleQuickAction(() => setAiInput("Summarize this page"))}
+                      >
+                        Summarize
+                      </button>
+                      <button 
+                        className="suggestion-chip"
+                        onClick={() => handleQuickAction(() => setAiInput("Extract key information"))}
+                      >
+                        Extract Info
+                      </button>
+                      <button 
+                        className="suggestion-chip"
+                        onClick={() => handleQuickAction(() => setAiInput("Find similar websites"))}
+                      >
+                        Similar Sites
+                      </button>
+                    </>
+                  )}
+                </div>
+                
+                <div className="ai-input-box">
+                  <input
+                    type="text"
+                    className="ai-input"
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAiMessage()}
+                    placeholder="Ask me anything..."
+                  />
+                  <button 
+                    className="ai-send"
+                    onClick={handleAiMessage}
+                    disabled={aiLoading || !aiInput.trim()}
+                  >
+                    {aiLoading ? '⟳' : '→'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
-
-        {currentView === 'agents' && (
-          <div className="agents-view">
-            <h1>AI Agents</h1>
-            <p>Manage your intelligent agents and their capabilities</p>
-            <div className="agents-grid">
-              <div className="agent-card">
-                <h3>Research Agent</h3>
-                <p>Specialized in deep web research and analysis</p>
-              </div>
-              <div className="agent-card">
-                <h3>Data Agent</h3>
-                <p>Expert in data extraction and processing</p>
-              </div>
-              <div className="agent-card">
-                <h3>Automation Agent</h3>
-                <p>Handles repetitive tasks and workflows</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Fixed Components */}
-      <AIAssistant />
-      <Timeline />
-
-      {/* Background Effects */}
-      <div className="bg-effects">
-        <div className="gradient-orb orb-1"></div>
-        <div className="gradient-orb orb-2"></div>
-        <div className="gradient-orb orb-3"></div>
       </div>
     </div>
   );
