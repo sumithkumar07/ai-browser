@@ -15,6 +15,10 @@ import SplitViewManager from './components/SplitViewManager';
 import PlatformIntegrationsManager from './components/PlatformIntegrationsManager';
 import VisualWorkflowBuilder from './components/VisualWorkflowBuilder';
 
+// Import NEW PHASE 1-3 COMPONENTS
+import SimplifiedInterface from './components/SimplifiedInterface';
+import NativeBrowserEngine from './components/NativeBrowserEngine';
+
 function App() {
   // Browser state
   const [currentUrl, setCurrentUrl] = useState('');
