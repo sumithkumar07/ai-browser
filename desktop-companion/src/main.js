@@ -125,6 +125,56 @@ class AetherDesktopCompanion {
         ipcMain.handle('bridge-send-message', async (event, message) => {
             return await this.bridge.sendMessage(message);
         });
+
+        // Enhanced Desktop Features
+        ipcMain.handle('get-system-info', async (event) => {
+            return await this.computerUse.getSystemInfo();
+        });
+
+        ipcMain.handle('get-capabilities', async (event) => {
+            return await this.computerUse.getCapabilities();
+        });
+
+        ipcMain.handle('computer-use-keypress', async (event, key, modifiers) => {
+            return await this.computerUse.sendKeyPress(key, modifiers);
+        });
+
+        ipcMain.handle('create-persistent-session', async (event, url, sessionId) => {
+            return await this.nativeBrowser.createPersistentSession(url, sessionId);
+        });
+
+        ipcMain.handle('execute-in-session', async (event, sessionId, actions) => {
+            return await this.nativeBrowser.executeInSession(sessionId, actions);
+        });
+
+        ipcMain.handle('get-running-processes', async (event) => {
+            return await this.computerUse.getRunningProcesses();
+        });
+
+        // Window management
+        ipcMain.handle('minimize-window', async (event) => {
+            this.mainWindow?.minimize();
+            return { success: true };
+        });
+
+        ipcMain.handle('maximize-window', async (event) => {
+            if (this.mainWindow?.isMaximized()) {
+                this.mainWindow.unmaximize();
+            } else {
+                this.mainWindow?.maximize();
+            }
+            return { success: true };
+        });
+
+        ipcMain.handle('close-window', async (event) => {
+            this.mainWindow?.close();
+            return { success: true };
+        });
+
+        ipcMain.handle('open-dev-tools', async (event) => {
+            this.mainWindow?.webContents.openDevTools();
+            return { success: true };
+        });
     }
 }
 
