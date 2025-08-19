@@ -75,9 +75,11 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
 db = client.aether_browser
 
-# Initialize Enhanced Systems (ALL CRITICAL GAPS) + Task Executor
+# Initialize Enhanced Systems (ALL CRITICAL GAPS) + Task Executor + NEW PHASE 1-3 CAPABILITIES
 enhanced_integration = None
 task_executor = None
+enhanced_ai_intelligence = None
+native_chromium = None
 
 if ENHANCED_SYSTEMS_AVAILABLE:
     try:
@@ -90,6 +92,26 @@ if ENHANCED_SYSTEMS_AVAILABLE:
     except Exception as e:
         logger.error(f"Failed to initialize enhanced systems: {e}")
         ENHANCED_SYSTEMS_AVAILABLE = False
+
+if PHASE_123_AVAILABLE:
+    try:
+        # Initialize Enhanced AI Intelligence (Phase 2)
+        enhanced_ai_intelligence = initialize_enhanced_ai_intelligence(client)
+        logger.info("🧠 PHASE 2 - Enhanced AI Intelligence initialized:")
+        logger.info("   ✅ Behavioral Learning Engine")
+        logger.info("   ✅ Proactive AI Suggestions")
+        logger.info("   ✅ Advanced NLP Processor")
+        
+        # Initialize Native Chromium Integration (Phase 3)
+        native_chromium = initialize_native_chromium(client)
+        logger.info("🔥 PHASE 3 - Native Chromium Engine initialized:")
+        logger.info("   ✅ Native Browser Engine")
+        logger.info("   ✅ Chrome DevTools Integration")
+        logger.info("   ✅ Extension Support")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize Phase 1-3 enhancements: {e}")
+        PHASE_123_AVAILABLE = False
 
 if ENHANCED_MODE:
     try:
