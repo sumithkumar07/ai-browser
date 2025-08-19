@@ -36,6 +36,9 @@ function App() {
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [workflowBuilder, setWorkflowBuilder] = useState({ visible: false, workflows: [] });
   const [automationSuggestions, setAutomationSuggestions] = useState([]);
+
+  // Onboarding Tour
+  const { shouldShowTour, showTour, hideTour } = useOnboardingTour();
   
   const [suggestions] = useState([
     { title: 'Google', url: 'https://google.com', favicon: '🔍' },
