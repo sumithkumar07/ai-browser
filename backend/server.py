@@ -26,6 +26,15 @@ app = FastAPI(
     version="4.0.0"
 )
 
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Database connection
 MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
