@@ -214,19 +214,28 @@ if PHASE_123_AVAILABLE:
         enhanced_ai_intelligence = None
         native_chromium = None
 
-# Initialize Enhanced Native Chromium (New)
+# Initialize Native Chromium Engine (New Implementation)
+native_chromium_engine_instance = None
 if NATIVE_CHROMIUM_AVAILABLE:
     try:
-        enhanced_native_chromium = initialize_enhanced_native_chromium(client)
-        logger.info("🔥 ENHANCED NATIVE CHROMIUM initialized:")
-        logger.info("   ✅ Advanced Browser Engine")
-        logger.info("   ✅ Enhanced DevTools Protocol")
-        logger.info("   ✅ Extension Management")
-        logger.info("   ✅ Performance Monitoring")
-        logger.info("   ✅ Split View Native Support")
+        native_chromium_engine_instance = initialize_enhanced_native_chromium(client)
+        if native_chromium_engine_instance:
+            logger.info("🔥 NATIVE CHROMIUM ENGINE initialized:")
+            logger.info("   ✅ Playwright Browser Engine")
+            logger.info("   ✅ WebSocket Real-time Control")
+            logger.info("   ✅ Advanced DevTools Protocol")
+            logger.info("   ✅ Performance Monitoring")
+            logger.info("   ✅ Security Analysis")
+            logger.info("   ✅ Screenshot & Automation")
+            
+            # Setup Native Chromium API endpoints
+            setup_native_chromium_endpoints(app)
+            logger.info("   ✅ Native API endpoints configured")
+        else:
+            logger.error("Failed to initialize Native Chromium Engine")
     except Exception as e:
-        logger.error(f"Failed to initialize Enhanced Native Chromium: {e}")
-        enhanced_native_chromium = None
+        logger.error(f"Failed to initialize Native Chromium Engine: {e}")
+        native_chromium_engine_instance = None
 
 # Initialize Agentic Memory System (New)
 if AGENTIC_MEMORY_AVAILABLE:
