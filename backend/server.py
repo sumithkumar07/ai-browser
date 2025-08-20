@@ -547,9 +547,13 @@ async def websocket_native_session(websocket: WebSocket, session_id: str):
         except:
             pass
 
+# ============================================================================
+# ENHANCED EXISTING ENDPOINTS - Backward Compatibility
+# ============================================================================
+
 @app.post("/api/browse")
 async def browse_page(session: BrowsingSession):
-    """Browse page endpoint"""
+    """Enhanced browse page endpoint with native integration"""
     try:
         # Store in recent tabs
         tab_data = {
@@ -568,7 +572,8 @@ async def browse_page(session: BrowsingSession):
             "success": True,
             "url": session.url,
             "tab_id": tab_data["id"],
-            "native_engine": native_engine_ready
+            "native_engine": native_engine_ready,
+            "engine_type": tab_data["engine_type"]
         }
         
     except Exception as e:
@@ -577,12 +582,34 @@ async def browse_page(session: BrowsingSession):
 
 @app.post("/api/chat")
 async def chat_with_ai(chat_data: ChatMessage):
-    """AI chat endpoint"""
+    """Enhanced AI chat endpoint with native browser integration"""
     try:
         session_id = chat_data.session_id or str(uuid.uuid4())
         
-        # Simple AI response
-        ai_response = f"I'm AETHER AI with Native Chromium integration. You said: {chat_data.message}"
+        # Enhanced AI response with native capabilities info
+        native_info = ""
+        if native_engine_ready and native_engine:
+            active_sessions = len(native_engine.sessions)
+            native_info = f" I'm running with Native Chromium Engine (v6.0.0) with {active_sessions} active browser sessions."
+        
+        ai_response = f"I'm AETHER AI with complete Native Chromium integration.{native_info} You said: {chat_data.message}"
+        
+        # Add automation capabilities if requested
+        response_data = {
+            "response": ai_response,
+            "session_id": session_id,
+            "native_engine_available": native_engine_ready
+        }
+        
+        # Handle automation requests
+        if chat_data.enable_automation and native_engine_ready:
+            response_data["automation_capabilities"] = [
+                "smart_click",
+                "data_extraction", 
+                "screenshot_capture",
+                "javascript_execution",
+                "performance_monitoring"
+            ]
         
         # Store chat session
         chat_record = {
@@ -590,15 +617,15 @@ async def chat_with_ai(chat_data: ChatMessage):
             "user_message": chat_data.message,
             "ai_response": ai_response,
             "current_url": chat_data.current_url,
+            "automation_enabled": chat_data.enable_automation,
+            "background_execution": chat_data.background_execution,
+            "native_engine_used": native_engine_ready,
             "timestamp": datetime.utcnow()
         }
         
         db.chat_sessions.insert_one(chat_record)
         
-        return {
-            "response": ai_response,
-            "session_id": session_id
-        }
+        return response_data
         
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
@@ -606,51 +633,133 @@ async def chat_with_ai(chat_data: ChatMessage):
 
 @app.get("/api/recent-tabs")
 async def get_recent_tabs():
-    """Get recent browsing tabs"""
+    """Enhanced recent tabs with native engine info"""
     try:
         tabs = list(db.recent_tabs.find(
             {}, 
             {"_id": 0}
-        ).sort("timestamp", -1).limit(4))
+        ).sort("timestamp", -1).limit(8))
         
-        return {"tabs": tabs}
+        # Add native engine status to each tab
+        for tab in tabs:
+            tab["native_engine_available"] = native_engine_ready
+            if not tab.get("engine_type"):
+                tab["engine_type"] = "native_chromium" if native_engine_ready else "fallback"
+        
+        return {"tabs": tabs, "native_engine_ready": native_engine_ready}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/recommendations")
 async def get_recommendations():
-    """Get AI-powered browsing recommendations"""
+    """Enhanced AI-powered browsing recommendations"""
     try:
         recommendations = [
             {
                 "id": "1",
-                "title": "Native Chromium Test",
-                "description": "Test the native Chromium integration",
-                "url": "https://www.google.com"
+                "title": "🔥 Native Chromium Test",
+                "description": "Test the new Native Chromium integration with full browser capabilities",
+                "url": "https://www.google.com",
+                "category": "native_features",
+                "requires_native": True
             },
             {
                 "id": "2", 
-                "title": "GitHub",
-                "description": "Explore code repositories",
-                "url": "https://github.com"
+                "title": "🚀 GitHub Integration",
+                "description": "Explore repositories with native browser automation",
+                "url": "https://github.com",
+                "category": "development",
+                "requires_native": False
+            },
+            {
+                "id": "3",
+                "title": "🎯 Computer Use API Demo",
+                "description": "Experience AI-powered smart clicking and automation",
+                "url": "https://example.com",
+                "category": "ai_automation",
+                "requires_native": True
+            },
+            {
+                "id": "4",
+                "title": "📊 Performance Monitoring",
+                "description": "Real-time browser performance analytics",
+                "url": "https://web.dev/measure",
+                "category": "performance",
+                "requires_native": True
             }
         ]
         
-        return {"recommendations": recommendations}
+        # Filter recommendations based on native engine availability
+        if not native_engine_ready:
+            recommendations = [r for r in recommendations if not r.get("requires_native")]
+        
+        return {
+            "recommendations": recommendations,
+            "native_engine_ready": native_engine_ready,
+            "total_capabilities": len(recommendations) if native_engine_ready else 2
+        }
         
     except Exception as e:
-        return {"recommendations": []}
+        return {"recommendations": [], "error": str(e)}
 
 @app.delete("/api/clear-history")
 async def clear_browsing_history():
-    """Clear browsing history and chat sessions"""
+    """Enhanced clear history with native session cleanup"""
     try:
-        db.recent_tabs.delete_many({})
-        db.chat_sessions.delete_many({})
-        return {"success": True, "message": "History cleared"}
+        # Clear database records
+        tabs_deleted = db.recent_tabs.delete_many({}).deleted_count
+        chat_deleted = db.chat_sessions.delete_many({}).deleted_count
+        
+        # Clear native sessions if available
+        native_sessions_closed = 0
+        if native_engine_ready and native_engine:
+            sessions_to_close = list(native_engine.sessions.keys())
+            for session_id in sessions_to_close:
+                result = await native_engine.close_session(session_id)
+                if result["success"]:
+                    native_sessions_closed += 1
+        
+        return {
+            "success": True,
+            "message": "Complete history cleared",
+            "details": {
+                "tabs_deleted": tabs_deleted,
+                "chat_sessions_deleted": chat_deleted,
+                "native_sessions_closed": native_sessions_closed,
+                "native_engine_available": native_engine_ready
+            }
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# CLEANUP AND SHUTDOWN
+# ============================================================================
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown"""
+    global native_engine, websocket_server
+    
+    try:
+        logger.info("🛑 AETHER shutting down...")
+        
+        # Cleanup native engine
+        if native_engine:
+            await native_engine.cleanup()
+            logger.info("✅ Native engine cleaned up")
+        
+        # Stop WebSocket server
+        if websocket_server:
+            await websocket_server.stop_server()
+            logger.info("✅ WebSocket server stopped")
+        
+        logger.info("🛑 AETHER shutdown complete")
+        
+    except Exception as e:
+        logger.error(f"Shutdown error: {e}")
 
 if __name__ == "__main__":
     import uvicorn
