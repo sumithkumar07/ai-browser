@@ -27,6 +27,10 @@ function App() {
   // AETHER v6.0 - Enhanced with native Chromium and Fellou.ai-style interface
   const [interfaceMode, setInterfaceMode] = useState('fellou-browser'); // 'fellou-browser', 'fellou' or 'traditional'
   
+  // Session and backend configuration
+  const [sessionId] = useState('web-session-' + Date.now());
+  const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+  
   // Initialize Native API Hook
   const nativeAPI = useNativeAPI(backendUrl, sessionId);
   
