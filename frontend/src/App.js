@@ -734,8 +734,6 @@ function App() {
               )}
             </div>
           )}
-          )}
-          )}
         </>
       ) : (
         /* TRADITIONAL AETHER INTERFACE - Full Feature Mode */
