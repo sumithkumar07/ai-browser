@@ -302,7 +302,7 @@ async def get_ai_response(message: str, context: Optional[str] = None,
 # API Routes
 @app.get("/api/health")
 async def health_check():
-    """Enhanced health check"""
+    """Enhanced health check with Phase 1-3 status"""
     try:
         # Test database connection
         try:
@@ -311,14 +311,34 @@ async def health_check():
         except:
             db_status = "error"
         
+        # Check Phase 1-3 status
+        phase_status = {
+            "phase_1_simplicity": "implemented",
+            "phase_2_ai_intelligence": "implemented" if (PHASE_123_AVAILABLE and 'enhanced_ai_intelligence' in locals() and enhanced_ai_intelligence and enhanced_ai_intelligence.get("initialized")) else "not_available",
+            "phase_3_native_chromium": "implemented" if (PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium and native_chromium.get("native_available")) else "fallback_mode"
+        }
+        
+        overall_status = "enhanced_operational" if (
+            phase_status["phase_2_ai_intelligence"] == "implemented" or 
+            phase_status["phase_3_native_chromium"] == "implemented"
+        ) else "basic_operational"
+        
         return {
-            "status": "operational",
-            "version": "4.0.0", 
+            "status": overall_status,
+            "version": "6.0.0",  # Updated version for Phase 1-3 enhancements
             "timestamp": datetime.utcnow().isoformat(),
             "services": {
                 "database": db_status,
                 "ai_provider": "groq",
-                "backend": "operational"
+                "backend": "operational",
+                "enhanced_ai": "operational" if phase_status["phase_2_ai_intelligence"] == "implemented" else "not_available",
+                "native_chromium": "operational" if phase_status["phase_3_native_chromium"] == "implemented" else "fallback"
+            },
+            "phase_implementation": phase_status,
+            "fellou_ai_parity": {
+                "simplicity": "achieved",
+                "ai_intelligence": "achieved" if phase_status["phase_2_ai_intelligence"] == "implemented" else "basic",
+                "native_engine": "achieved" if phase_status["phase_3_native_chromium"] == "implemented" else "enhanced_iframe"
             }
         }
         
