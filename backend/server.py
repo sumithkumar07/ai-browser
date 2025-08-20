@@ -662,7 +662,79 @@ async def create_workflow(request: WorkflowRequest):
         logger.error(f"Workflow creation error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/enhanced/system/overview")
+@app.get("/api/enhanced/capabilities")
+async def get_enhanced_capabilities():
+    """Get available enhanced capabilities"""
+    try:
+        capabilities = {
+            "phase_1_simplicity": {
+                "available": True,
+                "features": ["fellou_interface", "command_processing", "simplified_controls"]
+            },
+            "phase_2_ai_intelligence": {
+                "available": PHASE_123_AVAILABLE and 'enhanced_ai_intelligence' in locals() and enhanced_ai_intelligence and enhanced_ai_intelligence.get("initialized", False),
+                "features": [
+                    "behavioral_learning",
+                    "proactive_suggestions", 
+                    "advanced_nlp",
+                    "pattern_recognition"
+                ] if PHASE_123_AVAILABLE else []
+            },
+            "phase_3_native_chromium": {
+                "available": PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium and native_chromium.get("native_available", False),
+                "features": [
+                    "native_navigation",
+                    "javascript_execution",
+                    "screenshot_capture",
+                    "devtools_protocol",
+                    "extension_support"
+                ] if PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium else [],
+                "status": native_chromium.get("status", "unavailable") if PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium else "unavailable"
+            },
+            "interface_modes": ["fellou_simplified", "traditional_full"],
+            "automation_levels": ["basic", "intermediate", "advanced", "autonomous"]
+        }
+        
+        return {
+            "success": True,
+            "capabilities": capabilities,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Capabilities check error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/enhanced/native-navigate")
+async def enhanced_native_navigate(request: Dict[str, Any]):
+    """Navigate using native Chromium engine"""
+    try:
+        user_session = request.get("user_session", str(uuid.uuid4()))
+        url = request.get("url", "")
+        
+        if not url:
+            return {"success": False, "error": "URL is required"}
+        
+        if PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium and native_chromium.get("native_available"):
+            api_bridge = native_chromium["api_bridge"]
+            result = await api_bridge.navigate_to(user_session, url)
+            
+            return {
+                "success": result["success"],
+                "native_navigation": result,
+                "url": url,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Native Chromium not available",
+                "fallback_to_iframe": True
+            }
+            
+    except Exception as e:
+        logger.error(f"Native navigation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 async def get_system_overview():
     """Enhanced system status and overview"""
     try:
