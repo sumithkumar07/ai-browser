@@ -928,25 +928,49 @@ function App() {
 
           {/* Main Browser Content */}
           <div className="browser-content">
-            {/* Web View */}
+            {/* Web View with Native Browser Engine */}
             <div className={`web-view ${aiVisible ? 'with-ai' : ''}`}>
               {currentUrl ? (
-                <div className="iframe-container">
+                <div className="browser-container">
                   {isLoading && (
                     <div className="loading-overlay" role="progressbar" aria-label="Loading page">
                       <div className="loading-spinner"></div>
                       <div className="loading-text">Loading {getDomainFromUrl(currentUrl)}...</div>
                     </div>
                   )}
-                  <iframe
-                    ref={iframeRef}
-                    src={currentUrl}
-                    className="web-iframe"
-                    title="Web Content"
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-navigation allow-popups allow-popups-to-escape-sandbox"
-                    onLoad={() => setIsLoading(false)}
-                    aria-label={`Web content for ${getDomainFromUrl(currentUrl)}`}
-                  />
+                  
+                  {/* Use Native Browser Engine if available, otherwise iframe */}
+                  {nativeAPI?.hasNativeChromium() ? (
+                    <NativeBrowserEngine 
+                      currentUrl={currentUrl}
+                      onUrlChange={setCurrentUrl}
+                      onNavigationChange={(data) => {
+                        setCanGoBack(data.canGoBack);
+                        setCanGoForward(data.canGoForward);
+                        setIsLoading(data.isLoading);
+                        if (data.title) {
+                          const updatedTabs = tabs.map(tab => 
+                            tab.id === activeTab 
+                              ? { ...tab, title: data.title }
+                              : tab
+                          );
+                          setTabs(updatedTabs);
+                        }
+                      }}
+                      sessionId={sessionId}
+                      backendUrl={backendUrl}
+                    />
+                  ) : (
+                    <iframe
+                      ref={iframeRef}
+                      src={currentUrl}
+                      className="web-iframe"
+                      title="Web Content"
+                      sandbox="allow-same-origin allow-scripts allow-forms allow-navigation allow-popups allow-popups-to-escape-sandbox"
+                      onLoad={() => setIsLoading(false)}
+                      aria-label={`Web content for ${getDomainFromUrl(currentUrl)}`}
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="start-page">
