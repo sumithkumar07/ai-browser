@@ -205,11 +205,16 @@ if PHASE_123_AVAILABLE:
         enhanced_ai_intelligence = None
         native_chromium = None
 
-# Initialize Native Chromium Engine (New Implementation)
+# Initialize Native Chromium Engine (Always Available)
 native_chromium_engine_instance = None
-if NATIVE_CHROMIUM_AVAILABLE:
-    try:
+
+# Force initialize Native Chromium for complete native integration
+try:
+    if NATIVE_CHROMIUM_AVAILABLE:
+        # Try to initialize the native engine
+        logger.info("🔥 Initializing Native Chromium Engine for complete native integration...")
         native_chromium_engine_instance = initialize_native_chromium_engine(client)
+        
         if native_chromium_engine_instance:
             logger.info("🔥 NATIVE CHROMIUM ENGINE initialized:")
             logger.info("   ✅ Playwright Browser Engine")
@@ -222,11 +227,33 @@ if NATIVE_CHROMIUM_AVAILABLE:
             # Setup Native Chromium API endpoints
             setup_native_chromium_endpoints(app)
             logger.info("   ✅ Native API endpoints configured")
+            logger.info("🚀 COMPLETE NATIVE CHROMIUM INTEGRATION ACTIVE")
         else:
-            logger.error("Failed to initialize Native Chromium Engine")
-    except Exception as e:
-        logger.error(f"Failed to initialize Native Chromium Engine: {e}")
-        native_chromium_engine_instance = None
+            logger.warning("⚠️ Native Chromium Engine initialization returned None, using enhanced fallback")
+    else:
+        logger.warning("⚠️ Native Chromium Engine not available in imports")
+        
+    # Always setup basic native endpoints for consistent API
+    from native_endpoints import add_native_endpoints
+    add_native_endpoints(app)
+    logger.info("✅ Basic native endpoints configured for consistent API")
+    
+except ImportError as import_err:
+    logger.warning(f"Native Chromium import error: {import_err}")
+    # Setup fallback endpoints
+    from native_endpoints import add_native_endpoints
+    add_native_endpoints(app)
+    logger.info("✅ Fallback native endpoints configured")
+except Exception as e:
+    logger.error(f"Failed to initialize Native Chromium Engine: {e}")
+    # Setup fallback endpoints to maintain API compatibility
+    try:
+        from native_endpoints import add_native_endpoints
+        add_native_endpoints(app)
+        logger.info("✅ Fallback native endpoints configured for API compatibility")
+    except Exception as fallback_err:
+        logger.error(f"Failed to setup fallback native endpoints: {fallback_err}")
+    native_chromium_engine_instance = None
 
 # Initialize Agentic Memory System (New)
 if AGENTIC_MEMORY_AVAILABLE:
