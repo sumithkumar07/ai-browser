@@ -1,612 +1,615 @@
 """
-Native Chromium Integration for AETHER v6.0
-Provides backend support for native Chromium browser engine capabilities
+Native Chromium Integration - Phase 3 Implementation  
+Provides native browser engine capabilities, extensions support, and DevTools integration
 """
 
 import asyncio
 import json
-import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
 import uuid
+import os
 import subprocess
 import platform
-import os
+from datetime import datetime
+from typing import Dict, List, Optional, Any, Callable
+from dataclasses import dataclass
+import logging
 from pymongo import MongoClient
+import tempfile
+import shutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 @dataclass
-class ChromiumSession:
-    session_id: str
+class BrowserInstance:
+    instance_id: str
     user_session: str
     process_id: Optional[int]
-    creation_time: datetime
-    last_activity: datetime
-    capabilities: Dict[str, bool]
-    extensions: List[Dict[str, Any]]
-    security_settings: Dict[str, Any]
+    port: int
+    profile_path: str
+    status: str  # "starting", "ready", "error", "stopped"
+    created_at: datetime
+    extensions: List[str]
 
 @dataclass
-class BrowserAction:
-    action_id: str
-    action_type: str  # 'navigate', 'click', 'extract', 'inject', 'devtools'
-    target: str
-    parameters: Dict[str, Any]
-    timestamp: datetime
-    result: Optional[Dict[str, Any]] = None
-    success: bool = False
+class ChromiumCapability:
+    name: str
+    description: str
+    supported: bool
+    version: Optional[str] = None
 
-class NativeChromiumIntegration:
-    """
-    Native Chromium browser engine integration with advanced capabilities
-    Provides Fellou.ai-level browser automation and cross-origin access
-    """
+class NativeChromiumEngine:
+    """Core native Chromium browser engine"""
     
-    def __init__(self, mongo_client: MongoClient):
-        self.db = mongo_client.aether_browser
-        self.active_sessions = {}
-        self.browser_processes = {}
+    def __init__(self, db_client: MongoClient):
+        self.db = db_client.aether_browser
+        self.instances_collection = self.db.chromium_instances
+        self.extensions_collection = self.db.chromium_extensions
         
-        # Initialize collections
-        self.sessions_collection = self.db.chromium_sessions
-        self.actions_collection = self.db.browser_actions
-        self.extensions_collection = self.db.browser_extensions
+        self.base_port = 9222  # Chrome DevTools Protocol port
+        self.active_instances: Dict[str, BrowserInstance] = {}
         
-        # Chromium capabilities
-        self.capabilities = {
-            "native_engine": True,
-            "cross_origin_access": True,
-            "extension_support": True,
-            "devtools_integration": True,
-            "headless_mode": True,
-            "custom_user_agents": True,
-            "certificate_override": True,
-            "javascript_injection": True,
-            "network_interception": True,
-            "file_system_access": True
+        # Chrome binary paths by platform
+        self.chrome_paths = self._get_chrome_paths()
+        self.capabilities = self._detect_capabilities()
+        
+    def _get_chrome_paths(self) -> Dict[str, str]:
+        """Get Chrome binary paths for different platforms"""
+        paths = {
+            "Windows": [
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                r"C:\Users\{username}\AppData\Local\Google\Chrome\Application\chrome.exe"
+            ],
+            "Darwin": [  # macOS
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                "/Applications/Chrome.app/Contents/MacOS/Chrome"
+            ],
+            "Linux": [
+                "/usr/bin/google-chrome",
+                "/usr/bin/chrome",
+                "/usr/bin/chromium-browser",
+                "/usr/bin/chromium",
+                "/snap/bin/chromium"
+            ]
         }
         
-        logger.info("Native Chromium integration initialized successfully")
+        system = platform.system()
+        if system in paths:
+            for path in paths[system]:
+                if system == "Windows":
+                    # Handle Windows username placeholder
+                    import os
+                    username = os.getenv("USERNAME", "")
+                    path = path.format(username=username)
+                
+                if os.path.exists(path):
+                    return {"chrome_path": path, "platform": system}
+        
+        return {"chrome_path": None, "platform": system}
     
-    async def create_browser_session(self, 
-                                   user_session: str,
-                                   options: Dict[str, Any] = None) -> ChromiumSession:
-        """
-        Create a new native Chromium browser session
-        """
-        options = options or {}
+    def _detect_capabilities(self) -> List[ChromiumCapability]:
+        """Detect available Chromium capabilities"""
+        capabilities = []
         
-        session = ChromiumSession(
-            session_id=str(uuid.uuid4()),
-            user_session=user_session,
-            process_id=None,
-            creation_time=datetime.utcnow(),
-            last_activity=datetime.utcnow(),
-            capabilities=self.capabilities.copy(),
-            extensions=[],
-            security_settings={
-                "disable_web_security": options.get("disable_web_security", True),
-                "allow_running_insecure_content": options.get("allow_insecure", True),
-                "disable_features": ["VizDisplayCompositor"],
-                "enable_logging": options.get("enable_logging", False)
-            }
-        )
+        # Check if Chrome is available
+        chrome_available = self.chrome_paths.get("chrome_path") is not None
+        capabilities.append(ChromiumCapability(
+            name="native_chrome",
+            description="Native Chrome browser engine",
+            supported=chrome_available
+        ))
         
-        # Start Chromium process if not running in Electron app
-        if not self.is_electron_environment():
-            session.process_id = await self.start_chromium_process(session, options)
+        # Check DevTools Protocol support
+        capabilities.append(ChromiumCapability(
+            name="devtools_protocol",
+            description="Chrome DevTools Protocol for automation",
+            supported=chrome_available
+        ))
         
-        # Store session
-        self.sessions_collection.insert_one(asdict(session))
-        self.active_sessions[session.session_id] = session
+        # Check extension support
+        capabilities.append(ChromiumCapability(
+            name="extensions",
+            description="Chrome extension support",
+            supported=chrome_available
+        ))
         
-        logger.info(f"Created native Chromium session: {session.session_id}")
-        return session
+        # Check headless mode
+        capabilities.append(ChromiumCapability(
+            name="headless_mode",
+            description="Headless browser operation",
+            supported=chrome_available
+        ))
+        
+        return capabilities
     
-    async def start_chromium_process(self, 
-                                   session: ChromiumSession,
-                                   options: Dict[str, Any]) -> Optional[int]:
-        """
-        Start native Chromium process with enhanced capabilities
-        """
+    async def create_browser_instance(self, user_session: str, options: Dict[str, Any] = None) -> BrowserInstance:
+        """Create a new native Chromium browser instance"""
         try:
-            # Chromium command line arguments for Fellou.ai-level capabilities
+            if not self.chrome_paths.get("chrome_path"):
+                raise Exception("Chrome binary not found on system")
+            
+            options = options or {}
+            instance_id = str(uuid.uuid4())
+            port = await self._get_available_port()
+            
+            # Create user profile directory
+            profile_path = await self._create_profile_directory(instance_id)
+            
+            # Build Chrome command
             chrome_args = [
-                "--no-sandbox",
-                "--disable-web-security",
-                "--disable-features=VizDisplayCompositor",
-                "--allow-running-insecure-content",
-                "--disable-blink-features=AutomationControlled",
+                self.chrome_paths["chrome_path"],
+                f"--remote-debugging-port={port}",
+                f"--user-data-dir={profile_path}",
                 "--no-first-run",
                 "--no-default-browser-check",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--remote-debugging-port=9222",
-                "--user-data-dir=/tmp/aether-chromium-" + session.session_id,
-                "--enable-automation",
                 "--disable-background-timer-throttling",
-                "--disable-renderer-backgrounding",
                 "--disable-backgrounding-occluded-windows",
-                "--disable-ipc-flooding-protection",
-                "--enable-features=NetworkService,NetworkServiceLogging"
+                "--disable-renderer-backgrounding"
             ]
             
-            # Add headless mode if requested
+            # Add optional arguments
             if options.get("headless", False):
-                chrome_args.append("--headless=new")
+                chrome_args.extend(["--headless", "--disable-gpu"])
             
-            # Add custom user agent if provided
-            if options.get("user_agent"):
-                chrome_args.append(f"--user-agent={options['user_agent']}")
+            if options.get("enable_extensions", True):
+                chrome_args.append("--enable-extensions")
+            else:
+                chrome_args.append("--disable-extensions")
             
-            # Start Chromium process
-            chromium_executable = self.get_chromium_executable()
-            if not chromium_executable:
-                logger.error("Chromium executable not found")
-                return None
+            if options.get("disable_web_security", False):
+                chrome_args.extend([
+                    "--disable-web-security",
+                    "--disable-features=VizDisplayCompositor",
+                    "--allow-running-insecure-content"
+                ])
             
+            # Custom window size
+            window_size = options.get("window_size", "1920,1080")
+            chrome_args.append(f"--window-size={window_size}")
+            
+            # Start Chrome process
             process = subprocess.Popen(
-                [chromium_executable] + chrome_args,
+                chrome_args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                start_new_session=True
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if platform.system() == "Windows" else 0
             )
             
-            self.browser_processes[session.session_id] = process
-            logger.info(f"Started Chromium process {process.pid} for session {session.session_id}")
-            
-            # Wait a moment for Chromium to start
+            # Wait for Chrome to start
             await asyncio.sleep(2)
             
-            return process.pid
+            # Check if process is running
+            if process.poll() is not None:
+                raise Exception("Chrome process failed to start")
+            
+            # Create instance object
+            instance = BrowserInstance(
+                instance_id=instance_id,
+                user_session=user_session,
+                process_id=process.pid,
+                port=port,
+                profile_path=profile_path,
+                status="ready",
+                created_at=datetime.utcnow(),
+                extensions=[]
+            )
+            
+            # Store instance
+            self.active_instances[instance_id] = instance
+            await self._save_instance(instance)
+            
+            logger.info(f"✅ Created Chrome instance {instance_id} on port {port}")
+            return instance
             
         except Exception as e:
-            logger.error(f"Failed to start Chromium process: {e}")
-            return None
+            logger.error(f"❌ Failed to create Chrome instance: {e}")
+            raise
     
-    def get_chromium_executable(self) -> Optional[str]:
-        """
-        Find Chromium executable based on platform
-        """
-        system = platform.system().lower()
+    async def _get_available_port(self) -> int:
+        """Find an available port for Chrome DevTools"""
+        import socket
         
-        # Common Chromium/Chrome paths
-        possible_paths = []
+        for port in range(self.base_port, self.base_port + 100):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('', port))
+                    return port
+            except OSError:
+                continue
         
-        if system == "linux":
-            possible_paths = [
-                "/usr/bin/chromium",
-                "/usr/bin/chromium-browser", 
-                "/usr/bin/google-chrome",
-                "/usr/bin/google-chrome-stable",
-                "/snap/bin/chromium",
-                "/opt/google/chrome/chrome"
-            ]
-        elif system == "darwin":  # macOS
-            possible_paths = [
-                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                "/Applications/Chromium.app/Contents/MacOS/Chromium"
-            ]
-        elif system == "windows":
-            possible_paths = [
-                "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-                "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-                "C:\\Users\\{}\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe".format(os.getenv("USERNAME", "")),
-                "chrome.exe",  # If in PATH
-                "chromium.exe"
-            ]
-        
-        # Find first existing executable
-        for path in possible_paths:
-            if os.path.exists(path) and os.access(path, os.X_OK):
-                return path
-        
-        # Try to find in PATH
-        import shutil
-        for exe in ["google-chrome", "chromium", "chrome", "chromium-browser"]:
-            path = shutil.which(exe)
-            if path:
-                return path
-        
-        return None
+        raise Exception("No available ports for Chrome DevTools")
     
-    def is_electron_environment(self) -> bool:
-        """
-        Check if running in Electron environment
-        """
-        return os.getenv("ELECTRON_RUN_AS_NODE") is not None
-    
-    async def navigate_to_url(self, 
-                            session_id: str,
-                            url: str,
-                            options: Dict[str, Any] = None) -> BrowserAction:
-        """
-        Navigate to URL with native Chromium engine
-        """
-        action = BrowserAction(
-            action_id=str(uuid.uuid4()),
-            action_type="navigate",
-            target=url,
-            parameters=options or {},
-            timestamp=datetime.utcnow()
-        )
+    async def _create_profile_directory(self, instance_id: str) -> str:
+        """Create a temporary profile directory for Chrome"""
+        temp_dir = tempfile.gettempdir()
+        profile_path = os.path.join(temp_dir, f"aether_chrome_{instance_id}")
+        os.makedirs(profile_path, exist_ok=True)
         
-        try:
-            session = self.active_sessions.get(session_id)
-            if not session:
-                raise Exception(f"Session {session_id} not found")
-            
-            if self.is_electron_environment():
-                # In Electron, navigation is handled by the main process
-                action.result = {
-                    "method": "electron_navigation",
-                    "url": url,
-                    "session_id": session_id
+        # Create basic Chrome preferences
+        prefs = {
+            "profile": {
+                "default_content_setting_values": {
+                    "notifications": 2  # Block notifications
                 }
-                action.success = True
-            else:
-                # Use Chrome DevTools Protocol for navigation
-                result = await self.cdp_navigate(session, url, options)
-                action.result = result
-                action.success = result.get("success", False)
+            },
+            "session": {
+                "restore_on_startup": 1  # Open new tab page
+            }
+        }
+        
+        prefs_path = os.path.join(profile_path, "Preferences")
+        with open(prefs_path, 'w') as f:
+            json.dump(prefs, f)
+        
+        return profile_path
+    
+    async def _save_instance(self, instance: BrowserInstance):
+        """Save instance to database"""
+        try:
+            instance_data = {
+                "instance_id": instance.instance_id,
+                "user_session": instance.user_session,
+                "process_id": instance.process_id,
+                "port": instance.port,
+                "profile_path": instance.profile_path,
+                "status": instance.status,
+                "created_at": instance.created_at,
+                "extensions": instance.extensions
+            }
             
-            # Update session activity
-            session.last_activity = datetime.utcnow()
-            self.sessions_collection.update_one(
-                {"session_id": session_id},
-                {"$set": {"last_activity": session.last_activity}}
+            self.instances_collection.replace_one(
+                {"instance_id": instance.instance_id},
+                instance_data,
+                upsert=True
             )
             
         except Exception as e:
-            action.result = {"error": str(e)}
-            action.success = False
-            logger.error(f"Navigation failed: {e}")
-        
-        # Store action
-        self.actions_collection.insert_one(asdict(action))
-        return action
+            logger.error(f"Error saving instance: {e}")
     
-    async def cdp_navigate(self, 
-                         session: ChromiumSession,
-                         url: str,
-                         options: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Navigate using Chrome DevTools Protocol
-        """
+    async def navigate_to(self, instance_id: str, url: str) -> Dict[str, Any]:
+        """Navigate to URL in browser instance"""
         try:
+            instance = self.active_instances.get(instance_id)
+            if not instance:
+                return {"success": False, "error": "Instance not found"}
+            
+            # Use Chrome DevTools Protocol
             import aiohttp
             
-            # Connect to Chrome DevTools
-            async with aiohttp.ClientSession() as http_session:
-                # Get available tabs
-                async with http_session.get("http://localhost:9222/json") as resp:
-                    tabs = await resp.json()
+            async with aiohttp.ClientSession() as session:
+                # Get list of pages
+                async with session.get(f"http://localhost:{instance.port}/json") as resp:
+                    pages = await resp.json()
                 
-                if not tabs:
-                    return {"success": False, "error": "No browser tabs available"}
+                if not pages:
+                    return {"success": False, "error": "No pages available"}
                 
-                # Use first tab or create new one
-                tab = tabs[0]
-                ws_url = tab["webSocketDebuggerUrl"]
+                # Use first page
+                page_id = pages[0]["id"]
+                ws_url = pages[0]["webSocketDebuggerUrl"]
                 
-                # Connect to WebSocket
-                async with http_session.ws_connect(ws_url) as ws:
+                # Send navigation command via DevTools Protocol
+                import websockets
+                
+                async with websockets.connect(ws_url) as websocket:
                     # Enable Page domain
-                    await ws.send_str(json.dumps({
+                    await websocket.send(json.dumps({
                         "id": 1,
                         "method": "Page.enable"
                     }))
+                    await websocket.recv()
                     
                     # Navigate to URL
-                    await ws.send_str(json.dumps({
+                    await websocket.send(json.dumps({
                         "id": 2,
                         "method": "Page.navigate",
                         "params": {"url": url}
                     }))
+                    result = await websocket.recv()
                     
-                    # Wait for response
-                    async for msg in ws:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            data = json.loads(msg.data)
-                            if data.get("id") == 2:
-                                return {
-                                    "success": True,
-                                    "navigation_id": data.get("result", {}).get("frameId"),
-                                    "url": url
-                                }
-                        elif msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.ERROR):
-                            break
+                    return {
+                        "success": True,
+                        "url": url,
+                        "result": json.loads(result)
+                    }
                     
-                    return {"success": False, "error": "Navigation timeout"}
-        
         except Exception as e:
+            logger.error(f"Navigation error: {e}")
             return {"success": False, "error": str(e)}
     
-    async def inject_javascript(self, 
-                              session_id: str,
-                              script: str,
-                              options: Dict[str, Any] = None) -> BrowserAction:
-        """
-        Inject JavaScript code into page
-        """
-        action = BrowserAction(
-            action_id=str(uuid.uuid4()),
-            action_type="inject",
-            target="javascript",
-            parameters={"script": script, **(options or {})},
-            timestamp=datetime.utcnow()
-        )
-        
+    async def execute_javascript(self, instance_id: str, script: str) -> Dict[str, Any]:
+        """Execute JavaScript in browser instance"""
         try:
-            session = self.active_sessions.get(session_id)
-            if not session:
-                raise Exception(f"Session {session_id} not found")
+            instance = self.active_instances.get(instance_id)
+            if not instance:
+                return {"success": False, "error": "Instance not found"}
             
-            # Use CDP to inject JavaScript
-            result = await self.cdp_evaluate(session, script)
-            action.result = result
-            action.success = result.get("success", False)
-            
-        except Exception as e:
-            action.result = {"error": str(e)}
-            action.success = False
-            logger.error(f"JavaScript injection failed: {e}")
-        
-        self.actions_collection.insert_one(asdict(action))
-        return action
-    
-    async def cdp_evaluate(self, 
-                         session: ChromiumSession,
-                         script: str) -> Dict[str, Any]:
-        """
-        Evaluate JavaScript using Chrome DevTools Protocol
-        """
-        try:
             import aiohttp
+            import websockets
             
-            async with aiohttp.ClientSession() as http_session:
-                async with http_session.get("http://localhost:9222/json") as resp:
-                    tabs = await resp.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"http://localhost:{instance.port}/json") as resp:
+                    pages = await resp.json()
                 
-                if not tabs:
-                    return {"success": False, "error": "No browser tabs available"}
+                if not pages:
+                    return {"success": False, "error": "No pages available"}
                 
-                tab = tabs[0]
-                ws_url = tab["webSocketDebuggerUrl"]
+                ws_url = pages[0]["webSocketDebuggerUrl"]
                 
-                async with http_session.ws_connect(ws_url) as ws:
-                    await ws.send_str(json.dumps({
+                async with websockets.connect(ws_url) as websocket:
+                    # Enable Runtime domain
+                    await websocket.send(json.dumps({
                         "id": 1,
+                        "method": "Runtime.enable"
+                    }))
+                    await websocket.recv()
+                    
+                    # Execute script
+                    await websocket.send(json.dumps({
+                        "id": 2,
                         "method": "Runtime.evaluate",
                         "params": {
                             "expression": script,
                             "returnByValue": True
                         }
                     }))
+                    result = await websocket.recv()
+                    result_data = json.loads(result)
                     
-                    async for msg in ws:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            data = json.loads(msg.data)
-                            if data.get("id") == 1:
-                                result = data.get("result", {})
-                                if "exceptionDetails" in result:
-                                    return {
-                                        "success": False,
-                                        "error": result["exceptionDetails"]["text"]
-                                    }
-                                else:
-                                    return {
-                                        "success": True,
-                                        "result": result.get("result", {}).get("value")
-                                    }
-                        elif msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.ERROR):
-                            break
+                    if result_data.get("result", {}).get("result", {}).get("type") == "object":
+                        if result_data["result"]["result"].get("subtype") == "error":
+                            return {
+                                "success": False,
+                                "error": result_data["result"]["result"].get("description", "JavaScript error")
+                            }
                     
-                    return {"success": False, "error": "Evaluation timeout"}
-        
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    async def extract_page_data(self, 
-                              session_id: str,
-                              selectors: Dict[str, str],
-                              options: Dict[str, Any] = None) -> BrowserAction:
-        """
-        Extract data from page using CSS selectors
-        """
-        action = BrowserAction(
-            action_id=str(uuid.uuid4()),
-            action_type="extract",
-            target="page_data",
-            parameters={"selectors": selectors, **(options or {})},
-            timestamp=datetime.utcnow()
-        )
-        
-        try:
-            # Build extraction script
-            extraction_script = """
-            (() => {
-                const selectors = %s;
-                const results = {};
-                
-                for (const [key, selector] of Object.entries(selectors)) {
-                    const elements = document.querySelectorAll(selector);
-                    if (elements.length === 1) {
-                        results[key] = elements[0].textContent?.trim() || elements[0].innerText?.trim() || '';
-                    } else if (elements.length > 1) {
-                        results[key] = Array.from(elements).map(el => 
-                            el.textContent?.trim() || el.innerText?.trim() || ''
-                        );
-                    } else {
-                        results[key] = null;
+                    return {
+                        "success": True,
+                        "result": result_data.get("result", {}).get("result", {}).get("value")
                     }
-                }
-                
-                return results;
-            })();
-            """ % json.dumps(selectors)
-            
-            # Execute extraction
-            inject_action = await self.inject_javascript(session_id, extraction_script)
-            
-            action.result = inject_action.result
-            action.success = inject_action.success
-            
+                    
         except Exception as e:
-            action.result = {"error": str(e)}
-            action.success = False
-            logger.error(f"Data extraction failed: {e}")
-        
-        self.actions_collection.insert_one(asdict(action))
-        return action
-    
-    async def enable_cross_origin_access(self, session_id: str) -> Dict[str, Any]:
-        """
-        Enable cross-origin access for Fellou.ai-level capabilities
-        """
-        try:
-            session = self.active_sessions.get(session_id)
-            if not session:
-                return {"success": False, "error": "Session not found"}
-            
-            # Update security settings
-            session.security_settings.update({
-                "disable_web_security": True,
-                "allow_running_insecure_content": True,
-                "cors_disabled": True
-            })
-            
-            # Store updated session
-            self.sessions_collection.update_one(
-                {"session_id": session_id},
-                {"$set": {"security_settings": session.security_settings}}
-            )
-            
-            return {
-                "success": True,
-                "message": "Cross-origin access enabled",
-                "capabilities": session.capabilities
-            }
-            
-        except Exception as e:
+            logger.error(f"JavaScript execution error: {e}")
             return {"success": False, "error": str(e)}
     
-    async def install_extension(self, 
-                              session_id: str,
-                              extension_path: str) -> Dict[str, Any]:
-        """
-        Install Chrome extension
-        """
+    async def capture_screenshot(self, instance_id: str) -> Dict[str, Any]:
+        """Capture screenshot from browser instance"""
         try:
-            session = self.active_sessions.get(session_id)
-            if not session:
-                return {"success": False, "error": "Session not found"}
+            instance = self.active_instances.get(instance_id)
+            if not instance:
+                return {"success": False, "error": "Instance not found"}
             
-            if not session.capabilities.get("extension_support"):
-                return {"success": False, "error": "Extension support not available"}
+            import aiohttp
+            import websockets
+            import base64
             
-            # In a real implementation, this would load the extension
-            # For now, simulate successful installation
-            extension_info = {
-                "id": str(uuid.uuid4()),
-                "path": extension_path,
-                "name": os.path.basename(extension_path),
-                "installed_at": datetime.utcnow(),
-                "active": True
-            }
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"http://localhost:{instance.port}/json") as resp:
+                    pages = await resp.json()
+                
+                if not pages:
+                    return {"success": False, "error": "No pages available"}
+                
+                ws_url = pages[0]["webSocketDebuggerUrl"]
+                
+                async with websockets.connect(ws_url) as websocket:
+                    # Capture screenshot
+                    await websocket.send(json.dumps({
+                        "id": 1,
+                        "method": "Page.captureScreenshot",
+                        "params": {
+                            "format": "png",
+                            "quality": 90
+                        }
+                    }))
+                    result = await websocket.recv()
+                    result_data = json.loads(result)
+                    
+                    if "result" in result_data and "data" in result_data["result"]:
+                        screenshot_data = result_data["result"]["data"]
+                        
+                        # Save screenshot
+                        screenshot_path = f"/tmp/aether_screenshot_{instance_id}_{datetime.utcnow().timestamp()}.png"
+                        with open(screenshot_path, "wb") as f:
+                            f.write(base64.b64decode(screenshot_data))
+                        
+                        return {
+                            "success": True,
+                            "screenshot_path": screenshot_path,
+                            "data": screenshot_data
+                        }
+                    else:
+                        return {"success": False, "error": "Screenshot capture failed"}
+                        
+        except Exception as e:
+            logger.error(f"Screenshot error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def install_extension(self, instance_id: str, extension_path: str) -> Dict[str, Any]:
+        """Install Chrome extension"""
+        try:
+            instance = self.active_instances.get(instance_id)
+            if not instance:
+                return {"success": False, "error": "Instance not found"}
             
-            session.extensions.append(extension_info)
+            # Extensions require restart with --load-extension flag
+            # This is a simplified implementation
+            
+            extension_id = str(uuid.uuid4())
             
             # Store extension info
-            self.extensions_collection.insert_one({
-                "session_id": session_id,
-                **extension_info
-            })
+            extension_data = {
+                "extension_id": extension_id,
+                "instance_id": instance_id,
+                "extension_path": extension_path,
+                "installed_at": datetime.utcnow(),
+                "status": "installed"
+            }
             
-            # Update session
-            self.sessions_collection.update_one(
-                {"session_id": session_id},
-                {"$set": {"extensions": session.extensions}}
-            )
+            self.extensions_collection.insert_one(extension_data)
+            
+            # Add to instance extensions list
+            instance.extensions.append(extension_id)
+            await self._save_instance(instance)
             
             return {
                 "success": True,
-                "extension_id": extension_info["id"],
-                "message": f"Extension {extension_info['name']} installed"
+                "extension_id": extension_id,
+                "message": "Extension installed (requires browser restart)"
             }
             
         except Exception as e:
+            logger.error(f"Extension installation error: {e}")
             return {"success": False, "error": str(e)}
     
-    async def close_session(self, session_id: str) -> Dict[str, Any]:
-        """
-        Close Chromium session and cleanup resources
-        """
+    async def stop_instance(self, instance_id: str) -> Dict[str, Any]:
+        """Stop browser instance"""
         try:
-            session = self.active_sessions.get(session_id)
-            if not session:
-                return {"success": False, "error": "Session not found"}
+            instance = self.active_instances.get(instance_id)
+            if not instance:
+                return {"success": False, "error": "Instance not found"}
             
-            # Close browser process if exists
-            if session.process_id and session_id in self.browser_processes:
-                process = self.browser_processes[session_id]
+            # Kill Chrome process
+            if instance.process_id:
                 try:
-                    process.terminate()
-                    process.wait(timeout=5)
+                    if platform.system() == "Windows":
+                        subprocess.run(["taskkill", "/F", "/PID", str(instance.process_id)], check=True)
+                    else:
+                        subprocess.run(["kill", "-TERM", str(instance.process_id)], check=True)
                 except:
-                    process.kill()
-                
-                del self.browser_processes[session_id]
+                    pass  # Process might already be dead
             
-            # Cleanup session data
-            del self.active_sessions[session_id]
+            # Clean up profile directory
+            try:
+                shutil.rmtree(instance.profile_path, ignore_errors=True)
+            except:
+                pass
+            
+            # Remove from active instances
+            del self.active_instances[instance_id]
             
             # Update database
-            self.sessions_collection.update_one(
-                {"session_id": session_id},
-                {"$set": {"closed_at": datetime.utcnow()}}
-            )
+            instance.status = "stopped"
+            await self._save_instance(instance)
+            
+            return {"success": True, "message": "Instance stopped"}
+            
+        except Exception as e:
+            logger.error(f"Error stopping instance: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_instance_info(self, instance_id: str) -> Dict[str, Any]:
+        """Get browser instance information"""
+        try:
+            instance = self.active_instances.get(instance_id)
+            if not instance:
+                return {"success": False, "error": "Instance not found"}
             
             return {
                 "success": True,
-                "message": f"Session {session_id} closed successfully"
+                "instance": {
+                    "id": instance.instance_id,
+                    "user_session": instance.user_session,
+                    "port": instance.port,
+                    "status": instance.status,
+                    "created_at": instance.created_at.isoformat(),
+                    "extensions_count": len(instance.extensions)
+                }
             }
             
         except Exception as e:
+            logger.error(f"Error getting instance info: {e}")
+            return {"success": False, "error": str(e)}
+
+class NativeAPIBridge:
+    """Bridge between web frontend and native Chromium engine"""
+    
+    def __init__(self, chromium_engine: NativeChromiumEngine):
+        self.chromium_engine = chromium_engine
+        self.user_instances: Dict[str, str] = {}  # user_session -> instance_id
+    
+    async def get_or_create_instance(self, user_session: str) -> str:
+        """Get existing instance or create new one for user"""
+        if user_session in self.user_instances:
+            instance_id = self.user_instances[user_session]
+            if instance_id in self.chromium_engine.active_instances:
+                return instance_id
+        
+        # Create new instance
+        instance = await self.chromium_engine.create_browser_instance(
+            user_session,
+            options={
+                "enable_extensions": True,
+                "window_size": "1920,1080"
+            }
+        )
+        
+        self.user_instances[user_session] = instance.instance_id
+        return instance.instance_id
+    
+    async def navigate_to(self, user_session: str, url: str) -> Dict[str, Any]:
+        """Navigate to URL for user"""
+        try:
+            instance_id = await self.get_or_create_instance(user_session)
+            return await self.chromium_engine.navigate_to(instance_id, url)
+        except Exception as e:
             return {"success": False, "error": str(e)}
     
-    async def get_session_info(self, session_id: str) -> Dict[str, Any]:
-        """
-        Get information about Chromium session
-        """
-        session = self.active_sessions.get(session_id)
-        if not session:
-            return {"error": "Session not found"}
+    async def execute_javascript(self, user_session: str, script: str) -> Dict[str, Any]:
+        """Execute JavaScript for user"""
+        try:
+            instance_id = await self.get_or_create_instance(user_session)
+            return await self.chromium_engine.execute_javascript(instance_id, script)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def capture_screenshot(self, user_session: str) -> Dict[str, Any]:
+        """Capture screenshot for user"""
+        try:
+            instance_id = await self.get_or_create_instance(user_session)
+            return await self.chromium_engine.capture_screenshot(instance_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def get_capabilities(self) -> List[ChromiumCapability]:
+        """Get available Chromium capabilities"""
+        return self.chromium_engine.capabilities
+
+def initialize_native_chromium(db_client: MongoClient) -> Dict[str, Any]:
+    """Initialize native Chromium integration"""
+    try:
+        chromium_engine = NativeChromiumEngine(db_client)
+        api_bridge = NativeAPIBridge(chromium_engine)
+        
+        # Check capabilities
+        capabilities = chromium_engine.capabilities
+        native_available = any(cap.supported for cap in capabilities if cap.name == "native_chrome")
+        
+        if native_available:
+            logger.info("✅ Native Chromium integration initialized successfully")
+            status = "native_ready"
+        else:
+            logger.warning("⚠️ Native Chromium not available, using fallback mode")
+            status = "fallback_mode"
         
         return {
-            "session_id": session.session_id,
-            "capabilities": session.capabilities,
-            "security_settings": session.security_settings,
-            "extensions_count": len(session.extensions),
-            "last_activity": session.last_activity.isoformat(),
-            "process_id": session.process_id,
-            "uptime_seconds": (datetime.utcnow() - session.creation_time).total_seconds()
+            "chromium_engine": chromium_engine,
+            "api_bridge": api_bridge,
+            "capabilities": capabilities,
+            "status": status,
+            "native_available": native_available,
+            "initialized": True
         }
-    
-    async def get_capabilities(self) -> Dict[str, Any]:
-        """
-        Get native Chromium capabilities
-        """
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize native Chromium: {e}")
         return {
-            "native_chromium": True,
-            "capabilities": self.capabilities,
-            "active_sessions": len(self.active_sessions),
-            "electron_mode": self.is_electron_environment(),
-            "chromium_executable": self.get_chromium_executable() is not None
+            "chromium_engine": None,
+            "api_bridge": None,
+            "capabilities": [],
+            "status": "error",
+            "native_available": False,
+            "initialized": False,
+            "error": str(e)
         }
-
-def initialize_native_chromium(mongo_client: MongoClient) -> NativeChromiumIntegration:
-    """Initialize the Native Chromium Integration system"""
-    return NativeChromiumIntegration(mongo_client)
