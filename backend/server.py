@@ -816,6 +816,127 @@ async def get_enhanced_capabilities():
         logger.error(f"Capabilities check error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/ai-chat")
+async def ai_chat(request: dict, background_tasks: BackgroundTasks):
+    """Enhanced AI chat with agentic memory integration (backward compatible)"""
+    try:
+        message = request.get("message", "")
+        session_id = request.get("session_id", "")
+        current_url = request.get("current_url", "")
+        
+        # Enhanced context preparation
+        enhanced_context = {}
+        
+        # Get agentic memory context (non-blocking)
+        try:
+            memory_system = get_agentic_memory_system()
+            if memory_system and session_id:
+                contextual_memories = await memory_system.get_contextual_memory(
+                    session_id,
+                    {
+                        "message": message,
+                        "current_url": current_url,
+                        "timestamp": datetime.utcnow().isoformat()
+                    },
+                    limit=3
+                )
+                enhanced_context["contextual_memories"] = contextual_memories
+                
+                # Get predictive insights
+                predictions = await memory_system.predict_user_needs(
+                    session_id,
+                    {
+                        "message": message,
+                        "current_url": current_url
+                    }
+                )
+                enhanced_context["predictions"] = predictions[:2]  # Top 2 predictions
+        except Exception as memory_error:
+            logger.warning(f"Agentic memory error (non-critical): {memory_error}")
+            enhanced_context = {}
+        
+        # Get AI response using existing system
+        ai_response = None
+        
+        # Enhanced prompt with memory context
+        enhanced_message = message
+        if enhanced_context.get("contextual_memories"):
+            memory_context = "\n".join([
+                f"Previous: {mem.get('content', {}).get('request', '')[:100]}"
+                for mem in enhanced_context["contextual_memories"][:2]
+            ])
+            enhanced_message = f"{message}\n\nRelevant context from your history:\n{memory_context}"
+        
+        # Use existing AI response system
+        context = None
+        if current_url:
+            page_data = await get_page_content(current_url)
+            context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
+        
+        response_content = await get_ai_response(enhanced_message, context, session_id)
+        
+        # Create response object for compatibility
+        ai_response = type('obj', (object,), {
+            'response': response_content,
+            'provider': 'groq',
+            'quality_score': 0.8
+        })
+        
+        # Record interaction for learning (background task - non-blocking)
+        try:
+            memory_system = get_agentic_memory_system()
+            if memory_system and session_id:
+                interaction_data = {
+                    "request": message,
+                    "response": response_content,
+                    "success": ai_response is not None,
+                    "current_url": current_url,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "provider": getattr(ai_response, 'provider', 'unknown'),
+                    "quality_score": getattr(ai_response, 'quality_score', 0.8)
+                }
+                
+                background_tasks.add_task(
+                    memory_system.record_interaction,
+                    session_id,
+                    interaction_data
+                )
+        except Exception as record_error:
+            logger.warning(f"Memory recording error (non-critical): {record_error}")
+        
+        # Prepare enhanced response
+        response = {
+            "response": response_content,
+            "session_id": session_id,
+            "provider": getattr(ai_response, 'provider', 'groq'),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # Add enhanced features if available
+        if enhanced_context.get("predictions"):
+            response["suggestions"] = [
+                {
+                    "text": pred.prediction,
+                    "confidence": pred.confidence,
+                    "type": pred.insight_type
+                }
+                for pred in enhanced_context["predictions"]
+            ]
+        
+        if enhanced_context.get("contextual_memories"):
+            response["context_enhanced"] = True
+            response["memory_count"] = len(enhanced_context["contextual_memories"])
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"AI chat error: {e}")
+        return {
+            "response": "I apologize, but I'm experiencing technical difficulties. Please try again.",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
 @app.post("/api/enhanced/native-navigate")
 async def enhanced_native_navigate(request: Dict[str, Any]):
     """Navigate using native Chromium engine"""
