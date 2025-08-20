@@ -1,6 +1,6 @@
 <file>
       <absolute_file_name>/app/backend/enhanced_ai_intelligence.py</absolute_file_name>
-      <content">"""
+      <content>"""
 Enhanced AI Intelligence Engine - Phase 2 Implementation
 Provides behavioral learning, proactive suggestions, and advanced NLP processing
 """
