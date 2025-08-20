@@ -109,9 +109,15 @@ if PHASE_123_AVAILABLE:
         logger.info("   ✅ Chrome DevTools Integration")
         logger.info("   ✅ Extension Support")
         
+        # Setup Enhanced API Endpoints (Phase 1)
+        setup_enhanced_endpoints(app, enhanced_ai_intelligence, native_chromium)
+        logger.info("⚡ PHASE 1 - Simplified Interface endpoints ready")
+        
     except Exception as e:
         logger.error(f"Failed to initialize Phase 1-3 enhancements: {e}")
         PHASE_123_AVAILABLE = False
+        enhanced_ai_intelligence = None
+        native_chromium = None
 
 if ENHANCED_MODE:
     try:
