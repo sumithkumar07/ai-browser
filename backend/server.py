@@ -736,6 +736,13 @@ async def clear_browsing_history():
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================================
+# ENHANCED NATIVE API INTEGRATION
+# ============================================================================
+
+# Include the enhanced API router
+app.include_router(enhanced_router)
+
+# ============================================================================
 # CLEANUP AND SHUTDOWN
 # ============================================================================
 
