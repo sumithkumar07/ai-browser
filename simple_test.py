@@ -2,7 +2,7 @@
 import requests
 import json
 
-BASE_URL = "https://phase-fusion.preview.emergentagent.com"
+BASE_URL = "https://native-upgrade.preview.emergentagent.com"
 
 try:
     response = requests.get(f"{BASE_URL}/api/health", timeout=10)

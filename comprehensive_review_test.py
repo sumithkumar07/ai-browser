@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Any
 
 # Backend URL from environment
-BACKEND_URL = "https://phase-fusion.preview.emergentagent.com"
+BACKEND_URL = "https://native-upgrade.preview.emergentagent.com"
 
 class ComprehensiveReviewTester:
     def __init__(self):

@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 
 # Backend URL from review request
-BASE_URL = "https://phase-fusion.preview.emergentagent.com"
+BASE_URL = "https://native-upgrade.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 class CoreAPITester:
