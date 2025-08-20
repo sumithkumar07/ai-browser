@@ -35,9 +35,16 @@ except ImportError as e:
 # Import Native Chromium Integration
 try:
     from native_chromium_integration import initialize_native_bridge, get_native_bridge
-    from enhanced_server_native import setup_native_chromium_endpoints
     NATIVE_CHROMIUM_AVAILABLE = True
     logger.info("🔥 Native Chromium integration loaded successfully")
+    
+    # Import native endpoints setup
+    try:
+        from enhanced_server_native import setup_native_chromium_endpoints
+    except ImportError:
+        from native_endpoints import add_native_endpoints as setup_native_chromium_endpoints
+        logger.info("Using native_endpoints for setup")
+    
 except ImportError as e:
     NATIVE_CHROMIUM_AVAILABLE = False
     logger.warning(f"Native Chromium integration not available: {e}")
