@@ -57,7 +57,6 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [sessionId] = useState('web-session-' + Date.now());
   
   // Advanced Features State - Simplified for Fellou mode
   const [voiceVisible, setVoiceVisible] = useState(false);
