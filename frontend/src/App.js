@@ -73,7 +73,7 @@ function App() {
     { title: 'ChatGPT', url: 'https://chat.openai.com', favicon: '🤖' }
   ]);
 
-  const iframeRef = useRef(null);
+  // Refs for UI elements
   const messagesEndRef = useRef(null);
 
   // Initialize advanced features
