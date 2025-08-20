@@ -76,6 +76,7 @@ SpeechRecognition==3.10.0
 pydub==0.25.1
 pynput==1.8.1
 protobuf
+greenlet==3.2.4
 dataclasses-json==0.6.4
 aiohttp==3.9.1
 soupsieve
