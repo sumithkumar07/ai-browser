@@ -62,17 +62,45 @@ except Exception as e:
 
 # Import Agentic Memory System
 try:
-    from agentic_memory_system import initialize_agentic_memory_system, get_agentic_memory_system
+    from agentic_memory_system import initialize_agentic_memory_system, get_agentic_memory_system, set_agentic_memory_instance
     AGENTIC_MEMORY_AVAILABLE = True
     logger.info("🧠 Agentic Memory System loaded successfully")
 except ImportError as e:
     AGENTIC_MEMORY_AVAILABLE = False
     logger.warning(f"Agentic Memory System not available: {e}")
     get_agentic_memory_system = lambda: None
+    set_agentic_memory_instance = lambda x: None
 except Exception as e:
     AGENTIC_MEMORY_AVAILABLE = False
     logger.error(f"Agentic Memory System error: {e}")
     get_agentic_memory_system = lambda: None
+    set_agentic_memory_instance = lambda x: None
+
+# Import NEW COMPREHENSIVE PLAN SYSTEMS
+try:
+    from ultimate_simplicity_interface import initialize_ultimate_simplicity_interface, get_ultimate_simplicity_interface, set_ultimate_simplicity_instance
+    from agent_marketplace import initialize_agent_marketplace, get_agent_marketplace, set_agent_marketplace_instance
+    from revolutionary_drag_drop import initialize_revolutionary_drag_drop, get_revolutionary_drag_drop, set_revolutionary_drag_drop_instance
+    from cross_platform_sync_engine import initialize_cross_platform_sync_engine, get_cross_platform_sync_engine, set_cross_platform_sync_instance
+    from natural_language_programming import initialize_natural_language_programming, get_natural_language_programming, set_natural_language_programming_instance
+    COMPREHENSIVE_PLAN_AVAILABLE = True
+    logger.info("🚀 COMPREHENSIVE PLAN SYSTEMS loaded successfully")
+except ImportError as e:
+    COMPREHENSIVE_PLAN_AVAILABLE = False
+    logger.warning(f"Comprehensive plan systems not available: {e}")
+    get_ultimate_simplicity_interface = lambda: None
+    get_agent_marketplace = lambda: None
+    get_revolutionary_drag_drop = lambda: None
+    get_cross_platform_sync_engine = lambda: None
+    get_natural_language_programming = lambda: None
+except Exception as e:
+    COMPREHENSIVE_PLAN_AVAILABLE = False
+    logger.error(f"Comprehensive plan systems error: {e}")
+    get_ultimate_simplicity_interface = lambda: None
+    get_agent_marketplace = lambda: None
+    get_revolutionary_drag_drop = lambda: None
+    get_cross_platform_sync_engine = lambda: None
+    get_natural_language_programming = lambda: None
 
 # Import ALL CRITICAL GAPS - Enhanced server integration
 try:
