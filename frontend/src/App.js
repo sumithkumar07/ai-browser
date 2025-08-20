@@ -74,14 +74,6 @@ function App() {
   const iframeRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Initialize native API if available (Electron app)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.nativeAPI) {
-      setNativeAPI(window.nativeAPI);
-      console.log('🔥 Native Chromium API detected');
-    }
-  }, []);
-
   // Initialize advanced features
   const advancedFeatures = AdvancedFeatures({ 
     backendUrl, 
