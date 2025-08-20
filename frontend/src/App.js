@@ -19,6 +19,9 @@ import VisualWorkflowBuilder from './components/VisualWorkflowBuilder';
 import SimplifiedInterface from './components/SimplifiedInterface';
 import NativeBrowserEngine from './components/NativeBrowserEngine';
 
+// Import FELLOU.AI-INSPIRED INTERFACE
+import FellouInspiredInterface from './components/FellouInspiredInterface';
+
 function App() {
   // AETHER v6.0 - Enhanced with native Chromium and Fellou.ai-style interface
   const [interfaceMode, setInterfaceMode] = useState('fellou'); // 'fellou' or 'traditional'
