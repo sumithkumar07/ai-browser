@@ -1,6 +1,6 @@
 """
-Enhanced Server with Native Chromium Integration
-Extends the existing server with native browser capabilities
+Enhanced Server Native Chromium Endpoints
+Provides API endpoints for native Chromium functionality
 """
 
 from fastapi import APIRouter, HTTPException
@@ -10,264 +10,251 @@ import logging
 from datetime import datetime
 import uuid
 
-from native_chromium_integration import get_native_bridge
-
 logger = logging.getLogger(__name__)
 
-# Pydantic models for native operations
+# Native Chromium Request Models
 class NativeNavigationRequest(BaseModel):
-    session_id: str
     url: str
+    user_session: str
     options: Optional[Dict[str, Any]] = {}
-
-class NativeJavaScriptRequest(BaseModel):
-    session_id: str
-    code: str
-    timeout: Optional[int] = 10000
 
 class NativeScreenshotRequest(BaseModel):
-    session_id: str
-    full_page: Optional[bool] = True
+    user_session: str
     format: Optional[str] = "png"
-    quality: Optional[int] = 100
+    quality: Optional[int] = 90
+    full_page: Optional[bool] = False
+    clip: Optional[Dict[str, int]] = None
 
 class NativeExtensionRequest(BaseModel):
-    session_id: str
-    extension_path: str
-    install_options: Optional[Dict[str, Any]] = {}
+    user_session: str
+    action: str  # "load", "unload", "list"
+    extension_path: Optional[str] = ""
+    extension_id: Optional[str] = ""
 
-class NativeFileAccessRequest(BaseModel):
-    session_id: str
-    file_path: str
-    operation: str  # "read", "write", "list", "exists"
-    data: Optional[str] = None
+class NativeDevToolsRequest(BaseModel):
+    user_session: str
+    action: str  # "open", "close", "execute"
+    command: Optional[str] = ""
+    params: Optional[Dict[str, Any]] = {}
 
-class NativeNotificationRequest(BaseModel):
-    session_id: str
-    title: str
-    body: str
-    options: Optional[Dict[str, Any]] = {}
+class NativeAutomationRequest(BaseModel):
+    user_session: str
+    actions: List[Dict[str, Any]]
+    name: Optional[str] = "Native Automation"
+    background: Optional[bool] = True
 
-class NativeCommandRequest(BaseModel):
-    session_id: str
-    command: str
-    parameters: Optional[Dict[str, Any]] = {}
-
-def setup_native_chromium_endpoints(app):
-    """Setup all native Chromium endpoints"""
+def setup_native_chromium_endpoints(app, enhanced_ai_intelligence=None, native_chromium=None):
+    """Setup native Chromium API endpoints"""
     
-    native_router = APIRouter(prefix="/api/native", tags=["Native Chromium"])
+    if not native_chromium or not native_chromium.get("native_available"):
+        logger.warning("Native Chromium not available - endpoints will return fallback responses")
+        native_bridge = None
+    else:
+        native_bridge = native_chromium.get("api_bridge")
     
-    @native_router.get("/capabilities")
-    async def get_native_capabilities():
-        """Get native Chromium capabilities"""
-        try:
-            bridge = get_native_bridge()
-            capabilities = await bridge.get_native_capabilities()
-            return capabilities
-        except Exception as e:
-            logger.error(f"Native capabilities error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/session/initialize")
-    async def initialize_native_session(session_id: str):
-        """Initialize native browser session"""
-        try:
-            bridge = get_native_bridge()
-            result = await bridge.initialize_native_session(session_id)
-            return result
-        except Exception as e:
-            logger.error(f"Session initialization error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.get("/session/{session_id}")
-    async def get_session_info(session_id: str):
-        """Get native session information"""
-        try:
-            bridge = get_native_bridge()
-            result = await bridge.get_session_info(session_id)
-            return result
-        except Exception as e:
-            logger.error(f"Session info error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/navigate")
+    @app.post("/api/native/navigate")
     async def native_navigate(request: NativeNavigationRequest):
-        """Navigate using native browser engine"""
+        """Navigate using native Chromium engine"""
         try:
-            bridge = get_native_bridge()
-            result = await bridge.execute_native_navigation(
-                request.session_id, 
-                request.url
-            )
+            if not native_bridge:
+                return {
+                    "success": False,
+                    "error": "Native Chromium engine not available",
+                    "fallback_message": "Use enhanced iframe browser instead"
+                }
+            
+            result = await native_bridge.navigate_native(request.user_session, request.url)
             return result
+            
         except Exception as e:
             logger.error(f"Native navigation error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/execute-javascript")
-    async def execute_native_javascript(request: NativeJavaScriptRequest):
-        """Execute JavaScript in native browser context"""
+    
+    @app.post("/api/native/screenshot")
+    async def native_screenshot(request: NativeScreenshotRequest):
+        """Capture screenshot using native engine"""
         try:
-            bridge = get_native_bridge()
-            result = await bridge.execute_native_javascript(
-                request.session_id, 
-                request.code
-            )
+            if not native_bridge:
+                return {
+                    "success": False,
+                    "error": "Native screenshot not available",
+                    "fallback_message": "Native Chromium engine required"
+                }
+            
+            options = {
+                "format": request.format,
+                "quality": request.quality,
+                "full_page": request.full_page,
+                "clip": request.clip
+            }
+            
+            result = await native_bridge.capture_native_screenshot(request.user_session, options)
             return result
-        except Exception as e:
-            logger.error(f"Native JavaScript error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/screenshot")
-    async def capture_native_screenshot(request: NativeScreenshotRequest):
-        """Capture screenshot using native capabilities"""
-        try:
-            bridge = get_native_bridge()
-            result = await bridge.capture_native_screenshot(request.session_id)
-            return result
+            
         except Exception as e:
             logger.error(f"Native screenshot error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/extension/install")
-    async def install_native_extension(request: NativeExtensionRequest):
-        """Install browser extension in native environment"""
+    
+    @app.post("/api/native/extensions")
+    async def native_extensions(request: NativeExtensionRequest):
+        """Manage Chrome extensions in native engine"""
         try:
-            bridge = get_native_bridge()
-            result = await bridge.install_browser_extension(
-                request.session_id, 
-                request.extension_path
-            )
-            return result
-        except Exception as e:
-            logger.error(f"Extension installation error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/filesystem/access")
-    async def access_native_filesystem(request: NativeFileAccessRequest):
-        """Access local file system through native capabilities"""
-        try:
-            bridge = get_native_bridge()
-            result = await bridge.access_file_system(
-                request.session_id, 
-                request.file_path
-            )
-            return result
-        except Exception as e:
-            logger.error(f"File system access error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/notification/send")
-    async def send_native_notification(request: NativeNotificationRequest):
-        """Send system notification through native API"""
-        try:
-            bridge = get_native_bridge()
-            result = await bridge.send_system_notification(
-                request.title,
-                request.body,
-                request.session_id
-            )
-            return result
-        except Exception as e:
-            logger.error(f"System notification error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.post("/command/process")
-    async def process_native_command(request: NativeCommandRequest):
-        """Process enhanced command through native engine"""
-        try:
-            bridge = get_native_bridge()
+            if not native_bridge:
+                return {
+                    "success": False,
+                    "error": "Native extension support not available",
+                    "fallback_message": "Extensions require native Chromium engine"
+                }
             
-            # Enhanced command processing with native capabilities
-            command_result = {
-                "command_id": str(uuid.uuid4()),
-                "command": request.command,
-                "session_id": request.session_id,
-                "processed_at": datetime.utcnow().isoformat(),
-                "native_enhanced": True
+            extension_data = {
+                "path": request.extension_path,
+                "extension_id": request.extension_id
             }
             
-            # Parse command and execute native actions
-            command_lower = request.command.lower()
-            
-            if "navigate to" in command_lower or "go to" in command_lower:
-                # Extract URL and navigate
-                words = command_lower.split()
-                for word in words:
-                    if "." in word and not word.startswith("http"):
-                        url = f"https://{word}"
-                        nav_result = await bridge.execute_native_navigation(
-                            request.session_id, url
-                        )
-                        command_result["action"] = "navigation"
-                        command_result["result"] = nav_result
-                        break
-            
-            elif "screenshot" in command_lower or "capture" in command_lower:
-                # Capture screenshot
-                screenshot_result = await bridge.capture_native_screenshot(
-                    request.session_id
-                )
-                command_result["action"] = "screenshot"
-                command_result["result"] = screenshot_result
-            
-            elif "devtools" in command_lower or "debug" in command_lower:
-                # Open DevTools
-                command_result["action"] = "devtools"
-                command_result["result"] = {
-                    "success": True,
-                    "message": "DevTools opened in native browser",
-                    "native_feature": True
-                }
-            
-            else:
-                # General AI response with native context
-                command_result["action"] = "ai_response"
-                command_result["result"] = {
-                    "success": True,
-                    "message": f"Command processed with native capabilities: {request.command}",
-                    "native_enhanced": True
-                }
-            
-            return command_result
+            result = await native_bridge.manage_native_extensions(
+                request.user_session, 
+                request.action, 
+                extension_data
+            )
+            return result
             
         except Exception as e:
-            logger.error(f"Native command processing error: {e}")
+            logger.error(f"Native extensions error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
-    @native_router.get("/status")
-    async def get_native_engine_status():
-        """Get native engine status and health"""
+    
+    @app.post("/api/native/devtools")
+    async def native_devtools(request: NativeDevToolsRequest):
+        """Control native Chrome DevTools"""
+        try:
+            if not native_bridge:
+                return {
+                    "success": False,
+                    "error": "Native DevTools not available",
+                    "fallback_message": "DevTools require native Chromium engine"
+                }
+            
+            options = {
+                "command": request.command,
+                "params": request.params
+            }
+            
+            result = await native_bridge.native_devtools_control(
+                request.user_session,
+                request.action,
+                options
+            )
+            return result
+            
+        except Exception as e:
+            logger.error(f"Native DevTools error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/native/automate")
+    async def native_automation(request: NativeAutomationRequest):
+        """Execute automation using native engine"""
+        try:
+            if not native_bridge:
+                return {
+                    "success": False,
+                    "error": "Native automation not available",
+                    "fallback_message": "Advanced automation requires native Chromium engine"
+                }
+            
+            automation_data = {
+                "actions": request.actions,
+                "name": request.name,
+                "background": request.background
+            }
+            
+            result = await native_bridge.native_automation(request.user_session, automation_data)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Native automation error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/api/native/capabilities")
+    async def native_capabilities():
+        """Get native Chromium capabilities"""
+        try:
+            if not native_bridge:
+                return {
+                    "success": True,
+                    "native_available": False,
+                    "message": "Native Chromium engine not available",
+                    "fallback_capabilities": [
+                        "Enhanced iframe browser",
+                        "Web-based automation",
+                        "Standard screenshot capture"
+                    ]
+                }
+            
+            result = await native_bridge.get_native_capabilities()
+            return result
+            
+        except Exception as e:
+            logger.error(f"Native capabilities error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/api/native/session/{user_session}")
+    async def native_session_state(user_session: str):
+        """Get native session state"""
+        try:
+            if not native_bridge:
+                return {
+                    "success": False,
+                    "error": "Native session tracking not available"
+                }
+            
+            result = await native_bridge.get_session_state(user_session)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Native session state error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.post("/api/native/initialize/{user_session}")
+    async def initialize_native_session(user_session: str):
+        """Initialize a new native browsing session"""
+        try:
+            if not native_bridge:
+                return {
+                    "success": False,
+                    "error": "Native session initialization not available",
+                    "fallback_message": "Using enhanced web browser mode"
+                }
+            
+            result = await native_bridge.initialize_native_session(user_session)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Native session initialization error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # Enhanced endpoints that work with both native and web modes
+    @app.get("/api/browser/engine-status")
+    async def browser_engine_status():
+        """Get current browser engine status"""
         try:
             return {
-                "status": "operational",
-                "engine": "Native Chromium",
+                "success": True,
+                "native_available": native_bridge is not None,
+                "engine_type": "native_chromium" if native_bridge else "enhanced_iframe",
+                "capabilities": {
+                    "cross_origin": native_bridge is not None,
+                    "file_access": native_bridge is not None,
+                    "extensions": native_bridge is not None,
+                    "devtools": native_bridge is not None,
+                    "advanced_automation": native_bridge is not None,
+                    "native_screenshot": native_bridge is not None
+                },
                 "version": "6.0.0",
-                "capabilities": [
-                    "Cross-origin access",
-                    "JavaScript execution", 
-                    "Extension support",
-                    "File system access",
-                    "System notifications",
-                    "Hardware acceleration",
-                    "DevTools access",
-                    "Screenshot capture"
-                ],
-                "advantages": [
-                    "No iframe limitations",
-                    "Full browser API access",
-                    "Better performance",
-                    "Native system integration"
-                ],
                 "timestamp": datetime.utcnow().isoformat()
             }
+            
         except Exception as e:
-            logger.error(f"Native status error: {e}")
+            logger.error(f"Engine status error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-
-    # Add the router to the main app
-    app.include_router(native_router)
-    logger.info("🔥 Native Chromium endpoints configured successfully")
-
-    return native_router
+    
+    logger.info("🔥 Native Chromium endpoints setup complete")
+    return True
