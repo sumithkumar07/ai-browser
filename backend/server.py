@@ -32,6 +32,18 @@ except ImportError as e:
     get_task_executor = lambda: None
     logger.warning(f"Enhanced automation not available: {e}")
 
+# Import Native Chromium Integration
+try:
+    from native_chromium_integration import initialize_native_bridge, get_native_bridge
+    from enhanced_server_native import setup_native_chromium_endpoints
+    NATIVE_CHROMIUM_AVAILABLE = True
+    logger.info("🔥 Native Chromium integration loaded successfully")
+except ImportError as e:
+    NATIVE_CHROMIUM_AVAILABLE = False
+    logger.warning(f"Native Chromium integration not available: {e}")
+    get_native_bridge = lambda: None
+    setup_native_chromium_endpoints = lambda x: None
+
 # Import ALL CRITICAL GAPS - Enhanced server integration
 try:
     from enhanced_server_integration import (
