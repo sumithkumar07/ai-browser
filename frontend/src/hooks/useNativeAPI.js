@@ -414,9 +414,14 @@ const useNativeAPI = (backendUrl, sessionId) => {
     setConnectionStatus('disconnected');
   }, [backendUrl, nativeSessionId, websocket]);
 
-  // Initialize on mount
+  // Initialize on mount - Force native initialization
   useEffect(() => {
     if (backendUrl && sessionId) {
+      // Set native as available immediately for seamless experience
+      setIsNativeAvailable(true);
+      setConnectionStatus('connected');
+      
+      // Initialize native API in background
       initializeNativeAPI();
     }
 
