@@ -26,19 +26,27 @@ import FellouInspiredInterface from './components/FellouInspiredInterface';
 function App() {
   // AETHER v6.0 - Enhanced with native Chromium and Fellou.ai-style interface
   const [interfaceMode, setInterfaceMode] = useState('fellou-browser'); // 'fellou-browser', 'fellou' or 'traditional'
-  const [nativeAPI, setNativeAPI] = useState(null);
   
-  // Browser state
+  // Initialize Native API Hook
+  const nativeAPI = useNativeAPI(backendUrl, sessionId);
+  
+  // Core browser state
   const [currentUrl, setCurrentUrl] = useState('');
   const [urlInput, setUrlInput] = useState('https://example.com');
-  const [isLoading, setIsLoading] = useState(false);
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
-  const [isSecure, setIsSecure] = useState(true);
   const [tabs, setTabs] = useState([
     { id: 1, title: 'New Tab', url: '', active: true, favicon: '🌐' }
   ]);
   const [activeTab, setActiveTab] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSecure, setIsSecure] = useState(true);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
+  
+  // Native browser state
+  const [useNativeBrowser, setUseNativeBrowser] = useState(true);
+  const [nativeBrowserReady, setNativeBrowserReady] = useState(false);
 
   // AI Assistant state - Enhanced with proactive capabilities
   const [aiVisible, setAiVisible] = useState(false);
