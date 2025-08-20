@@ -324,20 +324,55 @@ const FellouInspiredInterface = ({
           {aiVisible && (
             <div className="ai-panel">
               <div className="panel-header">
-                <h3>🤖 AI Assistant</h3>
-                <button onClick={() => setAiVisible(false)}>×</button>
+                <h3>AI Assistant</h3>
+                <button onClick={() => setAiVisible(false)}>✕</button>
+              </div>
+              
+              {/* AI Status */}
+              <div className="ai-status">
+                <div className="ai-status-dot"></div>
+                <span>AETHER AI is online and ready</span>
+              </div>
+              
+              {/* Quick Actions */}
+              <div className="ai-quick-actions">
+                <h4>Quick Actions</h4>
+                <div className="ai-quick-buttons">
+                  <button className="ai-quick-button" onClick={() => setAiInput("Summarize this page")}>
+                    📄 Summarize
+                  </button>
+                  <button className="ai-quick-button" onClick={() => setAiInput("Extract key information")}>
+                    📊 Extract
+                  </button>
+                  <button className="ai-quick-button" onClick={() => setAiInput("Create automation workflow")}>
+                    ⚡ Automate
+                  </button>
+                  <button className="ai-quick-button" onClick={() => setAiInput("Analyze this content")}>
+                    🔍 Analyze
+                  </button>
+                </div>
               </div>
               
               <div className="chat-messages">
                 {chatMessages.map((message, index) => (
                   <div key={index} className={`message ${message.role}`}>
+                    <div className="message-header">
+                      <div className="message-avatar">
+                        {message.role === 'user' ? 'You' : '🤖'}
+                      </div>
+                      <span>{message.role === 'user' ? 'You' : 'AETHER AI'}</span>
+                    </div>
                     <div className="message-content">
                       {message.content}
                     </div>
                     {message.suggestions && (
                       <div className="message-suggestions">
                         {message.suggestions.map((suggestion, i) => (
-                          <button key={i} className="suggestion-chip">
+                          <button 
+                            key={i} 
+                            className="suggestion-chip"
+                            onClick={() => setAiInput(suggestion.text)}
+                          >
                             {suggestion.text}
                           </button>
                         ))}
@@ -347,25 +382,37 @@ const FellouInspiredInterface = ({
                 ))}
                 {aiLoading && (
                   <div className="message assistant">
+                    <div className="message-header">
+                      <div className="message-avatar">🤖</div>
+                      <span>AETHER AI</span>
+                    </div>
                     <div className="typing-indicator">
-                      <span></span><span></span><span></span>
+                      <div className="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
               
               <div className="chat-input">
-                <input
-                  type="text"
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && onSendMessage()}
-                  placeholder="Ask AETHER anything..."
-                  disabled={aiLoading}
-                />
-                <button onClick={onSendMessage} disabled={aiLoading || !aiInput.trim()}>
-                  Send
-                </button>
+                <div className="chat-input-container">
+                  <input
+                    type="text"
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !aiLoading && aiInput.trim() && onSendMessage()}
+                    placeholder="Ask AETHER anything..."
+                    disabled={aiLoading}
+                  />
+                  <button 
+                    className="chat-send-button"
+                    onClick={onSendMessage} 
+                    disabled={aiLoading || !aiInput.trim()}
+                  />
+                </div>
               </div>
             </div>
           )}
