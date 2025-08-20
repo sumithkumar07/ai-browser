@@ -2,6 +2,7 @@
 Minimal Native Chromium Server - Testing Version
 """
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from native_chromium_engine import initialize_native_chromium_engine, get_native_chromium_engine
@@ -16,18 +17,6 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
-app = FastAPI(title="AETHER Native Browser API", version="6.0.0")
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
 # Database connection
 MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
@@ -36,11 +25,12 @@ db = client.aether_browser
 # Global native engine
 native_chromium_engine_instance = None
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize Native Chromium Engine on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Modern lifespan handler for startup/shutdown"""
     global native_chromium_engine_instance
     
+    # Startup
     try:
         logger.info("🔥 Initializing Native Chromium Engine...")
         native_chromium_engine_instance = await initialize_native_chromium_engine(client)
@@ -54,6 +44,29 @@ async def startup_event():
             
     except Exception as e:
         logger.error(f"Startup error: {e}")
+    
+    yield
+    
+    # Shutdown
+    if native_chromium_engine_instance:
+        await native_chromium_engine_instance.cleanup()
+        logger.info("🧹 Native Chromium Engine cleaned up")
+
+# Create FastAPI app with lifespan
+app = FastAPI(
+    title="AETHER Native Browser API", 
+    version="6.0.0",
+    lifespan=lifespan
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 # Add native endpoints
 add_native_endpoints(app)
