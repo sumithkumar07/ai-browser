@@ -19,7 +19,7 @@ import threading
 # Import native components
 from native_chromium_engine import NativeChromiumEngine, initialize_native_chromium_engine
 from websocket_server import AETHERWebSocketServer, integrate_websocket_with_native_engine
-from enhanced_native_api import enhanced_router
+# from enhanced_native_api import enhanced_router  # Temporarily disabled until components are ready
 
 load_dotenv()
 
