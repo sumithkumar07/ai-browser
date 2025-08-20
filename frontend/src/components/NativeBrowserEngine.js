@@ -1,7 +1,7 @@
 /**
- * Native Browser Engine Component
- * Replaces iframe with WebSocket-connected native Chromium engine
- * Provides Fellou.ai-level capabilities through enhanced backend bridge
+ * Native Browser Engine Component - Complete Native Implementation
+ * Full integration with backend Native Chromium Engine via WebSocket
+ * NO IFRAME FALLBACK - Pure Native Chromium Only
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -22,14 +22,21 @@ const NativeBrowserEngine = ({
   const [isLoading, setIsLoading] = useState(false);
   const [capabilities, setCapabilities] = useState([]);
   const [performanceMetrics, setPerformanceMetrics] = useState({});
+  const [engineStatus, setEngineStatus] = useState('disconnected');
+  const [errorMessage, setErrorMessage] = useState(null);
   
   // Refs
   const canvasRef = useRef(null);
   const reconnectTimerRef = useRef(null);
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 5;
 
   // Initialize native browser session
   const initializeNativeSession = useCallback(async () => {
     try {
+      setEngineStatus('initializing');
+      setErrorMessage(null);
+      
       const response = await fetch(`${backendUrl}/api/native/create-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,13 +54,24 @@ const NativeBrowserEngine = ({
         // Initialize WebSocket connection
         initializeWebSocket(result.session_id);
         
+        setEngineStatus('connected');
         console.log('✅ Native browser session initialized:', result.session_id);
         return result.session_id;
       } else {
-        throw new Error('Failed to create native session');
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
     } catch (error) {
       console.error('Native session initialization error:', error);
+      setEngineStatus('error');
+      setErrorMessage(error.message);
+      
+      // Retry initialization
+      if (reconnectAttempts.current < maxReconnectAttempts) {
+        reconnectAttempts.current++;
+        console.log(`Retrying initialization... (${reconnectAttempts.current}/${maxReconnectAttempts})`);
+        setTimeout(initializeNativeSession, 3000);
+      }
+      
       return null;
     }
   }, [backendUrl, sessionId]);
@@ -61,8 +79,15 @@ const NativeBrowserEngine = ({
   // Initialize WebSocket connection for real-time control
   const initializeWebSocket = useCallback((sessionId) => {
     try {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.close();
+      }
+      
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}/ws/native/${sessionId}`;
+      const wsHost = new URL(backendUrl).host;
+      const wsUrl = `${wsProtocol}//${wsHost}/ws/native/${sessionId}`;
+      
+      console.log('🔗 Connecting to WebSocket:', wsUrl);
       
       const ws = new WebSocket(wsUrl);
       
@@ -70,6 +95,8 @@ const NativeBrowserEngine = ({
         console.log('🔥 Native browser WebSocket connected');
         setIsConnected(true);
         setWebsocket(ws);
+        setEngineStatus('operational');
+        reconnectAttempts.current = 0;
         
         // Send initial status request
         ws.send(JSON.stringify({
@@ -90,51 +117,71 @@ const NativeBrowserEngine = ({
         console.log('Native browser WebSocket disconnected');
         setIsConnected(false);
         setWebsocket(null);
+        setEngineStatus('disconnected');
         
-        // Attempt reconnection
-        reconnectTimerRef.current = setTimeout(() => {
-          if (nativeSessionId) {
-            initializeWebSocket(nativeSessionId);
-          }
-        }, 3000);
+        // Attempt reconnection if not max attempts
+        if (reconnectAttempts.current < maxReconnectAttempts) {
+          reconnectTimerRef.current = setTimeout(() => {
+            if (nativeSessionId) {
+              reconnectAttempts.current++;
+              initializeWebSocket(nativeSessionId);
+            }
+          }, 3000);
+        } else {
+          setEngineStatus('error');
+          setErrorMessage('Maximum reconnection attempts reached');
+        }
       };
 
       ws.onerror = (error) => {
         console.error('WebSocket error:', error);
+        setEngineStatus('error');
+        setErrorMessage('WebSocket connection failed');
       };
 
     } catch (error) {
       console.error('WebSocket initialization error:', error);
+      setEngineStatus('error');
+      setErrorMessage('Failed to initialize WebSocket');
     }
-  }, [nativeSessionId]);
+  }, [backendUrl, nativeSessionId, websocket]);
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((data) => {
+    console.log('📨 WebSocket message:', data.type);
+    
     switch (data.type) {
       case 'connection_established':
-        console.log('Native browser ready:', data.session_id);
+        console.log('✅ Native browser ready:', data.session_id);
+        setIsConnected(true);
+        setEngineStatus('operational');
         break;
         
       case 'navigation_complete':
-        setIsLoading(false);
-        onUrlChange(data.url);
-        onNavigationChange({
-          canGoBack: true, // TODO: Get from session state
-          canGoForward: false, // TODO: Get from session state
-          isLoading: false,
-          title: data.title,
-          securityInfo: data.security
-        });
-        
-        // Request screenshot update
-        requestScreenshot();
+      case 'navigation_result':
+        if (data.result?.success || data.success) {
+          setIsLoading(false);
+          const url = data.url || data.result?.url;
+          const title = data.title || data.result?.title;
+          
+          if (url) onUrlChange(url);
+          
+          onNavigationChange({
+            canGoBack: true,
+            canGoForward: false,
+            isLoading: false,
+            title: title,
+            securityInfo: data.security
+          });
+          
+          // Request screenshot update
+          requestScreenshot();
+        }
         break;
         
       case 'page_loaded':
         setIsLoading(false);
-        onUrlChange(data.url);
-        
-        // Auto-capture screenshot on page load
+        if (data.url) onUrlChange(data.url);
         requestScreenshot();
         break;
         
@@ -145,8 +192,23 @@ const NativeBrowserEngine = ({
         }
         break;
         
+      case 'performance_result':
       case 'performance_update':
-        setPerformanceMetrics(data.metrics);
+        const metrics = data.result?.metrics || data.metrics;
+        if (metrics) {
+          setPerformanceMetrics(metrics);
+        }
+        break;
+        
+      case 'status_response':
+        if (data.status) {
+          console.log('Native browser status:', data.status);
+        }
+        break;
+        
+      case 'error':
+        console.error('Native browser error:', data.error || data.message);
+        setErrorMessage(data.error || data.message);
         break;
         
       default:
@@ -162,17 +224,20 @@ const NativeBrowserEngine = ({
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
     
     try {
       websocket.send(JSON.stringify({
         action: 'navigate',
-        url: url
+        url: url,
+        messageId: `nav_${Date.now()}`
       }));
       
       return true;
     } catch (error) {
       console.error('Navigation error:', error);
       setIsLoading(false);
+      setErrorMessage('Navigation failed');
       return false;
     }
   }, [websocket, isConnected]);
@@ -183,7 +248,8 @@ const NativeBrowserEngine = ({
       websocket.send(JSON.stringify({
         action: 'screenshot',
         full_page: false,
-        quality: 80
+        quality: 80,
+        messageId: `screenshot_${Date.now()}`
       }));
     }
   }, [websocket, isConnected]);
@@ -199,7 +265,7 @@ const NativeBrowserEngine = ({
       
       const handleResponse = (event) => {
         const data = JSON.parse(event.data);
-        if (data.messageId === messageId) {
+        if (data.messageId === messageId && data.type === 'js_result') {
           websocket.removeEventListener('message', handleResponse);
           resolve(data);
         }
@@ -230,7 +296,8 @@ const NativeBrowserEngine = ({
 
     websocket.send(JSON.stringify({
       action: 'click',
-      selector: selector
+      selector: selector,
+      messageId: `click_${Date.now()}`
     }));
 
     // Request updated screenshot after click
@@ -248,7 +315,8 @@ const NativeBrowserEngine = ({
     websocket.send(JSON.stringify({
       action: 'type',
       selector: selector,
-      text: text
+      text: text,
+      messageId: `type_${Date.now()}`
     }));
 
     // Request updated screenshot after typing
@@ -290,7 +358,8 @@ const NativeBrowserEngine = ({
       websocket.send(JSON.stringify({
         action: 'click_coordinates',
         x: Math.round(x),
-        y: Math.round(y)
+        y: Math.round(y),
+        messageId: `click_coords_${Date.now()}`
       }));
 
       // Request updated screenshot
@@ -320,16 +389,28 @@ const NativeBrowserEngine = ({
     }
   }, [currentUrl, isConnected, navigateToUrl]);
 
-  // Auto-refresh screenshot every 5 seconds when idle
+  // Auto-refresh screenshot every 10 seconds when idle
   useEffect(() => {
+    if (!isConnected || isLoading) return;
+    
     const interval = setInterval(() => {
-      if (isConnected && !isLoading) {
-        requestScreenshot();
-      }
-    }, 5000);
+      requestScreenshot();
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [isConnected, isLoading, requestScreenshot]);
+
+  // Get status indicator color
+  const getStatusColor = () => {
+    switch (engineStatus) {
+      case 'operational': return '#4CAF50';
+      case 'connected': return '#2196F3';
+      case 'initializing': return '#FF9800';
+      case 'disconnected': return '#757575';
+      case 'error': return '#f44336';
+      default: return '#757575';
+    }
+  };
 
   // Expose native browser API for parent components
   React.useImperativeHandle(React.forwardRef(), () => ({
@@ -340,25 +421,39 @@ const NativeBrowserEngine = ({
     requestScreenshot,
     capabilities,
     performanceMetrics,
-    isConnected
-  }), [navigateToUrl, executeJavaScript, clickElement, typeText, requestScreenshot, capabilities, performanceMetrics, isConnected]);
+    isConnected,
+    engineStatus
+  }), [navigateToUrl, executeJavaScript, clickElement, typeText, requestScreenshot, capabilities, performanceMetrics, isConnected, engineStatus]);
 
   return (
     <div className="native-browser-engine">
       {/* Connection Status */}
-      <div className={`native-status ${isConnected ? 'connected' : 'disconnected'}`}>
+      <div className={`native-status status-${engineStatus}`} style={{ borderLeft: `4px solid ${getStatusColor()}` }}>
         <div className="status-indicator">
-          {isConnected ? '🔥' : '⚠️'}
+          {engineStatus === 'operational' ? '🔥' : 
+           engineStatus === 'connected' ? '🔗' :
+           engineStatus === 'initializing' ? '⏳' :
+           engineStatus === 'error' ? '❌' : '⚠️'}
         </div>
         <span className="status-text">
-          {isConnected 
-            ? `Native Chromium (${capabilities.length} capabilities)` 
-            : 'Connecting to Native Engine...'
-          }
+          {engineStatus === 'operational' 
+            ? `Native Chromium Engine (${capabilities.length} capabilities)` 
+            : engineStatus === 'connected'
+            ? 'Native Engine Connected'
+            : engineStatus === 'initializing'
+            ? 'Initializing Native Chromium...'
+            : engineStatus === 'error'
+            ? `Error: ${errorMessage || 'Unknown error'}`
+            : 'Connecting to Native Engine...'}
         </span>
         {performanceMetrics.load_time && (
           <span className="performance-info">
             Load: {Math.round(performanceMetrics.load_time)}ms
+          </span>
+        )}
+        {nativeSessionId && (
+          <span className="session-info">
+            Session: {nativeSessionId.slice(-8)}
           </span>
         )}
       </div>
@@ -367,75 +462,120 @@ const NativeBrowserEngine = ({
       {isLoading && (
         <div className="native-loading-overlay">
           <div className="loading-spinner"></div>
-          <div className="loading-text">Loading with Native Chromium...</div>
+          <div className="loading-text">Loading with Native Chromium Engine...</div>
+          <div className="loading-subtext">Playwright-powered browsing</div>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {engineStatus === 'error' && (
+        <div className="native-error-display">
+          <div className="error-icon">⚠️</div>
+          <div className="error-title">Native Engine Error</div>
+          <div className="error-message">{errorMessage}</div>
+          <button 
+            className="error-retry-btn"
+            onClick={() => {
+              reconnectAttempts.current = 0;
+              initializeNativeSession();
+            }}
+          >
+            Retry Connection
+          </button>
         </div>
       )}
 
       {/* Native Browser Canvas */}
       <div className="native-browser-canvas">
-        {screenshot ? (
-          <canvas
-            ref={canvasRef}
-            className="browser-canvas"
-            onClick={handleCanvasClick}
-            style={{
-              width: '100%',
-              height: 'auto',
-              cursor: 'pointer',
-              border: isConnected ? '2px solid #4CAF50' : '2px solid #ff9800'
-            }}
-            title="Native Chromium Browser - Click to interact"
-          />
+        {screenshot && engineStatus === 'operational' ? (
+          <div className="canvas-container">
+            <canvas
+              ref={canvasRef}
+              className="browser-canvas"
+              onClick={handleCanvasClick}
+              style={{
+                width: '100%',
+                height: 'auto',
+                cursor: 'pointer',
+                border: `2px solid ${getStatusColor()}`,
+                borderRadius: '4px'
+              }}
+              title="Native Chromium Browser - Click to interact"
+            />
+            <div className="canvas-overlay">
+              <div className="canvas-info">
+                🔥 Live Native Chromium View
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="canvas-placeholder">
-            <div className="placeholder-icon">🌐</div>
-            <div className="placeholder-text">
-              {isConnected 
-                ? 'Capturing browser view...' 
-                : 'Connecting to Native Chromium Engine...'
-              }
+            <div className="placeholder-icon">
+              {engineStatus === 'operational' ? '🌐' : 
+               engineStatus === 'initializing' ? '⚙️' : '🔧'}
             </div>
+            <div className="placeholder-text">
+              {engineStatus === 'operational' 
+                ? 'Capturing native browser view...' 
+                : engineStatus === 'initializing'
+                ? 'Starting Native Chromium Engine...'
+                : engineStatus === 'error'
+                ? 'Native Engine Unavailable'
+                : 'Connecting to Native Chromium...'}
+            </div>
+            {engineStatus === 'operational' && (
+              <button 
+                className="capture-btn"
+                onClick={requestScreenshot}
+              >
+                📷 Capture View
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {/* Native Browser Controls */}
-      {isConnected && (
+      {isConnected && engineStatus === 'operational' && (
         <div className="native-controls">
           <button 
             className="native-control-btn"
             onClick={() => executeJavaScript('window.history.back()')}
             title="Go Back"
+            disabled={isLoading}
           >
-            ←
+            ← Back
           </button>
           <button 
             className="native-control-btn"
             onClick={() => executeJavaScript('window.history.forward()')}
             title="Go Forward"
+            disabled={isLoading}
           >
-            →
+            Forward →
           </button>
           <button 
             className="native-control-btn"
             onClick={() => executeJavaScript('window.location.reload()')}
             title="Refresh"
+            disabled={isLoading}
           >
-            ↻
+            ↻ Refresh
           </button>
           <button 
             className="native-control-btn"
             onClick={requestScreenshot}
-            title="Refresh View"
+            title="Update View"
           >
-            📷
+            📷 Capture
           </button>
           <button 
             className="native-control-btn"
             onClick={() => executeJavaScript('window.scrollTo(0, 0)')}
             title="Scroll to Top"
+            disabled={isLoading}
           >
-            ⬆️
+            ⬆️ Top
           </button>
         </div>
       )}
@@ -443,9 +583,11 @@ const NativeBrowserEngine = ({
       {/* Development Info */}
       {process.env.NODE_ENV === 'development' && isConnected && (
         <div className="dev-info">
-          <div>Session: {nativeSessionId}</div>
-          <div>Capabilities: {capabilities.join(', ')}</div>
-          <div>WebSocket: {isConnected ? 'Connected' : 'Disconnected'}</div>
+          <div><strong>Session:</strong> {nativeSessionId}</div>
+          <div><strong>Status:</strong> {engineStatus}</div>
+          <div><strong>Capabilities:</strong> {capabilities.join(', ')}</div>
+          <div><strong>WebSocket:</strong> {isConnected ? 'Connected' : 'Disconnected'}</div>
+          <div><strong>Screenshot:</strong> {screenshot ? 'Available' : 'None'}</div>
         </div>
       )}
     </div>
