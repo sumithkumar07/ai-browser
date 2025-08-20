@@ -24,7 +24,7 @@ import FellouInspiredInterface from './components/FellouInspiredInterface';
 
 function App() {
   // AETHER v6.0 - Enhanced with native Chromium and Fellou.ai-style interface
-  const [interfaceMode, setInterfaceMode] = useState('fellou'); // 'fellou' or 'traditional'
+  const [interfaceMode, setInterfaceMode] = useState('fellou-browser'); // 'fellou-browser', 'fellou' or 'traditional'
   const [nativeAPI, setNativeAPI] = useState(null);
   
   // Browser state
