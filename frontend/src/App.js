@@ -55,10 +55,6 @@ function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [sessionId] = useState('web-session-' + Date.now());
   
-  // Browser history
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  
   // Advanced Features State - Simplified for Fellou mode
   const [voiceVisible, setVoiceVisible] = useState(false);
   const [workflowBuilder, setWorkflowBuilder] = useState({ visible: false, workflows: [] });
