@@ -767,6 +767,88 @@ async def enhanced_native_navigate(request: Dict[str, Any]):
     except Exception as e:
         logger.error(f"Native navigation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/api/process-command")
+async def process_enhanced_command(request: Dict[str, Any]):
+    """Process enhanced commands with native Chromium support"""
+    try:
+        command = request.get("command", "")
+        context = request.get("context", {})
+        user_session = request.get("user_session", str(uuid.uuid4()))
+        enable_proactive = request.get("enable_proactive", True)
+        behavioral_learning = request.get("behavioral_learning", True)
+        
+        # Enhanced processing result
+        result = {
+            "command_processed": command,
+            "session_id": user_session,
+            "timestamp": datetime.utcnow().isoformat(),
+            "enhanced_processing": True
+        }
+        
+        # Check if native Chromium is available
+        if NATIVE_CHROMIUM_AVAILABLE:
+            native_bridge = get_native_bridge()
+            
+            # Process with native capabilities
+            command_lower = command.lower()
+            
+            if "navigate to" in command_lower or "go to" in command_lower:
+                # Extract URL
+                words = command_lower.split()
+                for word in words:
+                    if "." in word and not word.startswith("http"):
+                        url = f"https://{word}" if not word.startswith("http") else word
+                        nav_result = await native_bridge.execute_native_navigation(user_session, url)
+                        result["native_navigation"] = nav_result
+                        result["ai_response"] = f"✅ **Navigating to {url}** using Native Chromium engine with full capabilities!"
+                        break
+                else:
+                    result["ai_response"] = "Please specify a valid URL to navigate to."
+            
+            elif "screenshot" in command_lower:
+                # Native screenshot
+                screenshot_result = await native_bridge.capture_native_screenshot(user_session)
+                result["native_screenshot"] = screenshot_result
+                result["ai_response"] = "📸 **Screenshot captured** using Native Chromium with full-page support!"
+            
+            elif "devtools" in command_lower or "debug" in command_lower:
+                result["ai_response"] = "🔧 **DevTools opened** in Native Chromium - full debugging capabilities available!"
+                result["native_action"] = {"devtools": True}
+            
+            else:
+                # AI processing with native context
+                if ENHANCED_MODE and enhanced_chat_with_ai:
+                    ai_response = await enhanced_chat_with_ai(
+                        command, user_session, context.get("current_url", "")
+                    )
+                    result["ai_response"] = f"🤖 **Native-Enhanced Response:** {ai_response}"
+                else:
+                    result["ai_response"] = f"⚡ **Native Chromium Ready:** {command} - Enhanced capabilities available!"
+            
+            # Add proactive suggestions with native features
+            if enable_proactive:
+                result["proactive_suggestions"] = [
+                    {"text": "Take native screenshot", "command": "screenshot"},
+                    {"text": "Open DevTools", "command": "devtools"},
+                    {"text": "Access file system", "command": "access files"}
+                ]
+            
+        else:
+            # Fallback to enhanced web processing
+            if ENHANCED_MODE and enhanced_chat_with_ai:
+                ai_response = await enhanced_chat_with_ai(
+                    command, user_session, context.get("current_url", "")
+                )
+                result["ai_response"] = ai_response
+            else:
+                result["ai_response"] = f"Command processed: {command}"
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Enhanced command processing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def get_system_overview():
     """Enhanced system status and overview"""
     try:
