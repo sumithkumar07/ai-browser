@@ -73,7 +73,6 @@ function App() {
     { title: 'ChatGPT', url: 'https://chat.openai.com', favicon: '🤖' }
   ]);
 
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
   const iframeRef = useRef(null);
   const messagesEndRef = useRef(null);
 
