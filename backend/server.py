@@ -232,6 +232,7 @@ if NATIVE_CHROMIUM_AVAILABLE:
 if AGENTIC_MEMORY_AVAILABLE:
     try:
         agentic_memory_system = initialize_agentic_memory_system(client)
+        set_agentic_memory_instance(agentic_memory_system)
         asyncio.create_task(agentic_memory_system.initialize())
         logger.info("🧠 AGENTIC MEMORY SYSTEM initialized:")
         logger.info("   ✅ Cross-Session Learning")
@@ -242,6 +243,65 @@ if AGENTIC_MEMORY_AVAILABLE:
     except Exception as e:
         logger.error(f"Failed to initialize Agentic Memory System: {e}")
         agentic_memory_system = None
+
+# Initialize COMPREHENSIVE PLAN SYSTEMS (New Features)
+if COMPREHENSIVE_PLAN_AVAILABLE:
+    try:
+        # B1: Ultimate Simplicity Interface
+        ultimate_simplicity_interface = initialize_ultimate_simplicity_interface(client)
+        set_ultimate_simplicity_instance(ultimate_simplicity_interface)
+        logger.info("⚡ ULTIMATE SIMPLICITY INTERFACE initialized:")
+        logger.info("   ✅ Single-Input Philosophy")
+        logger.info("   ✅ Zero Learning Curve")
+        logger.info("   ✅ Invisible Complexity")
+        logger.info("   ✅ Predictive Interface")
+        
+        # C1: Agent Marketplace
+        agent_marketplace = initialize_agent_marketplace(client)
+        set_agent_marketplace_instance(agent_marketplace)
+        logger.info("🏪 AGENT MARKETPLACE initialized:")
+        logger.info("   ✅ Community Agent Creation")
+        logger.info("   ✅ Security Validation")
+        logger.info("   ✅ Revenue Sharing")
+        logger.info("   ✅ Agent Development Studio")
+        
+        # B2: Revolutionary Drag & Drop
+        revolutionary_drag_drop = initialize_revolutionary_drag_drop(client)
+        set_revolutionary_drag_drop_instance(revolutionary_drag_drop)
+        logger.info("🎯 REVOLUTIONARY DRAG & DROP initialized:")
+        logger.info("   ✅ Universal Intelligent Drag & Drop")
+        logger.info("   ✅ Cross-Application Drag")
+        logger.info("   ✅ AI Intent Recognition")
+        logger.info("   ✅ Multi-Format Support")
+        
+        # C2: Cross-Platform Sync Engine
+        cross_platform_sync_engine = initialize_cross_platform_sync_engine(client)
+        set_cross_platform_sync_instance(cross_platform_sync_engine)
+        logger.info("🌐 CROSS-PLATFORM SYNC ENGINE initialized:")
+        logger.info("   ✅ Real-time Multi-Platform Sync")
+        logger.info("   ✅ Universal Platform Integration")
+        logger.info("   ✅ Data Transformation")
+        logger.info("   ✅ Conflict Resolution")
+        
+        # A3: Natural Language Programming
+        natural_language_programming = initialize_natural_language_programming(client)
+        set_natural_language_programming_instance(natural_language_programming)
+        logger.info("🗣️ NATURAL LANGUAGE PROGRAMMING initialized:")
+        logger.info("   ✅ Eko-Equivalent System")
+        logger.info("   ✅ Natural Language to Workflows")
+        logger.info("   ✅ Code Generation")
+        logger.info("   ✅ Workflow Execution")
+        
+        logger.info("🚀 ALL COMPREHENSIVE PLAN SYSTEMS READY - AETHER TRANSFORMATION COMPLETE!")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize Comprehensive Plan Systems: {e}")
+        COMPREHENSIVE_PLAN_AVAILABLE = False
+        ultimate_simplicity_interface = None
+        agent_marketplace = None
+        revolutionary_drag_drop = None
+        cross_platform_sync_engine = None
+        natural_language_programming = None
 
 if ENHANCED_MODE:
     try:
