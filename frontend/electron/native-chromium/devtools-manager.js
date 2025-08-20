@@ -1,343 +1,238 @@
-const { BrowserWindow } = require('electron');
-
 /**
- * DevTools Manager - Native Chrome DevTools Integration
- * Provides full Chrome DevTools access for debugging and development
+ * DevTools Manager for Native Chromium
+ * Manages Chrome DevTools integration
  */
+
 class DevToolsManager {
-  constructor() {
-    this.devToolsWindows = new Map();
-    this.protocolClients = new Map();
-    
-    console.log('🔧 DevTools Manager Initialized');
-  }
-
-  async openDevTools(webContentsId, options = {}) {
-    try {
-      const { webContents } = require('electron');
-      const targetWebContents = webContents.fromId(webContentsId) || 
-                                webContents.getAllWebContents()[0];
-
-      if (!targetWebContents) {
-        return { success: false, error: 'No web contents found' };
-      }
-
-      // Configure DevTools options
-      const devToolsOptions = {
-        mode: options.mode || 'detach', // 'detach', 'right', 'bottom', 'undocked'
-        activate: options.activate !== false
-      };
-
-      // Open DevTools
-      targetWebContents.openDevTools(devToolsOptions);
-
-      // Store reference
-      this.devToolsWindows.set(webContentsId, {
-        webContents: targetWebContents,
-        options: devToolsOptions,
-        opened: Date.now()
-      });
-
-      console.log(`🔧 DevTools opened for WebContents ID: ${webContentsId}`);
-
-      return {
-        success: true,
-        webContentsId,
-        mode: devToolsOptions.mode
-      };
-
-    } catch (error) {
-      console.error('DevTools open error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async closeDevTools(webContentsId) {
-    try {
-      const devToolsInfo = this.devToolsWindows.get(webContentsId);
-      
-      if (devToolsInfo && devToolsInfo.webContents) {
-        devToolsInfo.webContents.closeDevTools();
-        this.devToolsWindows.delete(webContentsId);
+    constructor() {
+        this.devToolsWindows = new Map();
+        this.isEnabled = true;
         
-        return { success: true };
-      }
-      
-      return { success: false, error: 'DevTools not open for this WebContents' };
-      
-    } catch (error) {
-      return { success: false, error: error.message };
+        console.log('🔧 DevTools Manager initialized');
     }
-  }
 
-  async executeDevToolsCommand(webContentsId, command, params = {}) {
-    try {
-      const devToolsInfo = this.devToolsWindows.get(webContentsId);
-      
-      if (!devToolsInfo || !devToolsInfo.webContents) {
-        return { success: false, error: 'DevTools not open' };
-      }
-
-      // Enable Chrome DevTools Protocol
-      const debugger = devToolsInfo.webContents.debugger;
-      
-      if (!debugger.isAttached()) {
+    async openDevTools(webContentsId = null, options = {}) {
         try {
-          debugger.attach('1.3');
+            const { webContents } = require('electron');
+            
+            let targetWebContents;
+            
+            if (webContentsId) {
+                targetWebContents = webContents.fromId(webContentsId);
+            } else {
+                // Use the focused web contents
+                const focusedWindow = require('electron').BrowserWindow.getFocusedWindow();
+                if (focusedWindow) {
+                    targetWebContents = focusedWindow.webContents;
+                }
+            }
+
+            if (!targetWebContents) {
+                throw new Error('No web contents available for DevTools');
+            }
+
+            // Open DevTools
+            targetWebContents.openDevTools({
+                mode: options.mode || 'detach',
+                activate: options.activate !== false
+            });
+
+            const devToolsId = `devtools_${Date.now()}`;
+            this.devToolsWindows.set(devToolsId, {
+                id: devToolsId,
+                webContentsId: targetWebContents.id,
+                opened: new Date(),
+                options: options
+            });
+
+            console.log(`✅ DevTools opened: ${devToolsId}`);
+
+            return {
+                success: true,
+                devtools_id: devToolsId,
+                webcontents_id: targetWebContents.id
+            };
+
         } catch (error) {
-          console.warn('Debugger already attached or failed to attach');
+            console.error(`❌ DevTools open failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
         }
-      }
-
-      // Execute DevTools Protocol command
-      const result = await debugger.sendCommand(command, params);
-      
-      return {
-        success: true,
-        command,
-        result
-      };
-
-    } catch (error) {
-      console.error('DevTools command error:', error);
-      return { success: false, error: error.message };
     }
-  }
 
-  // Advanced DevTools Features
+    async closeDevTools(devToolsId = null) {
+        try {
+            const { webContents } = require('electron');
 
-  async enableNetworkDomain(webContentsId) {
-    return await this.executeDevToolsCommand(webContentsId, 'Network.enable');
-  }
+            if (devToolsId) {
+                const devToolsInfo = this.devToolsWindows.get(devToolsId);
+                if (!devToolsInfo) {
+                    throw new Error('DevTools session not found');
+                }
 
-  async enableRuntimeDomain(webContentsId) {
-    return await this.executeDevToolsCommand(webContentsId, 'Runtime.enable');
-  }
+                const targetWebContents = webContents.fromId(devToolsInfo.webContentsId);
+                if (targetWebContents) {
+                    targetWebContents.closeDevTools();
+                }
 
-  async enablePageDomain(webContentsId) {
-    return await this.executeDevToolsCommand(webContentsId, 'Page.enable');
-  }
+                this.devToolsWindows.delete(devToolsId);
 
-  async getNetworkRequests(webContentsId) {
-    try {
-      // Enable network domain first
-      await this.enableNetworkDomain(webContentsId);
-      
-      // Get network requests (this would need to be tracked over time)
-      return {
-        success: true,
-        message: 'Network monitoring enabled. Use DevTools to view requests.'
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
+                console.log(`✅ DevTools closed: ${devToolsId}`);
 
-  async captureScreenshot(webContentsId, options = {}) {
-    try {
-      const screenshotOptions = {
-        format: options.format || 'png',
-        quality: options.quality || 100,
-        clip: options.clip || undefined,
-        fromSurface: options.fromSurface || true
-      };
+            } else {
+                // Close all DevTools
+                const focusedWindow = require('electron').BrowserWindow.getFocusedWindow();
+                if (focusedWindow) {
+                    focusedWindow.webContents.closeDevTools();
+                }
 
-      const result = await this.executeDevToolsCommand(
-        webContentsId, 
-        'Page.captureScreenshot', 
-        screenshotOptions
-      );
+                console.log('✅ All DevTools closed');
+            }
 
-      if (result.success) {
-        return {
-          success: true,
-          data: result.result.data,
-          format: screenshotOptions.format
-        };
-      }
+            return { success: true };
 
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async evaluateJavaScript(webContentsId, expression, options = {}) {
-    try {
-      const evalOptions = {
-        expression,
-        returnByValue: options.returnByValue !== false,
-        awaitPromise: options.awaitPromise || false,
-        userGesture: options.userGesture || false
-      };
-
-      const result = await this.executeDevToolsCommand(
-        webContentsId,
-        'Runtime.evaluate',
-        evalOptions
-      );
-
-      if (result.success) {
-        return {
-          success: true,
-          result: result.result.result.value,
-          type: result.result.result.type
-        };
-      }
-
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async getPageSource(webContentsId) {
-    try {
-      const result = await this.executeDevToolsCommand(
-        webContentsId,
-        'Runtime.evaluate',
-        { expression: 'document.documentElement.outerHTML', returnByValue: true }
-      );
-
-      if (result.success) {
-        return {
-          success: true,
-          source: result.result.result.value
-        };
-      }
-
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async getCookies(webContentsId, urls = []) {
-    try {
-      const result = await this.executeDevToolsCommand(
-        webContentsId,
-        'Network.getCookies',
-        urls.length > 0 ? { urls } : {}
-      );
-
-      if (result.success) {
-        return {
-          success: true,
-          cookies: result.result.cookies
-        };
-      }
-
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async clearCache(webContentsId) {
-    try {
-      const result = await this.executeDevToolsCommand(
-        webContentsId,
-        'Network.clearBrowserCache'
-      );
-
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async emulateDevice(webContentsId, device = {}) {
-    try {
-      const deviceOptions = {
-        width: device.width || 1920,
-        height: device.height || 1080,
-        deviceScaleFactor: device.deviceScaleFactor || 1,
-        mobile: device.mobile || false,
-        fitWindow: device.fitWindow || false
-      };
-
-      const result = await this.executeDevToolsCommand(
-        webContentsId,
-        'Emulation.setDeviceMetricsOverride',
-        deviceOptions
-      );
-
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Performance Monitoring
-  async enablePerformanceMonitoring(webContentsId) {
-    try {
-      await this.executeDevToolsCommand(webContentsId, 'Performance.enable');
-      const result = await this.executeDevToolsCommand(webContentsId, 'Performance.getMetrics');
-      
-      return {
-        success: true,
-        message: 'Performance monitoring enabled',
-        metrics: result.success ? result.result.metrics : []
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Console API
-  async getConsoleMessages(webContentsId) {
-    try {
-      await this.executeDevToolsCommand(webContentsId, 'Console.enable');
-      
-      return {
-        success: true,
-        message: 'Console monitoring enabled. Messages will be logged.'
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Status and Management
-  isDevToolsOpen(webContentsId) {
-    return this.devToolsWindows.has(webContentsId);
-  }
-
-  getOpenDevTools() {
-    return Array.from(this.devToolsWindows.keys());
-  }
-
-  async closeAllDevTools() {
-    const promises = Array.from(this.devToolsWindows.keys()).map(id => 
-      this.closeDevTools(id)
-    );
-    
-    const results = await Promise.all(promises);
-    
-    return {
-      success: true,
-      closed: results.filter(r => r.success).length,
-      total: results.length
-    };
-  }
-
-  cleanup() {
-    // Close all DevTools windows
-    this.devToolsWindows.forEach((info, webContentsId) => {
-      try {
-        if (info.webContents && !info.webContents.isDestroyed()) {
-          info.webContents.closeDevTools();
+        } catch (error) {
+            console.error(`❌ DevTools close failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
         }
-      } catch (error) {
-        console.error('Error closing DevTools during cleanup:', error);
-      }
-    });
+    }
 
-    this.devToolsWindows.clear();
-    this.protocolClients.clear();
-    
-    console.log('✅ DevTools Manager Cleanup Complete');
-  }
+    async toggleDevTools(webContentsId = null) {
+        try {
+            const { webContents } = require('electron');
+            
+            let targetWebContents;
+            
+            if (webContentsId) {
+                targetWebContents = webContents.fromId(webContentsId);
+            } else {
+                const focusedWindow = require('electron').BrowserWindow.getFocusedWindow();
+                if (focusedWindow) {
+                    targetWebContents = focusedWindow.webContents;
+                }
+            }
+
+            if (!targetWebContents) {
+                throw new Error('No web contents available');
+            }
+
+            if (targetWebContents.isDevToolsOpened()) {
+                targetWebContents.closeDevTools();
+                return { success: true, action: 'closed' };
+            } else {
+                targetWebContents.openDevTools({ mode: 'detach' });
+                return { success: true, action: 'opened' };
+            }
+
+        } catch (error) {
+            console.error(`❌ DevTools toggle failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async executeInDevTools(devToolsId, expression) {
+        try {
+            const devToolsInfo = this.devToolsWindows.get(devToolsId);
+            if (!devToolsInfo) {
+                throw new Error('DevTools session not found');
+            }
+
+            const { webContents } = require('electron');
+            const targetWebContents = webContents.fromId(devToolsInfo.webContentsId);
+            
+            if (!targetWebContents) {
+                throw new Error('Target web contents not found');
+            }
+
+            // Execute in DevTools context
+            const result = await targetWebContents.devToolsWebContents.executeJavaScript(expression);
+
+            console.log(`🔧 DevTools expression executed: ${devToolsId}`);
+
+            return {
+                success: true,
+                result: result
+            };
+
+        } catch (error) {
+            console.error(`❌ DevTools execution failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    getDevToolsInfo(devToolsId) {
+        const devToolsInfo = this.devToolsWindows.get(devToolsId);
+        if (!devToolsInfo) {
+            return {
+                success: false,
+                error: 'DevTools session not found'
+            };
+        }
+
+        return {
+            success: true,
+            devtools: {
+                id: devToolsInfo.id,
+                webContentsId: devToolsInfo.webContentsId,
+                opened: devToolsInfo.opened.toISOString(),
+                options: devToolsInfo.options
+            }
+        };
+    }
+
+    getAllDevToolsSessions() {
+        const sessions = Array.from(this.devToolsWindows.values()).map(session => ({
+            id: session.id,
+            webContentsId: session.webContentsId,
+            opened: session.opened.toISOString(),
+            options: session.options
+        }));
+
+        return {
+            success: true,
+            sessions: sessions,
+            total: sessions.length
+        };
+    }
+
+    enable() {
+        this.isEnabled = true;
+        console.log('✅ DevTools Manager enabled');
+        return { success: true, enabled: true };
+    }
+
+    disable() {
+        this.isEnabled = false;
+        console.log('⚠️ DevTools Manager disabled');
+        return { success: true, enabled: false };
+    }
+
+    async cleanup() {
+        try {
+            // Close all DevTools sessions
+            for (const devToolsId of this.devToolsWindows.keys()) {
+                await this.closeDevTools(devToolsId);
+            }
+
+            console.log('🧹 DevTools Manager cleaned up');
+            return { success: true };
+
+        } catch (error) {
+            console.error(`❌ DevTools cleanup failed:`, error.message);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 module.exports = DevToolsManager;

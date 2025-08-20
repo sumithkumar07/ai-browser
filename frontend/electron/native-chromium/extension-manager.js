@@ -1,360 +1,327 @@
-const { session, app } = require('electron');
-const path = require('path');
-const fs = require('fs');
-
 /**
- * Extension Manager - Chrome Extension Support
- * Enables loading and managing Chrome extensions in the native browser
+ * Extension Manager for Native Chromium
+ * Manages Chrome extensions in Electron
  */
+
+const path = require('path');
+const fs = require('fs').promises;
+
 class ExtensionManager {
-  constructor() {
-    this.loadedExtensions = new Map();
-    this.extensionSessions = new Map();
-    this.extensionDirectory = path.join(app.getPath('userData'), 'extensions');
-    
-    // Ensure extensions directory exists
-    this.ensureExtensionsDirectory();
-    
-    console.log('🧩 Extension Manager Initialized');
-  }
-
-  ensureExtensionsDirectory() {
-    try {
-      if (!fs.existsSync(this.extensionDirectory)) {
-        fs.mkdirSync(this.extensionDirectory, { recursive: true });
-      }
-    } catch (error) {
-      console.error('Failed to create extensions directory:', error);
-    }
-  }
-
-  async loadExtension(extensionPath, sessionName = 'default') {
-    try {
-      // Validate extension path
-      if (!fs.existsSync(extensionPath)) {
-        return { success: false, error: 'Extension path does not exist' };
-      }
-
-      // Check for manifest.json
-      const manifestPath = path.join(extensionPath, 'manifest.json');
-      if (!fs.existsSync(manifestPath)) {
-        return { success: false, error: 'manifest.json not found' };
-      }
-
-      // Read and parse manifest
-      const manifestContent = fs.readFileSync(manifestPath, 'utf8');
-      let manifest;
-      
-      try {
-        manifest = JSON.parse(manifestContent);
-      } catch (error) {
-        return { success: false, error: 'Invalid manifest.json format' };
-      }
-
-      // Validate required manifest fields
-      if (!manifest.name || !manifest.version) {
-        return { success: false, error: 'Invalid manifest: missing name or version' };
-      }
-
-      // Get or create session
-      const ses = sessionName === 'default' ? session.defaultSession : session.fromPartition(sessionName);
-
-      // Load extension
-      const extension = await ses.loadExtension(extensionPath);
-
-      // Store extension info
-      const extensionInfo = {
-        id: extension.id,
-        name: manifest.name,
-        version: manifest.version,
-        description: manifest.description || '',
-        path: extensionPath,
-        manifest,
-        session: sessionName,
-        loadedAt: Date.now()
-      };
-
-      this.loadedExtensions.set(extension.id, extensionInfo);
-
-      console.log(`🧩 Extension loaded: ${manifest.name} v${manifest.version}`);
-
-      return {
-        success: true,
-        extension: extensionInfo,
-        id: extension.id
-      };
-
-    } catch (error) {
-      console.error('Extension loading error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async unloadExtension(extensionId, sessionName = 'default') {
-    try {
-      const extensionInfo = this.loadedExtensions.get(extensionId);
-      
-      if (!extensionInfo) {
-        return { success: false, error: 'Extension not found' };
-      }
-
-      // Get session
-      const ses = sessionName === 'default' ? session.defaultSession : session.fromPartition(sessionName);
-
-      // Remove extension
-      await ses.removeExtension(extensionId);
-
-      // Remove from loaded extensions
-      this.loadedExtensions.delete(extensionId);
-
-      console.log(`🧩 Extension unloaded: ${extensionInfo.name}`);
-
-      return {
-        success: true,
-        extension: extensionInfo
-      };
-
-    } catch (error) {
-      console.error('Extension unloading error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async installExtensionFromCRX(crxPath, sessionName = 'default') {
-    try {
-      // This is a simplified implementation
-      // In a full implementation, you'd need to extract and validate the CRX file
-      return { success: false, error: 'CRX installation not yet implemented' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async installExtensionFromStore(extensionId) {
-    try {
-      // This would require Chrome Web Store API integration
-      return { success: false, error: 'Chrome Web Store installation not yet implemented' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  getLoadedExtensions() {
-    return {
-      success: true,
-      extensions: Array.from(this.loadedExtensions.values()),
-      count: this.loadedExtensions.size
-    };
-  }
-
-  getExtensionInfo(extensionId) {
-    const extension = this.loadedExtensions.get(extensionId);
-    
-    if (extension) {
-      return { success: true, extension };
-    }
-    
-    return { success: false, error: 'Extension not found' };
-  }
-
-  async enableExtension(extensionId, sessionName = 'default') {
-    try {
-      const extensionInfo = this.loadedExtensions.get(extensionId);
-      
-      if (!extensionInfo) {
-        return { success: false, error: 'Extension not found' };
-      }
-
-      // Extensions are enabled by default when loaded
-      // This could be extended to support enable/disable states
-      
-      return {
-        success: true,
-        extension: extensionInfo,
-        status: 'enabled'
-      };
-
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async disableExtension(extensionId, sessionName = 'default') {
-    try {
-      // For now, disabling means unloading
-      // In a full implementation, you'd maintain enabled/disabled state
-      return await this.unloadExtension(extensionId, sessionName);
-
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Extension Communication
-  async sendMessageToExtension(extensionId, message) {
-    try {
-      const extensionInfo = this.loadedExtensions.get(extensionId);
-      
-      if (!extensionInfo) {
-        return { success: false, error: 'Extension not found' };
-      }
-
-      // This would require implementing the Chrome extension messaging API
-      // For now, it's a placeholder
-      
-      return {
-        success: false,
-        error: 'Extension messaging not yet implemented'
-      };
-
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Extension Development Tools
-  async reloadExtension(extensionId) {
-    try {
-      const extensionInfo = this.loadedExtensions.get(extensionId);
-      
-      if (!extensionInfo) {
-        return { success: false, error: 'Extension not found' };
-      }
-
-      // Unload and reload
-      const unloadResult = await this.unloadExtension(extensionId, extensionInfo.session);
-      if (!unloadResult.success) {
-        return unloadResult;
-      }
-
-      const loadResult = await this.loadExtension(extensionInfo.path, extensionInfo.session);
-      return loadResult;
-
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async getExtensionManifest(extensionId) {
-    const extensionInfo = this.loadedExtensions.get(extensionId);
-    
-    if (extensionInfo) {
-      return {
-        success: true,
-        manifest: extensionInfo.manifest
-      };
-    }
-    
-    return { success: false, error: 'Extension not found' };
-  }
-
-  // Popular Extension Presets
-  async loadPopularExtensions() {
-    const popularExtensions = [
-      // These would be popular extension directories if available
-      // 'adblock-plus',
-      // 'react-devtools',
-      // 'vue-devtools',
-      // 'redux-devtools'
-    ];
-
-    const results = [];
-
-    for (const extName of popularExtensions) {
-      const extPath = path.join(this.extensionDirectory, extName);
-      if (fs.existsSync(extPath)) {
-        const result = await this.loadExtension(extPath);
-        results.push({ name: extName, result });
-      }
+    constructor() {
+        this.loadedExtensions = new Map();
+        this.extensionPaths = new Set();
+        this.isEnabled = true;
+        
+        console.log('🧩 Extension Manager initialized');
     }
 
-    return {
-      success: true,
-      loaded: results.filter(r => r.result.success).length,
-      total: results.length,
-      results
-    };
-  }
+    async loadExtension(extensionPath, options = {}) {
+        try {
+            if (!this.isEnabled) {
+                throw new Error('Extension Manager is disabled');
+            }
 
-  // Chrome DevTools Extensions
-  async loadDevToolsExtensions() {
-    try {
-      // Common DevTools extension paths
-      const devToolsExtensions = [
-        'React Developer Tools',
-        'Vue.js devtools',
-        'Redux DevTools',
-        'Apollo Client Developer Tools'
-      ];
+            // Validate extension path
+            const resolvedPath = path.resolve(extensionPath);
+            const manifestPath = path.join(resolvedPath, 'manifest.json');
 
-      // This is a placeholder - actual implementation would locate these extensions
-      return {
-        success: true,
-        message: 'DevTools extensions support available',
-        availableExtensions: devToolsExtensions
-      };
+            // Check if manifest exists
+            try {
+                await fs.access(manifestPath);
+            } catch {
+                throw new Error('Extension manifest.json not found');
+            }
 
-    } catch (error) {
-      return { success: false, error: error.message };
+            // Read and validate manifest
+            const manifestContent = await fs.readFile(manifestPath, 'utf8');
+            const manifest = JSON.parse(manifestContent);
+
+            if (!manifest.name || !manifest.version) {
+                throw new Error('Invalid extension manifest');
+            }
+
+            // Load extension using Electron's session API
+            const { session } = require('electron');
+            const extension = await session.defaultSession.loadExtension(
+                resolvedPath,
+                {
+                    allowFileAccess: options.allowFileAccess !== false,
+                    ...options
+                }
+            );
+
+            const extensionInfo = {
+                id: extension.id,
+                name: manifest.name,
+                version: manifest.version,
+                description: manifest.description || '',
+                path: resolvedPath,
+                manifest: manifest,
+                loaded: new Date(),
+                extension: extension
+            };
+
+            this.loadedExtensions.set(extension.id, extensionInfo);
+            this.extensionPaths.add(resolvedPath);
+
+            console.log(`✅ Extension loaded: ${manifest.name} (${extension.id})`);
+
+            return {
+                success: true,
+                extension_id: extension.id,
+                name: manifest.name,
+                version: manifest.version
+            };
+
+        } catch (error) {
+            console.error(`❌ Extension load failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
     }
-  }
 
-  // Extension Security
-  validateExtensionSecurity(manifest) {
-    const warnings = [];
-    const errors = [];
+    async unloadExtension(extensionId) {
+        try {
+            const extensionInfo = this.loadedExtensions.get(extensionId);
+            if (!extensionInfo) {
+                throw new Error('Extension not found');
+            }
 
-    // Check permissions
-    if (manifest.permissions) {
-      const sensitivePermissions = ['<all_urls>', 'tabs', 'cookies', 'storage'];
-      const requestedSensitive = manifest.permissions.filter(p => 
-        sensitivePermissions.some(sp => p.includes(sp))
-      );
-      
-      if (requestedSensitive.length > 0) {
-        warnings.push(`Requests sensitive permissions: ${requestedSensitive.join(', ')}`);
-      }
+            // Unload extension using Electron's session API
+            const { session } = require('electron');
+            session.defaultSession.removeExtension(extensionId);
+
+            this.loadedExtensions.delete(extensionId);
+            this.extensionPaths.delete(extensionInfo.path);
+
+            console.log(`✅ Extension unloaded: ${extensionInfo.name} (${extensionId})`);
+
+            return {
+                success: true,
+                extension_id: extensionId,
+                name: extensionInfo.name
+            };
+
+        } catch (error) {
+            console.error(`❌ Extension unload failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
     }
 
-    // Check content scripts
-    if (manifest.content_scripts) {
-      const allUrlsScripts = manifest.content_scripts.filter(cs => 
-        cs.matches && cs.matches.includes('<all_urls>')
-      );
-      
-      if (allUrlsScripts.length > 0) {
-        warnings.push('Content scripts run on all URLs');
-      }
+    async reloadExtension(extensionId) {
+        try {
+            const extensionInfo = this.loadedExtensions.get(extensionId);
+            if (!extensionInfo) {
+                throw new Error('Extension not found');
+            }
+
+            const extensionPath = extensionInfo.path;
+
+            // Unload and reload
+            await this.unloadExtension(extensionId);
+            const result = await this.loadExtension(extensionPath);
+
+            if (result.success) {
+                console.log(`✅ Extension reloaded: ${extensionInfo.name}`);
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error(`❌ Extension reload failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
     }
 
-    return {
-      safe: errors.length === 0,
-      warnings,
-      errors
-    };
-  }
+    getLoadedExtensions() {
+        const extensions = Array.from(this.loadedExtensions.values()).map(ext => ({
+            id: ext.id,
+            name: ext.name,
+            version: ext.version,
+            description: ext.description,
+            loaded: ext.loaded.toISOString(),
+            permissions: ext.manifest.permissions || [],
+            content_scripts: ext.manifest.content_scripts || []
+        }));
 
-  // Cleanup
-  async cleanup() {
-    try {
-      // Unload all extensions
-      const extensionIds = Array.from(this.loadedExtensions.keys());
-      const unloadPromises = extensionIds.map(id => this.unloadExtension(id));
-      
-      await Promise.all(unloadPromises);
-      
-      this.loadedExtensions.clear();
-      this.extensionSessions.clear();
-      
-      console.log('✅ Extension Manager Cleanup Complete');
-      
-      return { success: true, unloaded: extensionIds.length };
-
-    } catch (error) {
-      console.error('Extension cleanup error:', error);
-      return { success: false, error: error.message };
+        return {
+            success: true,
+            extensions: extensions,
+            total: extensions.length
+        };
     }
-  }
+
+    getExtensionInfo(extensionId) {
+        const extensionInfo = this.loadedExtensions.get(extensionId);
+        if (!extensionInfo) {
+            return {
+                success: false,
+                error: 'Extension not found'
+            };
+        }
+
+        return {
+            success: true,
+            extension: {
+                id: extensionInfo.id,
+                name: extensionInfo.name,
+                version: extensionInfo.version,
+                description: extensionInfo.description,
+                path: extensionInfo.path,
+                loaded: extensionInfo.loaded.toISOString(),
+                manifest: extensionInfo.manifest
+            }
+        };
+    }
+
+    async installExtensionFromCRX(crxPath) {
+        try {
+            // This is a placeholder for CRX installation
+            // In a full implementation, you would extract and validate the CRX file
+            throw new Error('CRX installation not implemented yet');
+
+        } catch (error) {
+            console.error(`❌ CRX installation failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async enableExtension(extensionId) {
+        try {
+            const extensionInfo = this.loadedExtensions.get(extensionId);
+            if (!extensionInfo) {
+                throw new Error('Extension not found');
+            }
+
+            // Enable extension
+            extensionInfo.enabled = true;
+
+            console.log(`✅ Extension enabled: ${extensionInfo.name}`);
+
+            return {
+                success: true,
+                extension_id: extensionId,
+                enabled: true
+            };
+
+        } catch (error) {
+            console.error(`❌ Extension enable failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async disableExtension(extensionId) {
+        try {
+            const extensionInfo = this.loadedExtensions.get(extensionId);
+            if (!extensionInfo) {
+                throw new Error('Extension not found');
+            }
+
+            // Disable extension
+            extensionInfo.enabled = false;
+
+            console.log(`⚠️ Extension disabled: ${extensionInfo.name}`);
+
+            return {
+                success: true,
+                extension_id: extensionId,
+                enabled: false
+            };
+
+        } catch (error) {
+            console.error(`❌ Extension disable failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    enable() {
+        this.isEnabled = true;
+        console.log('✅ Extension Manager enabled');
+        return { success: true, enabled: true };
+    }
+
+    disable() {
+        this.isEnabled = false;
+        console.log('⚠️ Extension Manager disabled');
+        return { success: true, enabled: false };
+    }
+
+    async loadDefaultExtensions() {
+        try {
+            const defaultExtensionsPath = path.join(__dirname, '..', 'extensions');
+            
+            try {
+                const extensionDirs = await fs.readdir(defaultExtensionsPath);
+                
+                const loadPromises = extensionDirs.map(async (dir) => {
+                    const extensionPath = path.join(defaultExtensionsPath, dir);
+                    const stat = await fs.stat(extensionPath);
+                    
+                    if (stat.isDirectory()) {
+                        return this.loadExtension(extensionPath);
+                    }
+                });
+
+                const results = await Promise.allSettled(loadPromises);
+                const successful = results.filter(r => r.status === 'fulfilled' && r.value.success);
+
+                console.log(`✅ Loaded ${successful.length} default extensions`);
+
+                return {
+                    success: true,
+                    loaded: successful.length,
+                    total: results.length
+                };
+
+            } catch {
+                // Default extensions directory doesn't exist, that's fine
+                console.log('ℹ️ No default extensions directory found');
+                return { success: true, loaded: 0, total: 0 };
+            }
+
+        } catch (error) {
+            console.error(`❌ Default extensions load failed:`, error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async cleanup() {
+        try {
+            // Unload all extensions
+            const extensionIds = Array.from(this.loadedExtensions.keys());
+            
+            for (const extensionId of extensionIds) {
+                await this.unloadExtension(extensionId);
+            }
+
+            console.log('🧹 Extension Manager cleaned up');
+            return { success: true };
+
+        } catch (error) {
+            console.error(`❌ Extension Manager cleanup failed:`, error.message);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 module.exports = ExtensionManager;

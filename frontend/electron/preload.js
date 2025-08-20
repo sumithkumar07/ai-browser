@@ -1,88 +1,97 @@
-const { ipcRenderer, contextBridge } = require('electron');
+/**
+ * Preload script for AETHER Native Chromium Browser
+ * Exposes native capabilities to the renderer process
+ */
 
-// Native API Bridge for Frontend
-const nativeAPI = {
-  // Browser Navigation
-  async navigateTo(url) {
-    return await ipcRenderer.invoke('native-navigate', url);
-  },
+const { contextBridge, ipcRenderer } = require('electron');
 
-  async goBack() {
-    return await ipcRenderer.invoke('native-go-back');
-  },
+// Expose native API to renderer process
+contextBridge.exposeInMainWorld('aetherNative', {
+    // Core browser navigation
+    navigate: (url) => ipcRenderer.invoke('native-navigate', url),
+    goBack: () => ipcRenderer.invoke('native-go-back'),
+    goForward: () => ipcRenderer.invoke('native-go-forward'),
+    refresh: () => ipcRenderer.invoke('native-refresh'),
 
-  async goForward() {
-    return await ipcRenderer.invoke('native-go-forward');
-  },
+    // Screenshot and visual
+    screenshot: (options = {}) => ipcRenderer.invoke('native-screenshot', options),
 
-  async refresh() {
-    return await ipcRenderer.invoke('native-refresh');
-  },
+    // JavaScript execution
+    executeJS: (script) => ipcRenderer.invoke('native-execute-js', script),
 
-  // Screenshot & DevTools
-  async captureScreenshot(options) {
-    return await ipcRenderer.invoke('native-screenshot', options);
-  },
+    // DevTools management
+    openDevTools: () => ipcRenderer.invoke('native-open-devtools'),
+    closeDevTools: () => ipcRenderer.invoke('native-close-devtools'),
 
-  async openDevTools() {
-    return await ipcRenderer.invoke('native-open-devtools');
-  },
+    // Extension management
+    loadExtension: (path) => ipcRenderer.invoke('native-load-extension', path),
+    getExtensions: () => ipcRenderer.invoke('native-get-extensions'),
 
-  // Extension Management
-  async loadExtension(path) {
-    return await ipcRenderer.invoke('native-load-extension', path);
-  },
+    // File system access
+    showOpenDialog: (options) => ipcRenderer.invoke('native-show-open-dialog', options),
+    showSaveDialog: (options) => ipcRenderer.invoke('native-show-save-dialog', options),
 
-  async getExtensions() {
-    return await ipcRenderer.invoke('native-get-extensions');
-  },
+    // Capabilities
+    getCapabilities: () => ipcRenderer.invoke('native-get-capabilities'),
 
-  // File System Access
-  async showOpenDialog(options) {
-    return await ipcRenderer.invoke('native-show-open-dialog', options);
-  },
+    // Event listeners
+    onNavigationComplete: (callback) => {
+        ipcRenderer.on('native-navigation-complete', callback);
+        return () => ipcRenderer.removeListener('native-navigation-complete', callback);
+    },
 
-  async showSaveDialog(options) {
-    return await ipcRenderer.invoke('native-show-save-dialog', options);
-  },
+    onPageLoad: (callback) => {
+        ipcRenderer.on('native-page-load', callback);
+        return () => ipcRenderer.removeListener('native-page-load', callback);
+    },
 
-  // Capabilities Check
-  async getCapabilities() {
-    return await ipcRenderer.invoke('native-get-capabilities');
-  },
+    // Menu commands
+    onNewTab: (callback) => {
+        ipcRenderer.on('native-new-tab', callback);
+        return () => ipcRenderer.removeListener('native-new-tab', callback);
+    },
 
-  // Helper Methods
-  hasNativeChromium() {
-    return true;
-  },
+    onNavigate: (callback) => {
+        ipcRenderer.on('native-navigate', callback);
+        return () => ipcRenderer.removeListener('native-navigate', callback);
+    },
 
-  isElectronApp() {
-    return true;
-  },
+    onGoBack: (callback) => {
+        ipcRenderer.on('native-go-back', callback);
+        return () => ipcRenderer.removeListener('native-go-back', callback);
+    },
 
-  // Event Listeners
-  onNavigationUpdate(callback) {
-    ipcRenderer.on('navigation-updated', callback);
-  },
+    onGoForward: (callback) => {
+        ipcRenderer.on('native-go-forward', callback);
+        return () => ipcRenderer.removeListener('native-go-forward', callback);
+    },
 
-  onNewTab(callback) {
-    ipcRenderer.on('native-new-tab', callback);
-  },
+    onRefresh: (callback) => {
+        ipcRenderer.on('native-refresh', callback);
+        return () => ipcRenderer.removeListener('native-refresh', callback);
+    },
 
-  onNativeCommand(callback) {
-    ipcRenderer.on('native-command', callback);
-  },
+    // Extension manager
+    onOpenExtensionsManager: (callback) => {
+        ipcRenderer.on('open-extensions-manager', callback);
+        return () => ipcRenderer.removeListener('open-extensions-manager', callback);
+    }
+});
 
-  // Remove listeners
-  removeAllListeners(channel) {
-    ipcRenderer.removeAllListeners(channel);
-  }
-};
+// Also expose electron info
+contextBridge.exposeInMainWorld('electronAPI', {
+    versions: process.versions,
+    platform: process.platform,
+    isElectron: true
+});
 
-// Expose Native API to the renderer process
-contextBridge.exposeInMainWorld('nativeAPI', nativeAPI);
+// Enhanced native capabilities flag
+contextBridge.exposeInMainWorld('nativeCapabilities', {
+    hasNativeChromium: true,
+    hasExtensionSupport: true,
+    hasDevTools: true,
+    hasFileSystemAccess: true,
+    version: '6.0.0'
+});
 
-// Also expose to window for compatibility
-window.nativeAPI = nativeAPI;
-
-console.log('🔥 Native API Bridge Loaded - AETHER v6.0 Native Chromium Ready');
+console.log('🔥 AETHER Native Preload Script Loaded - Full Chromium Access Enabled');

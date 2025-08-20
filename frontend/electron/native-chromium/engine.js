@@ -1,363 +1,329 @@
-const { BrowserView, session, webContents } = require('electron');
-const path = require('path');
-const fs = require('fs');
-
 /**
- * Native Chromium Engine - Core Browser Engine Implementation
- * Provides full Chromium capabilities beyond iframe limitations
+ * Native Chromium Engine for Electron
+ * Provides direct Chromium access through Electron's renderer process
  */
-class NativeChromiumEngine {
-  constructor(options = {}) {
-    this.options = {
-      enableExtensions: options.enableExtensions || true,
-      enableDevTools: options.enableDevTools || true,
-      enableFileAccess: options.enableFileAccess || true,
-      enableCrossOrigin: options.enableCrossOrigin || true,
-      userAgent: options.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AETHER/6.0.0 Chrome/120.0.0.0 Safari/537.36',
-      ...options
-    };
 
-    this.browserView = null;
-    this.mainWindow = null;
-    this.currentUrl = null;
-    this.navigationHistory = [];
-    this.currentHistoryIndex = -1;
-    
-    // Native capabilities
-    this.extensions = new Map();
-    this.devToolsOpen = false;
-    
-    console.log('🔥 Native Chromium Engine Initialized');
-  }
+const { BrowserView, session, webContents } = require('electron');
+const EventEmitter = require('events');
 
-  async attachToWindow(window) {
-    this.mainWindow = window;
-    
-    // Create native browser view with full Chromium capabilities
-    this.browserView = new BrowserView({
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        enableRemoteModule: false,
+class NativeChromiumEngine extends EventEmitter {
+    constructor(options = {}) {
+        super();
         
-        // Enable native Chromium features
-        webSecurity: false, // Allow cross-origin requests
-        allowRunningInsecureContent: true,
-        experimentalFeatures: true,
-        
-        // Enable plugins and multimedia
-        plugins: true,
-        javascript: true,
-        webgl: true,
-        webaudio: true,
-        
-        // File system access
-        nodeIntegrationInWorker: false,
-        nodeIntegrationInSubFrames: false,
-        
-        // Custom user agent
-        userAgent: this.options.userAgent
-      }
-    });
-
-    // Attach browser view to window
-    this.mainWindow.setBrowserView(this.browserView);
-    
-    // Set initial bounds (full window minus header)
-    const bounds = this.mainWindow.getBounds();
-    this.browserView.setBounds({
-      x: 0,
-      y: 120, // Leave space for AETHER UI header
-      width: bounds.width,
-      height: bounds.height - 120
-    });
-
-    // Setup native browser view event handlers
-    this.setupBrowserViewEvents();
-    
-    // Configure session for enhanced capabilities
-    await this.configureSession();
-    
-    console.log('✅ Native Chromium Engine Attached to Window');
-    return { success: true };
-  }
-
-  setupBrowserViewEvents() {
-    const webContents = this.browserView.webContents;
-
-    // Navigation events
-    webContents.on('did-start-loading', () => {
-      this.sendToRenderer('navigation-started', { url: this.currentUrl });
-    });
-
-    webContents.on('did-finish-load', () => {
-      this.sendToRenderer('navigation-completed', { 
-        url: this.currentUrl,
-        title: webContents.getTitle(),
-        canGoBack: webContents.canGoBack(),
-        canGoForward: webContents.canGoForward()
-      });
-    });
-
-    webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-      this.sendToRenderer('navigation-failed', {
-        url: validatedURL,
-        error: errorDescription,
-        errorCode
-      });
-    });
-
-    // Title and favicon updates
-    webContents.on('page-title-updated', (event, title) => {
-      this.sendToRenderer('title-updated', { title, url: this.currentUrl });
-    });
-
-    webContents.on('page-favicon-updated', (event, favicons) => {
-      this.sendToRenderer('favicon-updated', { favicons, url: this.currentUrl });
-    });
-
-    // Security and certificate events
-    webContents.on('certificate-error', (event, url, error, certificate, callback) => {
-      // Allow certificate errors for enhanced compatibility
-      event.preventDefault();
-      callback(true);
-    });
-
-    // New window handling
-    webContents.setWindowOpenHandler(({ url, frameName, features, disposition }) => {
-      // Handle new windows natively
-      this.sendToRenderer('new-window-requested', { url, frameName, features, disposition });
-      return { action: 'allow' };
-    });
-
-    // Download handling
-    webContents.session.on('will-download', (event, item, webContents) => {
-      this.sendToRenderer('download-started', {
-        filename: item.getFilename(),
-        url: item.getURL(),
-        totalBytes: item.getTotalBytes()
-      });
-    });
-
-    // Console messages (for debugging)
-    webContents.on('console-message', (event, level, message, line, sourceId) => {
-      if (this.options.enableDevTools) {
-        console.log(`[Native Browser Console] ${level}: ${message}`);
-      }
-    });
-  }
-
-  async configureSession() {
-    const ses = this.browserView.webContents.session;
-
-    // Enable experimental web platform features
-    await ses.setPermissionRequestHandler((webContents, permission, callback) => {
-      // Grant all permissions for enhanced browsing (camera, microphone, etc.)
-      callback(true);
-    });
-
-    // Configure cache for better performance
-    await ses.clearCache();
-
-    // Set custom headers for better compatibility
-    ses.webRequest.onBeforeSendHeaders((details, callback) => {
-      details.requestHeaders['User-Agent'] = this.options.userAgent;
-      callback({ requestHeaders: details.requestHeaders });
-    });
-
-    console.log('✅ Native Session Configured');
-  }
-
-  async navigate(url) {
-    if (!this.browserView) {
-      return { success: false, error: 'Browser view not initialized' };
-    }
-
-    try {
-      // Validate and clean URL
-      let cleanUrl = url;
-      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://') && !cleanUrl.startsWith('file://')) {
-        cleanUrl = `https://${cleanUrl}`;
-      }
-
-      this.currentUrl = cleanUrl;
-      
-      // Add to navigation history
-      this.addToHistory(cleanUrl);
-      
-      // Navigate using native Chromium
-      await this.browserView.webContents.loadURL(cleanUrl);
-      
-      console.log(`🔗 Native Navigation: ${cleanUrl}`);
-      
-      return { 
-        success: true, 
-        url: cleanUrl,
-        canGoBack: this.browserView.webContents.canGoBack(),
-        canGoForward: this.browserView.webContents.canGoForward()
-      };
-      
-    } catch (error) {
-      console.error('Native navigation error:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async goBack() {
-    if (!this.browserView) {
-      return { success: false };
-    }
-
-    try {
-      if (this.browserView.webContents.canGoBack()) {
-        await this.browserView.webContents.goBack();
-        this.currentUrl = this.browserView.webContents.getURL();
-        return { 
-          success: true, 
-          url: this.currentUrl,
-          canGoBack: this.browserView.webContents.canGoBack(),
-          canGoForward: this.browserView.webContents.canGoForward()
+        this.options = {
+            enableExtensions: options.enableExtensions || false,
+            enableDevTools: options.enableDevTools || true,
+            enableFileAccess: options.enableFileAccess || true,
+            enableCrossOrigin: options.enableCrossOrigin || true,
+            ...options
         };
-      }
-      return { success: false, error: 'Cannot go back' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async goForward() {
-    if (!this.browserView) {
-      return { success: false };
+        
+        this.browserViews = new Map();
+        this.mainWindow = null;
+        this.isInitialized = false;
+        
+        console.log('🔥 NativeChromiumEngine initialized with options:', this.options);
     }
 
-    try {
-      if (this.browserView.webContents.canGoForward()) {
-        await this.browserView.webContents.goForward();
-        this.currentUrl = this.browserView.webContents.getURL();
-        return { 
-          success: true, 
-          url: this.currentUrl,
-          canGoBack: this.browserView.webContents.canGoBack(),
-          canGoForward: this.browserView.webContents.canGoForward()
+    async attachToWindow(mainWindow) {
+        this.mainWindow = mainWindow;
+        this.isInitialized = true;
+        
+        // Setup session permissions
+        await this.setupSessionPermissions();
+        
+        console.log('✅ Native Chromium Engine attached to window');
+        return true;
+    }
+
+    async setupSessionPermissions() {
+        const ses = session.defaultSession;
+        
+        // Permission handling for enhanced capabilities
+        ses.setPermissionRequestHandler((webContents, permission, callback) => {
+            console.log(`Permission requested: ${permission}`);
+            
+            // Allow all permissions for native browsing
+            const allowedPermissions = [
+                'camera',
+                'microphone',
+                'notifications',
+                'geolocation',
+                'midi',
+                'midiSysex',
+                'pointerLock',
+                'fullscreen'
+            ];
+            
+            if (allowedPermissions.includes(permission)) {
+                callback(true);
+            } else {
+                callback(false);
+            }
+        });
+
+        // Setup preload script for enhanced capabilities
+        ses.setPreloads([]);
+        
+        console.log('✅ Session permissions configured for native browsing');
+    }
+
+    async navigate(url, sessionId = 'main') {
+        try {
+            if (!this.mainWindow) {
+                throw new Error('Main window not available');
+            }
+
+            // Navigate using main window's webContents
+            await this.mainWindow.webContents.loadURL(url);
+            
+            const result = {
+                success: true,
+                url: this.mainWindow.webContents.getURL(),
+                title: this.mainWindow.webContents.getTitle()
+            };
+
+            this.emit('navigation-complete', { sessionId, ...result });
+            
+            console.log(`🔥 Native navigation successful: ${url}`);
+            return result;
+
+        } catch (error) {
+            console.error(`❌ Navigation failed: ${error.message}`);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async goBack(sessionId = 'main') {
+        try {
+            if (this.mainWindow && this.mainWindow.webContents.canGoBack()) {
+                this.mainWindow.webContents.goBack();
+                
+                return {
+                    success: true,
+                    url: this.mainWindow.webContents.getURL()
+                };
+            }
+            
+            return { success: false, error: 'Cannot go back' };
+            
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async goForward(sessionId = 'main') {
+        try {
+            if (this.mainWindow && this.mainWindow.webContents.canGoForward()) {
+                this.mainWindow.webContents.goForward();
+                
+                return {
+                    success: true,
+                    url: this.mainWindow.webContents.getURL()
+                };
+            }
+            
+            return { success: false, error: 'Cannot go forward' };
+            
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async refresh(sessionId = 'main') {
+        try {
+            if (this.mainWindow) {
+                this.mainWindow.webContents.reload();
+                
+                return {
+                    success: true,
+                    url: this.mainWindow.webContents.getURL()
+                };
+            }
+            
+            return { success: false, error: 'Window not available' };
+            
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async captureScreenshot(options = {}) {
+        try {
+            if (!this.mainWindow) {
+                throw new Error('Main window not available');
+            }
+
+            const image = await this.mainWindow.webContents.capturePage();
+            const buffer = image.toPNG();
+            
+            return {
+                success: true,
+                screenshot: buffer.toString('base64'),
+                format: 'png',
+                size: buffer.length
+            };
+
+        } catch (error) {
+            console.error(`❌ Screenshot failed: ${error.message}`);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async executeJavaScript(script, sessionId = 'main') {
+        try {
+            if (!this.mainWindow) {
+                throw new Error('Main window not available');
+            }
+
+            const result = await this.mainWindow.webContents.executeJavaScript(script);
+            
+            return {
+                success: true,
+                result: result
+            };
+
+        } catch (error) {
+            console.error(`❌ JavaScript execution failed: ${error.message}`);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async getPageInfo(sessionId = 'main') {
+        try {
+            if (!this.mainWindow) {
+                throw new Error('Main window not available');
+            }
+
+            const webContents = this.mainWindow.webContents;
+            
+            return {
+                success: true,
+                url: webContents.getURL(),
+                title: webContents.getTitle(),
+                canGoBack: webContents.canGoBack(),
+                canGoForward: webContents.canGoForward(),
+                isLoading: webContents.isLoading(),
+                zoomLevel: webContents.getZoomLevel()
+            };
+
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async createBrowserView(options = {}) {
+        try {
+            const browserView = new BrowserView({
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    enableRemoteModule: false,
+                    webSecurity: !this.options.enableCrossOrigin,
+                    allowRunningInsecureContent: true,
+                    ...options.webPreferences
+                }
+            });
+
+            const viewId = Date.now().toString();
+            this.browserViews.set(viewId, browserView);
+
+            if (this.mainWindow) {
+                this.mainWindow.setBrowserView(browserView);
+                browserView.setBounds({ x: 0, y: 80, width: 1920, height: 1000 });
+            }
+
+            console.log(`✅ BrowserView created: ${viewId}`);
+            return {
+                success: true,
+                viewId: viewId,
+                view: browserView
+            };
+
+        } catch (error) {
+            console.error(`❌ BrowserView creation failed: ${error.message}`);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async closeBrowserView(viewId) {
+        try {
+            const browserView = this.browserViews.get(viewId);
+            if (!browserView) {
+                throw new Error('BrowserView not found');
+            }
+
+            if (this.mainWindow) {
+                this.mainWindow.removeBrowserView(browserView);
+            }
+
+            browserView.webContents.destroy();
+            this.browserViews.delete(viewId);
+
+            console.log(`✅ BrowserView closed: ${viewId}`);
+            return { success: true };
+
+        } catch (error) {
+            console.error(`❌ BrowserView close failed: ${error.message}`);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async getCapabilities() {
+        return {
+            hasNativeChromium: true,
+            hasExtensionSupport: this.options.enableExtensions,
+            hasDevTools: this.options.enableDevTools,
+            hasFileSystemAccess: this.options.enableFileAccess,
+            hasCrossOriginAccess: this.options.enableCrossOrigin,
+            hasScreenshotCapture: true,
+            hasJavaScriptExecution: true,
+            hasBrowserViewSupport: true,
+            version: '6.0.0',
+            chromiumVersion: process.versions.chrome,
+            electronVersion: process.versions.electron
         };
-      }
-      return { success: false, error: 'Cannot go forward' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async refresh() {
-    if (!this.browserView) {
-      return { success: false };
     }
 
-    try {
-      await this.browserView.webContents.reload();
-      return { 
-        success: true, 
-        url: this.currentUrl 
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
+    async cleanup() {
+        try {
+            // Close all browser views
+            for (const [viewId, browserView] of this.browserViews) {
+                if (this.mainWindow) {
+                    this.mainWindow.removeBrowserView(browserView);
+                }
+                browserView.webContents.destroy();
+            }
+            
+            this.browserViews.clear();
+            this.isInitialized = false;
+            
+            console.log('🧹 Native Chromium Engine cleaned up');
+            return { success: true };
+
+        } catch (error) {
+            console.error(`❌ Cleanup failed: ${error.message}`);
+            return { success: false, error: error.message };
+        }
     }
-  }
-
-  async captureScreenshot(options = {}) {
-    if (!this.browserView) {
-      return { success: false, error: 'Browser view not initialized' };
-    }
-
-    try {
-      const image = await this.browserView.webContents.capturePage();
-      const buffer = image.toPNG();
-      
-      // Save to file if path provided
-      if (options.savePath) {
-        fs.writeFileSync(options.savePath, buffer);
-      }
-      
-      return {
-        success: true,
-        buffer: buffer,
-        dataUrl: `data:image/png;base64,${buffer.toString('base64')}`,
-        size: { width: image.getSize().width, height: image.getSize().height }
-      };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async executeJavaScript(code) {
-    if (!this.browserView) {
-      return { success: false, error: 'Browser view not initialized' };
-    }
-
-    try {
-      const result = await this.browserView.webContents.executeJavaScript(code);
-      return { success: true, result };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async injectCSS(css) {
-    if (!this.browserView) {
-      return { success: false, error: 'Browser view not initialized' };
-    }
-
-    try {
-      await this.browserView.webContents.insertCSS(css);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  addToHistory(url) {
-    // Remove any forward history if we're not at the end
-    if (this.currentHistoryIndex < this.navigationHistory.length - 1) {
-      this.navigationHistory = this.navigationHistory.slice(0, this.currentHistoryIndex + 1);
-    }
-    
-    this.navigationHistory.push(url);
-    this.currentHistoryIndex = this.navigationHistory.length - 1;
-  }
-
-  sendToRenderer(event, data) {
-    if (this.mainWindow && this.mainWindow.webContents) {
-      this.mainWindow.webContents.send(event, data);
-    }
-  }
-
-  async cleanup() {
-    if (this.browserView) {
-      // Clean up browser view
-      this.browserView.webContents.destroy();
-      this.browserView = null;
-    }
-    console.log('✅ Native Chromium Engine Cleanup Complete');
-  }
-
-  // Getters for current state
-  getCurrentUrl() {
-    return this.currentUrl;
-  }
-
-  getNavigationHistory() {
-    return {
-      history: this.navigationHistory,
-      currentIndex: this.currentHistoryIndex
-    };
-  }
-
-  canGoBack() {
-    return this.browserView ? this.browserView.webContents.canGoBack() : false;
-  }
-
-  canGoForward() {
-    return this.browserView ? this.browserView.webContents.canGoForward() : false;
-  }
 }
 
 module.exports = NativeChromiumEngine;
