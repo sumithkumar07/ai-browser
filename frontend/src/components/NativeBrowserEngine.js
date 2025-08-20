@@ -1,563 +1,453 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-
 /**
  * Native Browser Engine Component
- * Provides native Chromium browser integration when running in Electron
+ * Replaces iframe with WebSocket-connected native Chromium engine
+ * Provides Fellou.ai-level capabilities through enhanced backend bridge
  */
+
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import './NativeBrowserEngine.css';
+
 const NativeBrowserEngine = ({ 
   currentUrl, 
   onUrlChange, 
   onNavigationChange, 
-  nativeAPI 
+  sessionId,
+  backendUrl 
 }) => {
-  const [isNativeSupported, setIsNativeSupported] = useState(false);
-  const [browserState, setBrowserState] = useState({
-    url: '',
-    title: 'New Tab',
-    canGoBack: false,
-    canGoForward: false,
-    isLoading: false,
-    isSecure: false
-  });
-  const [capabilities, setCapabilities] = useState(null);
-  const [devToolsOpen, setDevToolsOpen] = useState(false);
-  const [extensions, setExtensions] = useState([]);
+  // Native browser state
+  const [nativeSessionId, setNativeSessionId] = useState(null);
+  const [websocket, setWebsocket] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [screenshot, setScreenshot] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [capabilities, setCapabilities] = useState([]);
+  const [performanceMetrics, setPerformanceMetrics] = useState({});
   
-  const containerRef = useRef(null);
+  // Refs
+  const canvasRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
 
-  // Initialize native browser engine
-  useEffect(() => {
-    const initializeNativeEngine = async () => {
-      if (nativeAPI && nativeAPI.hasNativeChromium()) {
-        console.log('🔥 Initializing Native Chromium Engine...');
-        
-        try {
-          // Get native capabilities
-          const caps = await nativeAPI.getCapabilities();
-          setCapabilities(caps);
-          setIsNativeSupported(true);
-          
-          console.log('✅ Native Chromium Engine Ready:', caps);
-          
-          // Setup event listeners
-          setupNativeEventListeners();
-          
-        } catch (error) {
-          console.error('Failed to initialize native engine:', error);
-          setIsNativeSupported(false);
-        }
-      } else {
-        setIsNativeSupported(false);
-      }
-    };
-
-    initializeNativeEngine();
-    
-    return () => {
-      // Cleanup event listeners
-      if (nativeAPI && nativeAPI.removeAllListeners) {
-        nativeAPI.removeAllListeners('navigation-updated');
-        nativeAPI.removeAllListeners('title-updated');
-        nativeAPI.removeAllListeners('loading-state-changed');
-      }
-    };
-  }, [nativeAPI]);
-
-  // Setup native event listeners
-  const setupNativeEventListeners = useCallback(() => {
-    if (!nativeAPI) return;
-
-    // Navigation events
-    nativeAPI.onNavigationUpdate && nativeAPI.onNavigationUpdate((event, data) => {
-      setBrowserState(prev => ({
-        ...prev,
-        url: data.url,
-        title: data.title || prev.title,
-        canGoBack: data.canGoBack,
-        canGoForward: data.canGoForward,
-        isLoading: data.isLoading,
-        isSecure: data.url?.startsWith('https://')
-      }));
-
-      if (onUrlChange && data.url !== currentUrl) {
-        onUrlChange(data.url);
-      }
-
-      if (onNavigationChange) {
-        onNavigationChange({
-          canGoBack: data.canGoBack,
-          canGoForward: data.canGoForward,
-          isLoading: data.isLoading
-        });
-      }
-    });
-
-    // New tab requests
-    nativeAPI.onNewTab && nativeAPI.onNewTab((event) => {
-      handleNewTab();
-    });
-
-    // Native commands
-    nativeAPI.onNativeCommand && nativeAPI.onNativeCommand((event, command) => {
-      handleNativeCommand(command);
-    });
-
-  }, [nativeAPI, currentUrl, onUrlChange, onNavigationChange]);
-
-  // Navigate using native engine
-  const handleNavigate = useCallback(async (url) => {
-    if (!isNativeSupported || !nativeAPI) {
-      console.warn('Native navigation not supported');
-      return;
-    }
-
+  // Initialize native browser session
+  const initializeNativeSession = useCallback(async () => {
     try {
-      setBrowserState(prev => ({ ...prev, isLoading: true }));
-      
-      const result = await nativeAPI.navigateTo(url);
-      
-      if (result.success) {
-        setBrowserState(prev => ({
-          ...prev,
-          url: result.url || url,
-          isLoading: false,
-          canGoBack: result.canGoBack || false,
-          canGoForward: result.canGoForward || false,
-          isSecure: url.startsWith('https://')
-        }));
+      const response = await fetch(`${backendUrl}/api/native/create-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_session: sessionId,
+          user_agent: navigator.userAgent
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setNativeSessionId(result.session_id);
+        setCapabilities(result.capabilities);
         
-        if (onUrlChange) {
-          onUrlChange(result.url || url);
-        }
+        // Initialize WebSocket connection
+        initializeWebSocket(result.session_id);
+        
+        console.log('✅ Native browser session initialized:', result.session_id);
+        return result.session_id;
       } else {
-        console.error('Native navigation failed:', result.error);
-        setBrowserState(prev => ({ ...prev, isLoading: false }));
+        throw new Error('Failed to create native session');
       }
     } catch (error) {
+      console.error('Native session initialization error:', error);
+      return null;
+    }
+  }, [backendUrl, sessionId]);
+
+  // Initialize WebSocket connection for real-time control
+  const initializeWebSocket = useCallback((sessionId) => {
+    try {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/ws/native/${sessionId}`;
+      
+      const ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('🔥 Native browser WebSocket connected');
+        setIsConnected(true);
+        setWebsocket(ws);
+        
+        // Send initial status request
+        ws.send(JSON.stringify({
+          action: 'get_status'
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleWebSocketMessage(data);
+        } catch (error) {
+          console.error('WebSocket message parse error:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('Native browser WebSocket disconnected');
+        setIsConnected(false);
+        setWebsocket(null);
+        
+        // Attempt reconnection
+        reconnectTimerRef.current = setTimeout(() => {
+          if (nativeSessionId) {
+            initializeWebSocket(nativeSessionId);
+          }
+        }, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+    } catch (error) {
+      console.error('WebSocket initialization error:', error);
+    }
+  }, [nativeSessionId]);
+
+  // Handle WebSocket messages
+  const handleWebSocketMessage = useCallback((data) => {
+    switch (data.type) {
+      case 'connection_established':
+        console.log('Native browser ready:', data.session_id);
+        break;
+        
+      case 'navigation_complete':
+        setIsLoading(false);
+        onUrlChange(data.url);
+        onNavigationChange({
+          canGoBack: true, // TODO: Get from session state
+          canGoForward: false, // TODO: Get from session state
+          isLoading: false,
+          title: data.title,
+          securityInfo: data.security
+        });
+        
+        // Request screenshot update
+        requestScreenshot();
+        break;
+        
+      case 'page_loaded':
+        setIsLoading(false);
+        onUrlChange(data.url);
+        
+        // Auto-capture screenshot on page load
+        requestScreenshot();
+        break;
+        
+      case 'screenshot_captured':
+        if (data.success && data.screenshot) {
+          setScreenshot(`data:image/jpeg;base64,${data.screenshot}`);
+          renderScreenshotToCanvas(data.screenshot);
+        }
+        break;
+        
+      case 'performance_update':
+        setPerformanceMetrics(data.metrics);
+        break;
+        
+      default:
+        console.log('Unknown WebSocket message:', data);
+    }
+  }, [onUrlChange, onNavigationChange]);
+
+  // Navigate to URL using native engine
+  const navigateToUrl = useCallback(async (url) => {
+    if (!websocket || !isConnected) {
+      console.error('Native browser not connected');
+      return false;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      websocket.send(JSON.stringify({
+        action: 'navigate',
+        url: url
+      }));
+      
+      return true;
+    } catch (error) {
       console.error('Navigation error:', error);
-      setBrowserState(prev => ({ ...prev, isLoading: false }));
+      setIsLoading(false);
+      return false;
     }
-  }, [isNativeSupported, nativeAPI, onUrlChange]);
+  }, [websocket, isConnected]);
 
-  // Native browser controls
-  const handleGoBack = useCallback(async () => {
-    if (isNativeSupported && nativeAPI) {
-      const result = await nativeAPI.goBack();
-      if (result.success && onUrlChange) {
-        onUrlChange(result.url);
-      }
+  // Request screenshot from native engine
+  const requestScreenshot = useCallback(() => {
+    if (websocket && isConnected) {
+      websocket.send(JSON.stringify({
+        action: 'screenshot',
+        full_page: false,
+        quality: 80
+      }));
     }
-  }, [isNativeSupported, nativeAPI, onUrlChange]);
+  }, [websocket, isConnected]);
 
-  const handleGoForward = useCallback(async () => {
-    if (isNativeSupported && nativeAPI) {
-      const result = await nativeAPI.goForward();
-      if (result.success && onUrlChange) {
-        onUrlChange(result.url);
-      }
+  // Execute JavaScript in native browser
+  const executeJavaScript = useCallback(async (script, args = []) => {
+    if (!websocket || !isConnected) {
+      return { success: false, error: 'Not connected' };
     }
-  }, [isNativeSupported, nativeAPI, onUrlChange]);
 
-  const handleRefresh = useCallback(async () => {
-    if (isNativeSupported && nativeAPI) {
-      await nativeAPI.refresh();
-    }
-  }, [isNativeSupported, nativeAPI]);
-
-  // DevTools management
-  const handleToggleDevTools = useCallback(async () => {
-    if (isNativeSupported && nativeAPI) {
-      try {
-        if (devToolsOpen) {
-          // Close DevTools (if API supports it)
-          setDevToolsOpen(false);
-        } else {
-          const result = await nativeAPI.openDevTools();
-          if (result.success) {
-            setDevToolsOpen(true);
-          }
+    return new Promise((resolve) => {
+      const messageId = `js_${Date.now()}`;
+      
+      const handleResponse = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.messageId === messageId) {
+          websocket.removeEventListener('message', handleResponse);
+          resolve(data);
         }
-      } catch (error) {
-        console.error('DevTools toggle error:', error);
-      }
-    }
-  }, [isNativeSupported, nativeAPI, devToolsOpen]);
+      };
 
-  // Screenshot capture
-  const handleCaptureScreenshot = useCallback(async () => {
-    if (isNativeSupported && nativeAPI) {
-      try {
-        const result = await nativeAPI.captureScreenshot({
-          format: 'png',
-          quality: 90
-        });
-        
-        if (result.success) {
-          // Download or display screenshot
-          const link = document.createElement('a');
-          link.href = result.dataUrl;
-          link.download = `aether-screenshot-${Date.now()}.png`;
-          link.click();
-        }
-      } catch (error) {
-        console.error('Screenshot capture error:', error);
-      }
-    }
-  }, [isNativeSupported, nativeAPI]);
+      websocket.addEventListener('message', handleResponse);
+      
+      websocket.send(JSON.stringify({
+        action: 'execute_js',
+        messageId: messageId,
+        script: script,
+        args: args
+      }));
+      
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        websocket.removeEventListener('message', handleResponse);
+        resolve({ success: false, error: 'Timeout' });
+      }, 10000);
+    });
+  }, [websocket, isConnected]);
 
-  // Extension management
-  const loadExtensions = useCallback(async () => {
-    if (isNativeSupported && nativeAPI) {
-      try {
-        const result = await nativeAPI.getExtensions();
-        if (result.success) {
-          setExtensions(result.extensions || []);
-        }
-      } catch (error) {
-        console.error('Extension loading error:', error);
-      }
+  // Click element in native browser
+  const clickElement = useCallback(async (selector) => {
+    if (!websocket || !isConnected) {
+      return { success: false, error: 'Not connected' };
     }
-  }, [isNativeSupported, nativeAPI]);
 
-  // Load extension from directory
-  const handleLoadExtension = useCallback(async () => {
-    if (isNativeSupported && nativeAPI) {
-      try {
-        const result = await nativeAPI.showOpenDialog({
-          properties: ['openDirectory'],
-          title: 'Select Chrome Extension Directory'
-        });
-        
-        if (!result.canceled && result.filePaths.length > 0) {
-          const extensionPath = result.filePaths[0];
-          const loadResult = await nativeAPI.loadExtension(extensionPath);
-          
-          if (loadResult.success) {
-            console.log('Extension loaded:', loadResult.extension);
-            await loadExtensions(); // Refresh extensions list
-          } else {
-            console.error('Extension load failed:', loadResult.error);
-          }
-        }
-      } catch (error) {
-        console.error('Extension selection error:', error);
-      }
+    websocket.send(JSON.stringify({
+      action: 'click',
+      selector: selector
+    }));
+
+    // Request updated screenshot after click
+    setTimeout(requestScreenshot, 1000);
+    
+    return { success: true };
+  }, [websocket, isConnected, requestScreenshot]);
+
+  // Type text in native browser
+  const typeText = useCallback(async (selector, text) => {
+    if (!websocket || !isConnected) {
+      return { success: false, error: 'Not connected' };
     }
-  }, [isNativeSupported, nativeAPI, loadExtensions]);
 
-  // Handle new tab
-  const handleNewTab = useCallback(() => {
-    // This would be handled by the parent component
-    console.log('New tab requested via native menu');
+    websocket.send(JSON.stringify({
+      action: 'type',
+      selector: selector,
+      text: text
+    }));
+
+    // Request updated screenshot after typing
+    setTimeout(requestScreenshot, 1000);
+    
+    return { success: true };
+  }, [websocket, isConnected, requestScreenshot]);
+
+  // Render screenshot to canvas with click handling
+  const renderScreenshotToCanvas = useCallback((screenshotBase64) => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+    };
+
+    img.src = `data:image/jpeg;base64,${screenshotBase64}`;
   }, []);
 
-  // Handle native commands from menu
-  const handleNativeCommand = useCallback((command) => {
-    switch (command.type) {
-      case 'navigate':
-        if (command.url) {
-          handleNavigate(command.url);
-        }
-        break;
-      case 'refresh':
-        handleRefresh();
-        break;
-      case 'devtools':
-        handleToggleDevTools();
-        break;
-      case 'screenshot':
-        handleCaptureScreenshot();
-        break;
-      default:
-        console.log('Unknown native command:', command);
+  // Handle canvas clicks (convert to browser coordinates)
+  const handleCanvasClick = useCallback(async (event) => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Calculate click coordinates relative to canvas
+    const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+
+    // Send click coordinates to native browser
+    if (websocket && isConnected) {
+      websocket.send(JSON.stringify({
+        action: 'click_coordinates',
+        x: Math.round(x),
+        y: Math.round(y)
+      }));
+
+      // Request updated screenshot
+      setTimeout(requestScreenshot, 1000);
     }
-  }, [handleNavigate, handleRefresh, handleToggleDevTools, handleCaptureScreenshot]);
+  }, [websocket, isConnected, requestScreenshot]);
+
+  // Initialize when component mounts
+  useEffect(() => {
+    initializeNativeSession();
+    
+    return () => {
+      // Cleanup
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+      if (websocket) {
+        websocket.close();
+      }
+    };
+  }, [initializeNativeSession]);
 
   // Navigate when currentUrl changes
   useEffect(() => {
-    if (currentUrl && currentUrl !== browserState.url) {
-      handleNavigate(currentUrl);
+    if (currentUrl && isConnected) {
+      navigateToUrl(currentUrl);
     }
-  }, [currentUrl, browserState.url, handleNavigate]);
+  }, [currentUrl, isConnected, navigateToUrl]);
 
-  // Load extensions on mount
+  // Auto-refresh screenshot every 5 seconds when idle
   useEffect(() => {
-    if (isNativeSupported) {
-      loadExtensions();
-    }
-  }, [isNativeSupported, loadExtensions]);
+    const interval = setInterval(() => {
+      if (isConnected && !isLoading) {
+        requestScreenshot();
+      }
+    }, 5000);
 
-  if (!isNativeSupported) {
-    return (
-      <div className="native-browser-fallback">
-        <div className="fallback-message">
-          <h3>🌐 Web Version Mode</h3>
-          <p>Native Chromium engine is available in the desktop app.</p>
-          <p>Currently running enhanced iframe browser engine.</p>
-        </div>
-      </div>
-    );
-  }
+    return () => clearInterval(interval);
+  }, [isConnected, isLoading, requestScreenshot]);
+
+  // Expose native browser API for parent components
+  React.useImperativeHandle(React.forwardRef(), () => ({
+    navigateToUrl,
+    executeJavaScript,
+    clickElement,
+    typeText,
+    requestScreenshot,
+    capabilities,
+    performanceMetrics,
+    isConnected
+  }), [navigateToUrl, executeJavaScript, clickElement, typeText, requestScreenshot, capabilities, performanceMetrics, isConnected]);
 
   return (
-    <div className="native-browser-engine" ref={containerRef}>
-      {/* Native Browser Status */}
-      <div className="native-status-bar">
-        <div className="native-status-info">
-          <span className="native-indicator">🔥</span>
-          <span className="native-text">Native Chromium Engine</span>
-          {capabilities && (
-            <span className="chromium-version">
-              v{capabilities.chromiumVersion}
-            </span>
-          )}
+    <div className="native-browser-engine">
+      {/* Connection Status */}
+      <div className={`native-status ${isConnected ? 'connected' : 'disconnected'}`}>
+        <div className="status-indicator">
+          {isConnected ? '🔥' : '⚠️'}
         </div>
-        
-        <div className="native-controls">
-          <button
-            className="native-control-btn"
-            onClick={handleToggleDevTools}
-            title="Toggle DevTools (F12)"
-          >
-            🔧
-          </button>
-          
-          <button
-            className="native-control-btn"
-            onClick={handleCaptureScreenshot}
-            title="Capture Screenshot"
-          >
-            📸
-          </button>
-          
-          <button
-            className="native-control-btn"
-            onClick={handleLoadExtension}
-            title="Load Extension"
-          >
-            🧩
-          </button>
-          
-          {extensions.length > 0 && (
-            <div className="extensions-indicator">
-              <span className="extensions-count">{extensions.length}</span>
-              <span className="extensions-text">Extensions</span>
-            </div>
-          )}
-        </div>
+        <span className="status-text">
+          {isConnected 
+            ? `Native Chromium (${capabilities.length} capabilities)` 
+            : 'Connecting to Native Engine...'
+          }
+        </span>
+        {performanceMetrics.load_time && (
+          <span className="performance-info">
+            Load: {Math.round(performanceMetrics.load_time)}ms
+          </span>
+        )}
       </div>
 
-      {/* Native Browser View Container */}
-      <div className="native-browser-container">
-        {/* The actual browser view is managed by Electron BrowserView */}
-        {/* This div serves as a placeholder and reference point */}
-        <div className="native-browser-placeholder">
-          {browserState.isLoading && (
-            <div className="native-loading-overlay">
-              <div className="native-loading-spinner"></div>
-              <div className="native-loading-text">
-                Loading with Native Chromium Engine...
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Native Features Showcase */}
-      {capabilities && (
-        <div className="native-capabilities">
-          <div className="capability-item">
-            <span className="capability-icon">✅</span>
-            <span>Native Navigation</span>
-          </div>
-          <div className="capability-item">
-            <span className="capability-icon">🔧</span>
-            <span>DevTools Access</span>
-          </div>
-          <div className="capability-item">
-            <span className="capability-icon">🧩</span>
-            <span>Extension Support</span>
-          </div>
-          <div className="capability-item">
-            <span className="capability-icon">🌐</span>
-            <span>Cross-Origin Access</span>
-          </div>
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="native-loading-overlay">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">Loading with Native Chromium...</div>
         </div>
       )}
 
-      <style jsx>{`
-        .native-browser-engine {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-        }
+      {/* Native Browser Canvas */}
+      <div className="native-browser-canvas">
+        {screenshot ? (
+          <canvas
+            ref={canvasRef}
+            className="browser-canvas"
+            onClick={handleCanvasClick}
+            style={{
+              width: '100%',
+              height: 'auto',
+              cursor: 'pointer',
+              border: isConnected ? '2px solid #4CAF50' : '2px solid #ff9800'
+            }}
+            title="Native Chromium Browser - Click to interact"
+          />
+        ) : (
+          <div className="canvas-placeholder">
+            <div className="placeholder-icon">🌐</div>
+            <div className="placeholder-text">
+              {isConnected 
+                ? 'Capturing browser view...' 
+                : 'Connecting to Native Chromium Engine...'
+              }
+            </div>
+          </div>
+        )}
+      </div>
 
-        .native-status-bar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 16px;
-          background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-          border-bottom: 1px solid #4c1d95;
-          color: white;
-          font-size: 12px;
-        }
+      {/* Native Browser Controls */}
+      {isConnected && (
+        <div className="native-controls">
+          <button 
+            className="native-control-btn"
+            onClick={() => executeJavaScript('window.history.back()')}
+            title="Go Back"
+          >
+            ←
+          </button>
+          <button 
+            className="native-control-btn"
+            onClick={() => executeJavaScript('window.history.forward()')}
+            title="Go Forward"
+          >
+            →
+          </button>
+          <button 
+            className="native-control-btn"
+            onClick={() => executeJavaScript('window.location.reload()')}
+            title="Refresh"
+          >
+            ↻
+          </button>
+          <button 
+            className="native-control-btn"
+            onClick={requestScreenshot}
+            title="Refresh View"
+          >
+            📷
+          </button>
+          <button 
+            className="native-control-btn"
+            onClick={() => executeJavaScript('window.scrollTo(0, 0)')}
+            title="Scroll to Top"
+          >
+            ⬆️
+          </button>
+        </div>
+      )}
 
-        .native-status-info {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .native-indicator {
-          font-size: 14px;
-        }
-
-        .native-text {
-          font-weight: 600;
-        }
-
-        .chromium-version {
-          background: rgba(147, 51, 234, 0.3);
-          padding: 2px 6px;
-          border-radius: 10px;
-          font-size: 10px;
-        }
-
-        .native-controls {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .native-control-btn {
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-          transition: all 0.2s ease;
-        }
-
-        .native-control-btn:hover {
-          background: rgba(255, 255, 255, 0.2);
-          transform: translateY(-1px);
-        }
-
-        .extensions-indicator {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          background: rgba(34, 197, 94, 0.2);
-          padding: 4px 8px;
-          border-radius: 10px;
-        }
-
-        .extensions-count {
-          background: rgba(34, 197, 94, 0.8);
-          color: white;
-          padding: 2px 6px;
-          border-radius: 8px;
-          font-size: 10px;
-          font-weight: bold;
-        }
-
-        .native-browser-container {
-          flex: 1;
-          position: relative;
-          background: #1f1f1f;
-        }
-
-        .native-browser-placeholder {
-          width: 100%;
-          height: 100%;
-          position: relative;
-        }
-
-        .native-loading-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.8);
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          color: white;
-        }
-
-        .native-loading-spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid rgba(147, 51, 234, 0.3);
-          border-top: 3px solid #9333ea;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin-bottom: 16px;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        .native-loading-text {
-          font-size: 14px;
-          color: #e5e7eb;
-        }
-
-        .native-capabilities {
-          display: flex;
-          justify-content: center;
-          gap: 20px;
-          padding: 12px;
-          background: rgba(30, 27, 75, 0.5);
-          border-top: 1px solid #4c1d95;
-        }
-
-        .capability-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #e5e7eb;
-          font-size: 12px;
-        }
-
-        .capability-icon {
-          font-size: 14px;
-        }
-
-        .native-browser-fallback {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 300px;
-          background: rgba(30, 27, 75, 0.1);
-          border: 2px dashed #4c1d95;
-          border-radius: 8px;
-          margin: 20px;
-        }
-
-        .fallback-message {
-          text-align: center;
-          color: #6b7280;
-        }
-
-        .fallback-message h3 {
-          color: #374151;
-          margin-bottom: 12px;
-        }
-
-        .fallback-message p {
-          margin: 4px 0;
-          font-size: 14px;
-        }
-      `}</style>
+      {/* Development Info */}
+      {process.env.NODE_ENV === 'development' && isConnected && (
+        <div className="dev-info">
+          <div>Session: {nativeSessionId}</div>
+          <div>Capabilities: {capabilities.join(', ')}</div>
+          <div>WebSocket: {isConnected ? 'Connected' : 'Disconnected'}</div>
+        </div>
+      )}
     </div>
   );
 };
