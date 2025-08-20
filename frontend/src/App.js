@@ -917,38 +917,26 @@ function App() {
                     </div>
                   )}
                   
-                  {/* Use Native Browser Engine if available, otherwise iframe */}
-                  {nativeAPI?.hasNativeChromium() ? (
-                    <NativeBrowserEngine 
-                      currentUrl={currentUrl}
-                      onUrlChange={setCurrentUrl}
-                      onNavigationChange={(data) => {
-                        setCanGoBack(data.canGoBack);
-                        setCanGoForward(data.canGoForward);
-                        setIsLoading(data.isLoading);
-                        if (data.title) {
-                          const updatedTabs = tabs.map(tab => 
-                            tab.id === activeTab 
-                              ? { ...tab, title: data.title }
-                              : tab
-                          );
-                          setTabs(updatedTabs);
-                        }
-                      }}
-                      sessionId={sessionId}
-                      backendUrl={backendUrl}
-                    />
-                  ) : (
-                    <iframe
-                      ref={iframeRef}
-                      src={currentUrl}
-                      className="web-iframe"
-                      title="Web Content"
-                      sandbox="allow-same-origin allow-scripts allow-forms allow-navigation allow-popups allow-popups-to-escape-sandbox"
-                      onLoad={() => setIsLoading(false)}
-                      aria-label={`Web content for ${getDomainFromUrl(currentUrl)}`}
-                    />
-                  )}
+                  {/* Native Browser Engine - Always Active */}
+                  <NativeBrowserEngine 
+                    currentUrl={currentUrl}
+                    onUrlChange={setCurrentUrl}
+                    onNavigationChange={(data) => {
+                      setCanGoBack(data.canGoBack);
+                      setCanGoForward(data.canGoForward);
+                      setIsLoading(data.isLoading);
+                      if (data.title) {
+                        const updatedTabs = tabs.map(tab => 
+                          tab.id === activeTab 
+                            ? { ...tab, title: data.title }
+                            : tab
+                        );
+                        setTabs(updatedTabs);
+                      }
+                    }}
+                    sessionId={sessionId}
+                    backendUrl={backendUrl}
+                  />
                 </div>
               ) : (
                 <div className="start-page">
