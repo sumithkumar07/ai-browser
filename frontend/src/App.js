@@ -23,6 +23,9 @@ import SimplifiedInterface from './components/SimplifiedInterface';
 // Import FELLOU.AI-INSPIRED INTERFACE
 import FellouInspiredInterface from './components/FellouInspiredInterface';
 
+// Import ULTIMATE SIMPLICITY INTERFACE
+import UltimateSimplicityInterface from './components/UltimateSimplicityInterface';
+
 function App() {
   // AETHER v6.0 - Enhanced with native Chromium and Fellou.ai-style interface
   const [interfaceMode, setInterfaceMode] = useState('fellou-browser'); // 'fellou-browser', 'fellou' or 'traditional'
