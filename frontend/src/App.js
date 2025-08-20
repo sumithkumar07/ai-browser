@@ -552,8 +552,46 @@ function App() {
 
   return (
     <div className="browser-app">
-      {/* INTERFACE MODE SELECTION: Fellou.ai Style vs Traditional */}
-      {interfaceMode === 'fellou' ? (
+      {/* INTERFACE MODE SELECTION: Fellou.ai Browser Style vs Simplified vs Traditional */}
+      {interfaceMode === 'fellou-browser' ? (
+        <>
+          {/* FELLOU.AI-INSPIRED BROWSER INTERFACE - Full Browser Experience */}
+          <FellouInspiredInterface 
+            onNavigate={handleNavigate}
+            currentUrl={currentUrl}
+            urlInput={urlInput}
+            setUrlInput={setUrlInput}
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabSwitch={switchTab}
+            onTabClose={closeTab}
+            onNewTab={createNewTab}
+            canGoBack={canGoBack}
+            canGoForward={canGoForward}
+            onGoBack={handleGoBack}
+            onGoForward={handleGoForward}
+            onRefresh={handleRefresh}
+            isLoading={isLoading}
+            isSecure={isSecure}
+            aiVisible={aiVisible}
+            setAiVisible={setAiVisible}
+            chatMessages={chatMessages}
+            setChatMessages={setChatMessages}
+            aiInput={aiInput}
+            setAiInput={setAiInput}
+            aiLoading={aiLoading}
+            onSendMessage={handleAiMessage}
+            sessionId={sessionId}
+            backgroundTasks={backgroundTasks}
+          />
+          
+          {/* Shadow Workspace Manager - Background task execution */}
+          <ShadowWorkspaceManager 
+            backendUrl={backendUrl}
+            userSession={sessionId}
+          />
+        </>
+      ) : interfaceMode === 'fellou' ? (
         <>
           {/* FELLOU.AI-STYLE INTERFACE - Simplified & Command-First */}
           <SimplifiedInterface 
