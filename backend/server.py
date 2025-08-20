@@ -511,6 +511,29 @@ async def get_ai_response(message: str, context: Optional[str] = None,
         return "I apologize for the technical issue. Please try again later."
 
 # API Routes
+@app.on_event("startup")
+async def startup_event():
+    """Ensure Native Chromium Engine is properly initialized on startup"""
+    global native_chromium_engine_instance
+    
+    try:
+        # Initialize native chromium engine if not already done
+        if native_chromium_engine_instance is None and NATIVE_CHROMIUM_AVAILABLE:
+            logger.info("🔥 Startup: Initializing Native Chromium Engine...")
+            native_chromium_engine_instance = await initialize_native_chromium_engine(client)
+            
+            if native_chromium_engine_instance:
+                logger.info("✅ Startup: Native Chromium Engine ready")
+            else:
+                logger.warning("⚠️ Startup: Native Chromium Engine initialization failed")
+        
+        logger.info("🚀 AETHER Backend fully initialized with complete native integration")
+        
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+
+
+# Health check endpoint that ensures native engine is ready
 @app.get("/api/health")
 async def health_check():
     """Enhanced health check with Phase 1-3 status"""
