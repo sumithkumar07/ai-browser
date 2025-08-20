@@ -1,4 +1,10 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+"""
+AETHER Native Chromium Browser API v6.0.0
+Complete Native Integration - No iframe fallbacks
+"""
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -15,111 +21,71 @@ import logging
 import time
 import asyncio
 
+# Native Chromium imports
+from native_chromium_engine import initialize_native_chromium_engine, get_native_chromium_engine
+from native_chromium_endpoints import setup_native_chromium_endpoints
+from native_endpoints import add_native_endpoints
+
 load_dotenv()
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import enhanced automation capabilities
-try:
-    from enhanced_server import enhanced_chat_with_ai
-    from enhanced_automation import nlp_processor, initialize_task_executor, get_task_executor
-    ENHANCED_MODE = True
-    logger.info("Enhanced automation capabilities loaded successfully")
-except ImportError as e:
-    ENHANCED_MODE = False
-    nlp_processor = None
-    get_task_executor = lambda: None
-    logger.warning(f"Enhanced automation not available: {e}")
+# Database connection
+MONGO_URL = os.getenv("MONGO_URL")
+client = MongoClient(MONGO_URL)
+db = client.aether_browser
 
-# Import Native Chromium Integration (Enhanced) - NEW IMPLEMENTATION
-try:
-    from native_chromium_engine import initialize_native_chromium_engine, get_native_chromium_engine
-    from native_chromium_endpoints import setup_native_chromium_endpoints
-    NATIVE_CHROMIUM_AVAILABLE = True
-    logger.info("🔥 Native Chromium Engine loaded successfully")
+# AI clients initialization
+groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# Global native engine
+native_chromium_engine_instance = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Native Chromium Engine Lifespan Management"""
+    global native_chromium_engine_instance
     
-except ImportError as e:
-    NATIVE_CHROMIUM_AVAILABLE = False
-    logger.warning(f"Native Chromium Engine not available: {e}")
-    get_native_chromium_engine = lambda: None
-    setup_native_chromium_endpoints = lambda x: None
-except Exception as e:
-    NATIVE_CHROMIUM_AVAILABLE = False
-    logger.error(f"Native Chromium Engine error: {e}")
-    get_native_chromium_engine = lambda: None
-    setup_native_chromium_endpoints = lambda x: None
+    # Startup
+    logger.info("🔥 AETHER Native Chromium Integration - Starting...")
+    try:
+        # Initialize Native Chromium Engine
+        native_chromium_engine_instance = await initialize_native_chromium_engine(client)
+        
+        if native_chromium_engine_instance:
+            logger.info("✅ Native Chromium Engine initialized successfully")
+            logger.info("   ✅ Playwright Browser Engine Ready")
+            logger.info("   ✅ WebSocket Real-time Control Ready")
+            logger.info("   ✅ Advanced DevTools Protocol Ready")
+            logger.info("   ✅ Performance Monitoring Ready")
+            logger.info("   ✅ Security Analysis Ready")
+            logger.info("   ✅ Screenshot & Automation Ready")
+            
+            # Setup Native Chromium API endpoints
+            setup_native_chromium_endpoints(app)
+            logger.info("   ✅ Native API endpoints configured")
+            logger.info("🚀 COMPLETE NATIVE CHROMIUM INTEGRATION ACTIVE")
+        else:
+            logger.error("❌ Native Chromium Engine initialization failed")
+            
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+    
+    yield
+    
+    # Shutdown
+    if native_chromium_engine_instance:
+        await native_chromium_engine_instance.cleanup()
+        logger.info("🧹 Native Chromium Engine cleaned up")
 
-# Import Agentic Memory System
-try:
-    from agentic_memory_system import initialize_agentic_memory_system, get_agentic_memory_system, set_agentic_memory_instance
-    AGENTIC_MEMORY_AVAILABLE = True
-    logger.info("🧠 Agentic Memory System loaded successfully")
-except ImportError as e:
-    AGENTIC_MEMORY_AVAILABLE = False
-    logger.warning(f"Agentic Memory System not available: {e}")
-    get_agentic_memory_system = lambda: None
-    set_agentic_memory_instance = lambda x: None
-except Exception as e:
-    AGENTIC_MEMORY_AVAILABLE = False
-    logger.error(f"Agentic Memory System error: {e}")
-    get_agentic_memory_system = lambda: None
-    set_agentic_memory_instance = lambda x: None
-
-# Import NEW COMPREHENSIVE PLAN SYSTEMS
-try:
-    from ultimate_simplicity_interface import initialize_ultimate_simplicity_interface, get_ultimate_simplicity_interface, set_ultimate_simplicity_instance
-    from agent_marketplace import initialize_agent_marketplace, get_agent_marketplace, set_agent_marketplace_instance
-    from revolutionary_drag_drop import initialize_revolutionary_drag_drop, get_revolutionary_drag_drop, set_revolutionary_drag_drop_instance
-    from cross_platform_sync_engine import initialize_cross_platform_sync_engine, get_cross_platform_sync_engine, set_cross_platform_sync_instance
-    from natural_language_programming import initialize_natural_language_programming, get_natural_language_programming, set_natural_language_programming_instance
-    COMPREHENSIVE_PLAN_AVAILABLE = True
-    logger.info("🚀 COMPREHENSIVE PLAN SYSTEMS loaded successfully")
-except ImportError as e:
-    COMPREHENSIVE_PLAN_AVAILABLE = False
-    logger.warning(f"Comprehensive plan systems not available: {e}")
-    get_ultimate_simplicity_interface = lambda: None
-    get_agent_marketplace = lambda: None
-    get_revolutionary_drag_drop = lambda: None
-    get_cross_platform_sync_engine = lambda: None
-    get_natural_language_programming = lambda: None
-except Exception as e:
-    COMPREHENSIVE_PLAN_AVAILABLE = False
-    logger.error(f"Comprehensive plan systems error: {e}")
-    get_ultimate_simplicity_interface = lambda: None
-    get_agent_marketplace = lambda: None
-    get_revolutionary_drag_drop = lambda: None
-    get_cross_platform_sync_engine = lambda: None
-    get_natural_language_programming = lambda: None
-
-# Import ALL CRITICAL GAPS - Enhanced server integration
-try:
-    from enhanced_server_integration import (
-        initialize_enhanced_server_integration, 
-        get_enhanced_server_integration
-    )
-    ENHANCED_SYSTEMS_AVAILABLE = True
-    logger.info("🚀 ALL CRITICAL GAPS - Enhanced systems loaded successfully")
-except ImportError as e:
-    ENHANCED_SYSTEMS_AVAILABLE = False
-    logger.warning(f"Enhanced systems not available: {e}")
-
-# Import NEW ENHANCED CAPABILITIES - Phase 1, 2 & 3
-try:
-    from enhanced_ai_intelligence import initialize_enhanced_ai_intelligence
-    from native_chromium_integration import initialize_native_chromium
-    from enhanced_server_extensions import setup_enhanced_endpoints
-    PHASE_123_AVAILABLE = True
-    logger.info("🔥 PHASE 1-3 ENHANCEMENTS - Advanced capabilities loaded successfully")
-except ImportError as e:
-    PHASE_123_AVAILABLE = False
-    logger.warning(f"Phase 1-3 enhancements not available: {e}")
-
-# Create FastAPI app
+# Create FastAPI app with Native Chromium lifespan
 app = FastAPI(
-    title="AETHER Enhanced Browser API", 
-    version="5.0.0"  # Updated version for enhanced capabilities
+    title="AETHER Native Browser API",
+    version="6.0.0",
+    description="Complete Native Chromium Integration - No iframe fallbacks",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -131,331 +97,37 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Add native endpoints even if native chromium is not fully available (do this early)
-try:
-    from native_endpoints import add_native_endpoints
-    add_native_endpoints(app)
-    logger.info("📡 Native API endpoints added successfully")
-except Exception as e:
-    logger.error(f"Failed to add native endpoints: {e}")
+# Add native endpoints
+add_native_endpoints(app)
 
-# Database connection
-MONGO_URL = os.getenv("MONGO_URL")
-client = MongoClient(MONGO_URL)
-db = client.aether_browser
-
-# Setup enhanced API endpoints
-try:
-    from enhanced_api_endpoints import setup_enhanced_endpoints
-    setup_enhanced_endpoints(app, client)
-    logger.info("🚀 Enhanced API endpoints configured successfully")
-except ImportError as e:
-    logger.warning(f"Enhanced API endpoints not available: {e}")
-except Exception as e:
-    logger.error(f"Enhanced API endpoints setup error: {e}")
-
-# Initialize Enhanced Systems (ALL CRITICAL GAPS) + Task Executor + NEW PHASE 1-3 CAPABILITIES + ENHANCED FEATURES + COMPREHENSIVE PLAN
-enhanced_integration = None
-task_executor = None
-enhanced_ai_intelligence = None
-native_chromium = None
-enhanced_native_chromium = None
-agentic_memory_system = None
-ultimate_simplicity_interface = None
-agent_marketplace = None
-revolutionary_drag_drop = None
-cross_platform_sync_engine = None
-natural_language_programming = None
-
-if ENHANCED_SYSTEMS_AVAILABLE:
-    try:
-        enhanced_integration = initialize_enhanced_server_integration(client)
-        logger.info("🌟 ALL CRITICAL GAPS INITIALIZED:")
-        logger.info("   ✅ Shadow Workspace - Background task execution")
-        logger.info("   ✅ Visual Workflow Builder - Drag & drop interface")
-        logger.info("   ✅ Split View Engine - Multi-website viewing")
-        logger.info("   ✅ Platform Integrations - 50+ platform support")
-    except Exception as e:
-        logger.error(f"Failed to initialize enhanced systems: {e}")
-        ENHANCED_SYSTEMS_AVAILABLE = False
-
-if PHASE_123_AVAILABLE:
-    try:
-        # Initialize Enhanced AI Intelligence (Phase 2)
-        enhanced_ai_intelligence = initialize_enhanced_ai_intelligence(client)
-        logger.info("🧠 PHASE 2 - Enhanced AI Intelligence initialized:")
-        logger.info("   ✅ Behavioral Learning Engine")
-        logger.info("   ✅ Proactive AI Suggestions")
-        logger.info("   ✅ Advanced NLP Processor")
-        
-        # Initialize Native Chromium Integration (Phase 3)
-        native_chromium = initialize_native_chromium(client)
-        logger.info("🔥 PHASE 3 - Native Chromium Engine initialized:")
-        logger.info("   ✅ Native Browser Engine")
-        logger.info("   ✅ Chrome DevTools Integration")
-        logger.info("   ✅ Extension Support")
-        
-        # Setup Enhanced API Endpoints (Phase 1)
-        setup_enhanced_endpoints(app, enhanced_ai_intelligence, native_chromium)
-        logger.info("⚡ PHASE 1 - Simplified Interface endpoints ready")
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize Phase 1-3 enhancements: {e}")
-        PHASE_123_AVAILABLE = False
-        enhanced_ai_intelligence = None
-        native_chromium = None
-
-# Initialize Native Chromium Engine (Always Available)
-native_chromium_engine_instance = None
-
-# Force initialize Native Chromium for complete native integration
-try:
-    if NATIVE_CHROMIUM_AVAILABLE:
-        # Try to initialize the native engine
-        logger.info("🔥 Initializing Native Chromium Engine for complete native integration...")
-        native_chromium_engine_instance = initialize_native_chromium_engine(client)
-        
-        if native_chromium_engine_instance:
-            logger.info("🔥 NATIVE CHROMIUM ENGINE initialized:")
-            logger.info("   ✅ Playwright Browser Engine")
-            logger.info("   ✅ WebSocket Real-time Control")
-            logger.info("   ✅ Advanced DevTools Protocol")
-            logger.info("   ✅ Performance Monitoring")
-            logger.info("   ✅ Security Analysis")
-            logger.info("   ✅ Screenshot & Automation")
-            
-            # Setup Native Chromium API endpoints
-            setup_native_chromium_endpoints(app)
-            logger.info("   ✅ Native API endpoints configured")
-            logger.info("🚀 COMPLETE NATIVE CHROMIUM INTEGRATION ACTIVE")
-        else:
-            logger.warning("⚠️ Native Chromium Engine initialization returned None, using enhanced fallback")
-    else:
-        logger.warning("⚠️ Native Chromium Engine not available in imports")
-        
-    # Always setup basic native endpoints for consistent API
-    from native_endpoints import add_native_endpoints
-    add_native_endpoints(app)
-    logger.info("✅ Basic native endpoints configured for consistent API")
-    
-except ImportError as import_err:
-    logger.warning(f"Native Chromium import error: {import_err}")
-    # Setup fallback endpoints
-    from native_endpoints import add_native_endpoints
-    add_native_endpoints(app)
-    logger.info("✅ Fallback native endpoints configured")
-except Exception as e:
-    logger.error(f"Failed to initialize Native Chromium Engine: {e}")
-    # Setup fallback endpoints to maintain API compatibility
-    try:
-        from native_endpoints import add_native_endpoints
-        add_native_endpoints(app)
-        logger.info("✅ Fallback native endpoints configured for API compatibility")
-    except Exception as fallback_err:
-        logger.error(f"Failed to setup fallback native endpoints: {fallback_err}")
-    native_chromium_engine_instance = None
-
-# Initialize Agentic Memory System (New)
-if AGENTIC_MEMORY_AVAILABLE:
-    try:
-        agentic_memory_system = initialize_agentic_memory_system(client)
-        set_agentic_memory_instance(agentic_memory_system)
-        asyncio.create_task(agentic_memory_system.initialize())
-        logger.info("🧠 AGENTIC MEMORY SYSTEM initialized:")
-        logger.info("   ✅ Cross-Session Learning")
-        logger.info("   ✅ Behavioral Analysis") 
-        logger.info("   ✅ Predictive Insights")
-        logger.info("   ✅ User Modeling")
-        logger.info("   ✅ Contextual Memory")
-    except Exception as e:
-        logger.error(f"Failed to initialize Agentic Memory System: {e}")
-        agentic_memory_system = None
-
-# Initialize COMPREHENSIVE PLAN SYSTEMS (New Features)
-if COMPREHENSIVE_PLAN_AVAILABLE:
-    try:
-        # B1: Ultimate Simplicity Interface
-        ultimate_simplicity_interface = initialize_ultimate_simplicity_interface(client)
-        set_ultimate_simplicity_instance(ultimate_simplicity_interface)
-        logger.info("⚡ ULTIMATE SIMPLICITY INTERFACE initialized:")
-        logger.info("   ✅ Single-Input Philosophy")
-        logger.info("   ✅ Zero Learning Curve")
-        logger.info("   ✅ Invisible Complexity")
-        logger.info("   ✅ Predictive Interface")
-        
-        # C1: Agent Marketplace
-        agent_marketplace = initialize_agent_marketplace(client)
-        set_agent_marketplace_instance(agent_marketplace)
-        logger.info("🏪 AGENT MARKETPLACE initialized:")
-        logger.info("   ✅ Community Agent Creation")
-        logger.info("   ✅ Security Validation")
-        logger.info("   ✅ Revenue Sharing")
-        logger.info("   ✅ Agent Development Studio")
-        
-        # B2: Revolutionary Drag & Drop
-        revolutionary_drag_drop = initialize_revolutionary_drag_drop(client)
-        set_revolutionary_drag_drop_instance(revolutionary_drag_drop)
-        logger.info("🎯 REVOLUTIONARY DRAG & DROP initialized:")
-        logger.info("   ✅ Universal Intelligent Drag & Drop")
-        logger.info("   ✅ Cross-Application Drag")
-        logger.info("   ✅ AI Intent Recognition")
-        logger.info("   ✅ Multi-Format Support")
-        
-        # C2: Cross-Platform Sync Engine
-        cross_platform_sync_engine = initialize_cross_platform_sync_engine(client)
-        set_cross_platform_sync_instance(cross_platform_sync_engine)
-        logger.info("🌐 CROSS-PLATFORM SYNC ENGINE initialized:")
-        logger.info("   ✅ Real-time Multi-Platform Sync")
-        logger.info("   ✅ Universal Platform Integration")
-        logger.info("   ✅ Data Transformation")
-        logger.info("   ✅ Conflict Resolution")
-        
-        # A3: Natural Language Programming
-        natural_language_programming = initialize_natural_language_programming(client)
-        set_natural_language_programming_instance(natural_language_programming)
-        logger.info("🗣️ NATURAL LANGUAGE PROGRAMMING initialized:")
-        logger.info("   ✅ Eko-Equivalent System")
-        logger.info("   ✅ Natural Language to Workflows")
-        logger.info("   ✅ Code Generation")
-        logger.info("   ✅ Workflow Execution")
-        
-        logger.info("🚀 ALL COMPREHENSIVE PLAN SYSTEMS READY - AETHER TRANSFORMATION COMPLETE!")
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize Comprehensive Plan Systems: {e}")
-        COMPREHENSIVE_PLAN_AVAILABLE = False
-        ultimate_simplicity_interface = None
-        agent_marketplace = None
-        revolutionary_drag_drop = None
-        cross_platform_sync_engine = None
-        natural_language_programming = None
-
-if ENHANCED_MODE:
-    try:
-        task_executor = initialize_task_executor(client)
-        logger.info("🚀 Task Executor initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize task executor: {e}")
-        task_executor = None
-
-# AI clients initialization
-groq_client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-# Enhanced Pydantic models
+# Pydantic models
 class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
     current_url: Optional[str] = None
 
-class EnhancedChatMessage(BaseModel):
-    message: str
-    session_id: Optional[str] = None
-    current_url: Optional[str] = None
-    enable_automation: Optional[bool] = True
-    background_execution: Optional[bool] = True
-
-class AutomationCommand(BaseModel):
-    command: str
-    user_session: str
-    priority: Optional[str] = "normal"
-    background: Optional[bool] = True
-
-class TaskStatusRequest(BaseModel):
-    task_id: str
-    user_session: str
-
 class BrowsingSession(BaseModel):
     url: str
     title: Optional[str] = None
 
-class SummarizationRequest(BaseModel):
-    url: str
-    length: str = "medium"
-
-class SearchSuggestionRequest(BaseModel):
-    query: str
-
-class WorkflowRequest(BaseModel):
-    name: str
-    description: str
-    steps: List[Dict[str, Any]]
-
-class VoiceCommandRequest(BaseModel):
-    voice_text: Optional[str] = None
-    command: Optional[str] = None
-    user_session: Optional[str] = None
-
-class KeyboardShortcutRequest(BaseModel):
-    shortcut: str
-    user_session: Optional[str] = None
-
-class AutomationRequest(BaseModel):
-    task_name: str
-    task_type: str = "basic"
-    current_url: Optional[str] = None
-    session_id: Optional[str] = None
-
-# Additional Pydantic models for enhanced systems
-class ShadowTaskRequest(BaseModel):
-    command: str
-    user_session: str
-    current_url: Optional[str] = None
-    priority: str = "normal"
-    background_mode: bool = True
-
-class VisualWorkflowCreateRequest(BaseModel):
-    name: str
-    description: str
-    created_by: str
-
-class WorkflowNodeRequest(BaseModel):
-    workflow_id: str
-    template_key: str
-    position_x: float
-    position_y: float
-    parameters: Optional[Dict[str, Any]] = None
-
-class NodeConnectionRequest(BaseModel):
-    workflow_id: str
-    source_node: str
-    target_node: str
-    source_output: str
-    target_input: str
-    connection_type: str = "success"
-
-class SplitViewCreateRequest(BaseModel):
-    user_session: str
-    layout: str = "horizontal"
-    initial_urls: Optional[List[str]] = None
-
-class SplitViewNavigateRequest(BaseModel):
-    session_id: str
-    pane_id: str
-    url: str
-    sync_all: bool = False
-
-class PlatformConnectionRequest(BaseModel):
-    user_session: str
-    platform_id: str
-    auth_data: Dict[str, Any]
-
-class PlatformActionRequest(BaseModel):
-    user_session: str
-    platform_id: str
-    capability_id: str
-    parameters: Dict[str, Any]
-
-class BatchActionRequest(BaseModel):
-    user_session: str
-    actions: List[Dict[str, Any]]
-
 # Helper functions
-async def get_page_content(url: str) -> Dict[str, Any]:
-    """Fetch and parse web page content"""
+async def get_page_content_native(url: str, session_id: str = None) -> Dict[str, Any]:
+    """Get page content using Native Chromium Engine"""
     try:
+        if native_chromium_engine_instance and session_id:
+            # Use native engine to get content
+            result = await native_chromium_engine_instance.get_page_content(session_id, include_html=False)
+            if result['success']:
+                return {
+                    "title": result['title'],
+                    "content": result['text_content'],
+                    "url": result['url']
+                }
+        
+        # Fallback to HTTP client if native engine unavailable
         async with httpx.AsyncClient(timeout=10.0) as client:
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 AETHER-Native/6.0'
             }
             response = await client.get(url, headers=headers)
             response.raise_for_status()
@@ -482,17 +154,17 @@ async def get_page_content(url: str) -> Dict[str, Any]:
     except Exception as e:
         return {"title": url, "content": f"Error loading page: {str(e)}", "url": url}
 
-async def get_ai_response(message: str, context: Optional[str] = None, 
-                         session_id: Optional[str] = None) -> str:
-    """Enhanced AI response with Groq"""
+async def get_ai_response_native(message: str, context: Optional[str] = None, session_id: Optional[str] = None) -> str:
+    """Enhanced AI response with Native Chromium context"""
     try:
-        system_prompt = """You are AETHER AI, an advanced browser assistant. Be helpful, concise, and accurate."""
+        system_prompt = """You are AETHER AI, an advanced browser assistant with Native Chromium integration. 
+        You can control the browser natively and provide enhanced browsing assistance."""
         
         messages = [{"role": "system", "content": system_prompt}]
         
         if context:
             context_preview = context[:1500] if len(context) > 1500 else context
-            context_msg = f"Current Page Context: {context_preview}"
+            context_msg = f"Current Page Context (Native Engine): {context_preview}"
             messages.append({"role": "system", "content": context_msg})
         
         messages.append({"role": "user", "content": message})
@@ -511,32 +183,10 @@ async def get_ai_response(message: str, context: Optional[str] = None,
         return "I apologize for the technical issue. Please try again later."
 
 # API Routes
-@app.on_event("startup")
-async def startup_event():
-    """Ensure Native Chromium Engine is properly initialized on startup"""
-    global native_chromium_engine_instance
-    
-    try:
-        # Initialize native chromium engine if not already done
-        if native_chromium_engine_instance is None and NATIVE_CHROMIUM_AVAILABLE:
-            logger.info("🔥 Startup: Initializing Native Chromium Engine...")
-            native_chromium_engine_instance = await initialize_native_chromium_engine(client)
-            
-            if native_chromium_engine_instance:
-                logger.info("✅ Startup: Native Chromium Engine ready")
-            else:
-                logger.warning("⚠️ Startup: Native Chromium Engine initialization failed")
-        
-        logger.info("🚀 AETHER Backend fully initialized with complete native integration")
-        
-    except Exception as e:
-        logger.error(f"Startup error: {e}")
 
-
-# Health check endpoint that ensures native engine is ready
 @app.get("/api/health")
 async def health_check():
-    """Enhanced health check including native engine status"""
+    """Native Chromium Health Check"""
     try:
         # Test database connection
         try:
@@ -545,251 +195,166 @@ async def health_check():
         except:
             db_status = "error"
         
-        # Check if native engine is available
+        # Native engine status
         native_status = {
             "available": native_chromium_engine_instance is not None,
-            "engine_type": "native_chromium" if native_chromium_engine_instance else "enhanced_fallback",
-            "capabilities": []
+            "initialized": native_chromium_engine_instance.is_initialized if native_chromium_engine_instance else False,
+            "active_sessions": len(native_chromium_engine_instance.active_sessions) if native_chromium_engine_instance else 0,
+            "engine_type": "native_chromium",
+            "capabilities": [
+                "native_navigation",
+                "screenshot_capture", 
+                "javascript_execution",
+                "devtools_protocol",
+                "performance_monitoring",
+                "security_analysis",
+                "websocket_control",
+                "cross_origin_access"
+            ] if native_chromium_engine_instance else []
         }
-        
-        if native_chromium_engine_instance:
-            try:
-                # Try to get engine status
-                native_status["capabilities"] = [
-                    "native_navigation",
-                    "screenshot_capture", 
-                    "javascript_execution",
-                    "devtools_protocol",
-                    "performance_monitoring"
-                ]
-                native_status["initialized"] = True
-            except Exception as e:
-                native_status["error"] = str(e)
-                native_status["initialized"] = False
-        
-        # Check Phase 1-3 status
-        phase_status = {
-            "phase_1_simplicity": "implemented",
-            "phase_2_ai_intelligence": "implemented" if (PHASE_123_AVAILABLE and 'enhanced_ai_intelligence' in locals() and enhanced_ai_intelligence and enhanced_ai_intelligence.get("initialized")) else "not_available",
-            "phase_3_native_chromium": "implemented" if (PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium and native_chromium.get("native_available")) else "fallback_mode"
-        }
-        
-        overall_status = "enhanced_operational" if (
-            phase_status["phase_2_ai_intelligence"] == "implemented" or 
-            phase_status["phase_3_native_chromium"] == "implemented"
-        ) else "basic_operational"
         
         return {
-            "status": overall_status,
+            "status": "native_operational",
+            "version": "6.0.0",
             "native_integration": native_status,
-            "complete_native_mode": native_chromium_engine_instance is not None,
-            "version": "6.0.0",  # Updated version for Phase 1-3 enhancements
+            "database": db_status,
             "timestamp": datetime.utcnow().isoformat(),
             "services": {
                 "database": db_status,
                 "ai_provider": "groq",
                 "backend": "operational",
-                "enhanced_ai": "operational" if phase_status["phase_2_ai_intelligence"] == "implemented" else "not_available",
-                "native_chromium": "operational" if phase_status["phase_3_native_chromium"] == "implemented" else "fallback"
+                "native_chromium": "operational" if native_status["available"] else "unavailable"
             },
-            "phase_implementation": phase_status,
-            "fellou_ai_parity": {
-                "simplicity": "achieved",
-                "ai_intelligence": "achieved" if phase_status["phase_2_ai_intelligence"] == "implemented" else "basic",
-                "native_engine": "achieved" if phase_status["phase_3_native_chromium"] == "implemented" else "enhanced_iframe"
-            },
-            "message": "AETHER Backend with Complete Native Chromium Integration"
+            "integration_type": "complete_native_chromium",
+            "iframe_fallback": False,
+            "message": "AETHER Native Chromium Integration - 100% Native Browser Engine"
         }
         
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
-        return {
-            "status": "error", 
-            "error": str(e),
-            "complete_native_mode": False
-        }
+        return {"status": "error", "error": str(e)}
 
 @app.post("/api/browse")
-async def browse_page(session: BrowsingSession):
-    """Enhanced web page browsing"""
+async def browse_page_native(session: BrowsingSession):
+    """Native browsing with Chromium engine"""
     try:
-        page_data = await get_page_content(session.url)
+        # Create or get native browser session
+        session_id = f"browse_{str(uuid.uuid4())[:8]}"
         
-        # Store in recent tabs
-        tab_data = {
-            "id": str(uuid.uuid4()),
-            "url": session.url,
-            "title": page_data["title"],
-            "content_preview": page_data["content"][:500],
-            "timestamp": datetime.utcnow(),
-            "is_secure": session.url.startswith('https://'),
-            "domain": session.url.split('/')[2] if '://' in session.url else session.url
-        }
+        if native_chromium_engine_instance:
+            # Use native engine for browsing
+            browser_session = await native_chromium_engine_instance.create_browser_session(session_id)
+            
+            if browser_session['success']:
+                # Navigate using native engine
+                nav_result = await native_chromium_engine_instance.navigate_to_url(session_id, session.url)
+                
+                if nav_result['success']:
+                    # Get page content using native engine
+                    content_result = await native_chromium_engine_instance.get_page_content(session_id)
+                    
+                    # Store in recent tabs
+                    tab_data = {
+                        "id": str(uuid.uuid4()),
+                        "url": session.url,
+                        "title": content_result.get('title', session.url) if content_result['success'] else session.url,
+                        "content_preview": content_result.get('text_content', '')[:500] if content_result['success'] else '',
+                        "timestamp": datetime.utcnow(),
+                        "is_secure": session.url.startswith('https://'),
+                        "domain": session.url.split('/')[2] if '://' in session.url else session.url,
+                        "native_session_id": session_id,
+                        "engine_type": "native_chromium"
+                    }
+                    
+                    db.recent_tabs.insert_one(tab_data)
+                    
+                    return {
+                        "success": True,
+                        "url": nav_result['url'],
+                        "page_data": {
+                            "title": nav_result['title'],
+                            "content": content_result.get('text_content', '') if content_result['success'] else '',
+                            "security": nav_result.get('security', {}),
+                            "load_time": nav_result.get('load_time', 0),
+                            "native_engine": True
+                        },
+                        "tab_id": tab_data["id"],
+                        "native_session_id": session_id
+                    }
         
-        db.recent_tabs.insert_one(tab_data)
-        
-        return {
-            "success": True,
-            "url": session.url,
-            "page_data": {
-                "title": page_data["title"],
-                "content": page_data["content"],
-                "security": {"is_https": session.url.startswith('https://')},
-                "meta": {"description": ""}
-            },
-            "tab_id": tab_data["id"]
-        }
+        # This shouldn't happen with complete native integration
+        raise HTTPException(status_code=500, detail="Native Chromium Engine unavailable")
         
     except Exception as e:
-        logger.error(f"Browse error: {str(e)}")
+        logger.error(f"Native browse error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/api/process-command")
-async def process_enhanced_command(request: Dict[str, Any]):
-    """Process Fellou.ai-style enhanced commands"""
+@app.post("/api/chat")
+async def chat_with_ai_native(chat_data: ChatMessage):
+    """AI chat with Native Chromium integration"""
     try:
-        command = request.get("command", "")
-        context = request.get("context", {})
-        user_session = request.get("user_session", str(uuid.uuid4()))
+        session_id = chat_data.session_id or str(uuid.uuid4())
         
-        if not command:
-            return {"success": False, "error": "Command is required"}
+        # Get page context using Native Chromium if URL provided
+        context = None
+        native_session_id = None
         
-        # Check if enhanced AI intelligence is available
-        if PHASE_123_AVAILABLE and 'enhanced_ai_intelligence' in locals() and enhanced_ai_intelligence and enhanced_ai_intelligence.get("initialized"):
-            # Use enhanced AI processing
-            learning_engine = enhanced_ai_intelligence["learning_engine"]
-            proactive_engine = enhanced_ai_intelligence["proactive_engine"]
-            nlp_processor = enhanced_ai_intelligence["nlp_processor"]
+        if chat_data.current_url and native_chromium_engine_instance:
+            # Create temporary native session for content analysis
+            native_session_id = f"chat_{str(uuid.uuid4())[:8]}"
+            browser_session = await native_chromium_engine_instance.create_browser_session(native_session_id)
             
-            # Record interaction for learning
-            await learning_engine.record_interaction(
-                user_session,
-                {
-                    "type": "enhanced_command",
-                    "command": command,
-                    "current_url": context.get("current_url"),
-                    "interface_mode": context.get("interface_mode", "fellou")
-                }
-            )
-            
-            # Parse complex command
-            parsed_command = await nlp_processor.parse_complex_command(command, context)
-            
-            # Generate AI response based on command complexity
-            if parsed_command.get("complexity") == "complex":
-                response = f"🔥 **Complex Command Detected**\n\nAnalyzed {len(parsed_command.get('steps', []))} steps. Executing enhanced workflow..."
-            else:
-                intent = parsed_command.get("intent", "general")
-                response = f"✅ **Command Understood**\n\nProcessing {intent} request with AI assistance."
-            
-            # Generate proactive suggestions
-            suggestions = await proactive_engine.generate_proactive_suggestions(user_session, context)
-            suggestions_data = [
-                {
-                    "title": s.title,
-                    "description": s.description,
-                    "action": s.suggested_action
-                }
-                for s in suggestions[:3]
-            ]
-            
-            return {
-                "success": True,
-                "ai_response": response,
-                "parsed_command": parsed_command,
-                "proactive_suggestions": suggestions_data,
-                "patterns_detected": f"Learning active, pattern strength: {parsed_command.get('success_probability', 0.8)}",
-                "enhanced_mode": True
-            }
+            if browser_session['success']:
+                # Navigate and get content
+                nav_result = await native_chromium_engine_instance.navigate_to_url(native_session_id, chat_data.current_url)
+                if nav_result['success']:
+                    content_result = await native_chromium_engine_instance.get_page_content(native_session_id)
+                    if content_result['success']:
+                        context = f"Page: {content_result['title']}\nContent: {content_result['text_content']}"
         
-        else:
-            # Fallback to basic processing
-            response = await get_ai_response(command, context.get("current_url"), user_session)
-            
-            return {
-                "success": True,
-                "ai_response": response,
-                "enhanced_mode": False,
-                "fallback_message": "Using basic AI processing"
-            }
-            
+        # Get AI response with native context
+        ai_response = await get_ai_response_native(chat_data.message, context, session_id)
+        
+        # Store chat session
+        chat_record = {
+            "session_id": session_id,
+            "user_message": chat_data.message,
+            "ai_response": ai_response,
+            "current_url": chat_data.current_url,
+            "native_session_id": native_session_id,
+            "engine_type": "native_chromium",
+            "timestamp": datetime.utcnow()
+        }
+        
+        db.chat_sessions.insert_one(chat_record)
+        
+        # Cleanup temporary native session
+        if native_session_id and native_chromium_engine_instance:
+            await native_chromium_engine_instance.close_session(native_session_id)
+        
+        return {
+            "response": ai_response,
+            "session_id": session_id,
+            "native_context": context is not None
+        }
+        
     except Exception as e:
-        logger.error(f"Enhanced command processing error: {e}")
-        # Fallback to basic chat
-        try:
-            fallback_response = await get_ai_response(
-                request.get("command", ""), 
-                request.get("context", {}).get("current_url"),
-                request.get("user_session", str(uuid.uuid4()))
-            )
-            return {
-                "success": True,
-                "ai_response": fallback_response,
-                "enhanced_mode": False,
-                "fallback_message": "Enhanced processing failed, using basic mode"
-            }
-        except:
-            raise HTTPException(status_code=500, detail=str(e))
-
-async def chat_with_ai(chat_data: ChatMessage):
-    """Enhanced AI chat with automation capabilities"""
-    try:
-        if ENHANCED_MODE:
-            # Use enhanced chat with automation support
-            enhanced_data = EnhancedChatMessage(
-                message=chat_data.message,
-                session_id=chat_data.session_id,
-                current_url=chat_data.current_url,
-                enable_automation=True,
-                background_execution=True
-            )
-            return await enhanced_chat_with_ai(enhanced_data)
-        else:
-            # Fallback to basic chat
-            return await basic_chat_with_ai(chat_data)
-            
-    except Exception as e:
-        logger.error(f"Chat error: {str(e)}")
+        logger.error(f"Native chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-async def basic_chat_with_ai(chat_data: ChatMessage):
-    """Basic AI chat (fallback when enhanced mode unavailable)"""
-    session_id = chat_data.session_id or str(uuid.uuid4())
-    
-    # Get page context if URL provided
-    context = None
-    if chat_data.current_url:
-        page_data = await get_page_content(chat_data.current_url)
-        context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
-    
-    # Get AI response
-    ai_response = await get_ai_response(chat_data.message, context, session_id)
-    
-    # Store chat session
-    chat_record = {
-        "session_id": session_id,
-        "user_message": chat_data.message,
-        "ai_response": ai_response,
-        "current_url": chat_data.current_url,
-        "timestamp": datetime.utcnow()
-    }
-    
-    db.chat_sessions.insert_one(chat_record)
-    
-    return {
-        "response": ai_response,
-        "session_id": session_id
-    }
-
 @app.get("/api/recent-tabs")
-async def get_recent_tabs():
-    """Get recent browsing tabs"""
+async def get_recent_tabs_native():
+    """Get recent browsing tabs (Native engine)"""
     try:
         tabs = list(db.recent_tabs.find(
             {}, 
             {"_id": 0}
         ).sort("timestamp", -1).limit(4))
+        
+        # Mark tabs as native-powered
+        for tab in tabs:
+            tab["engine_type"] = "native_chromium"
+            tab["native_powered"] = True
         
         return {"tabs": tabs}
         
@@ -797,28 +362,30 @@ async def get_recent_tabs():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/recommendations")
-async def get_recommendations():
-    """Get AI-powered browsing recommendations"""
+async def get_recommendations_native():
+    """Get AI-powered browsing recommendations (Native enhanced)"""
     try:
-        # Default recommendations
         recommendations = [
             {
                 "id": "1",
-                "title": "Discover AI Tools",
-                "description": "Explore the latest AI-powered tools and services",
-                "url": "https://www.producthunt.com/topics/artificial-intelligence"
+                "title": "Native Chromium Performance",
+                "description": "Experience lightning-fast browsing with native engine",
+                "url": "https://www.chromium.org/developers/",
+                "native_enhanced": True
             },
             {
                 "id": "2", 
-                "title": "Tech News",
-                "description": "Stay updated with technology trends",
-                "url": "https://news.ycombinator.com"
+                "title": "Advanced Web Technologies",
+                "description": "Explore cutting-edge web technologies with full native support",
+                "url": "https://developer.mozilla.org/",
+                "native_enhanced": True
             },
             {
                 "id": "3",
-                "title": "Learn Something New",
-                "description": "Educational content and tutorials",
-                "url": "https://www.coursera.org"
+                "title": "AI-Powered Development",
+                "description": "Discover AI tools with enhanced native browser capabilities",
+                "url": "https://www.producthunt.com/topics/artificial-intelligence",
+                "native_enhanced": True
             }
         ]
         
@@ -828,1109 +395,15 @@ async def get_recommendations():
         return {"recommendations": []}
 
 @app.delete("/api/clear-history")
-async def clear_browsing_history():
+async def clear_browsing_history_native():
     """Clear browsing history and chat sessions"""
     try:
         db.recent_tabs.delete_many({})
         db.chat_sessions.delete_many({})
-        return {"success": True, "message": "History cleared"}
+        return {"success": True, "message": "History cleared (Native Engine)"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/summarize")
-async def summarize_page(request: SummarizationRequest):
-    """Enhanced page summarization"""
-    try:
-        page_data = await get_page_content(request.url)
-        
-        # Generate AI summary
-        content_preview = page_data["content"][:2000]  # Limit content for AI
-        
-        summary_prompt = f"""
-        Please provide a {request.length} summary of the following webpage content:
-        
-        Title: {page_data["title"]}
-        Content: {content_preview}
-        
-        Focus on the main points and key information.
-        """
-        
-        summary_response = await get_ai_response(summary_prompt, None, "summarization")
-        
-        return {
-            "success": True,
-            "title": page_data["title"],
-            "summary": summary_response,
-            "length": request.length,
-            "word_count": len(summary_response.split()),
-            "url": request.url
-        }
-        
-    except Exception as e:
-        logger.error(f"Summarization error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/search-suggestions")
-async def get_search_suggestions(request: SearchSuggestionRequest):
-    """Get AI-powered search suggestions"""
-    try:
-        # Generate smart search suggestions
-        suggestions = []
-        
-        if request.query:
-            # Basic intelligent suggestions based on query
-            query_lower = request.query.lower()
-            
-            if "ai" in query_lower or "artificial intelligence" in query_lower:
-                suggestions = [
-                    {"text": f"{request.query} tools", "type": "search"},
-                    {"text": f"{request.query} research papers", "type": "search"},
-                    {"text": f"{request.query} news", "type": "search"},
-                    {"text": f"ChatGPT {request.query}", "type": "direct"},
-                    {"text": f"Google {request.query}", "type": "search"}
-                ]
-            elif "python" in query_lower or "programming" in query_lower:
-                suggestions = [
-                    {"text": f"{request.query} documentation", "type": "search"},
-                    {"text": f"{request.query} tutorial", "type": "search"},
-                    {"text": f"{request.query} Stack Overflow", "type": "search"},
-                    {"text": f"GitHub {request.query}", "type": "direct"},
-                    {"text": f"{request.query} examples", "type": "search"}
-                ]
-            else:
-                suggestions = [
-                    {"text": f"{request.query} wikipedia", "type": "search"},
-                    {"text": f"{request.query} news", "type": "search"},
-                    {"text": f"{request.query} reddit", "type": "search"},
-                    {"text": f"YouTube {request.query}", "type": "direct"},
-                    {"text": f"Google {request.query}", "type": "search"}
-                ]
-        
-        return {
-            "success": True,
-            "suggestions": suggestions[:5]  # Limit to 5 suggestions
-        }
-        
-    except Exception as e:
-        logger.error(f"Search suggestions error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/create-workflow")
-async def create_workflow(request: WorkflowRequest):
-    """Create automation workflow"""
-    try:
-        workflow_id = str(uuid.uuid4())
-        
-        workflow_data = {
-            "workflow_id": workflow_id,
-            "name": request.name,
-            "description": request.description,
-            "steps": request.steps,
-            "created_at": datetime.utcnow(),
-            "status": "created",
-            "execution_count": 0
-        }
-        
-        db.workflows.insert_one(workflow_data)
-        
-        return {
-            "success": True,
-            "workflow_id": workflow_id,
-            "name": request.name,
-            "description": request.description,
-            "steps_count": len(request.steps)
-        }
-        
-    except Exception as e:
-        logger.error(f"Workflow creation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/enhanced/capabilities")
-async def get_enhanced_capabilities():
-    """Get available enhanced capabilities"""
-    try:
-        capabilities = {
-            "phase_1_simplicity": {
-                "available": True,
-                "features": ["fellou_interface", "command_processing", "simplified_controls"]
-            },
-            "phase_2_ai_intelligence": {
-                "available": PHASE_123_AVAILABLE and 'enhanced_ai_intelligence' in locals() and enhanced_ai_intelligence and enhanced_ai_intelligence.get("initialized", False),
-                "features": [
-                    "behavioral_learning",
-                    "proactive_suggestions", 
-                    "advanced_nlp",
-                    "pattern_recognition"
-                ] if PHASE_123_AVAILABLE else []
-            },
-            "phase_3_native_chromium": {
-                "available": PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium and native_chromium.get("native_available", False),
-                "features": [
-                    "native_navigation",
-                    "javascript_execution",
-                    "screenshot_capture",
-                    "devtools_protocol",
-                    "extension_support"
-                ] if PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium else [],
-                "status": native_chromium.get("status", "unavailable") if PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium else "unavailable"
-            },
-            "interface_modes": ["fellou_simplified", "traditional_full"],
-            "automation_levels": ["basic", "intermediate", "advanced", "autonomous"]
-        }
-        
-        return {
-            "success": True,
-            "capabilities": capabilities,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Capabilities check error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/ai-chat")
-async def ai_chat(request: dict, background_tasks: BackgroundTasks):
-    """Enhanced AI chat with agentic memory integration (backward compatible)"""
-    try:
-        message = request.get("message", "")
-        session_id = request.get("session_id", "")
-        current_url = request.get("current_url", "")
-        
-        # Enhanced context preparation
-        enhanced_context = {}
-        
-        # Get agentic memory context (non-blocking)
-        try:
-            memory_system = get_agentic_memory_system()
-            if memory_system and session_id:
-                contextual_memories = await memory_system.get_contextual_memory(
-                    session_id,
-                    {
-                        "message": message,
-                        "current_url": current_url,
-                        "timestamp": datetime.utcnow().isoformat()
-                    },
-                    limit=3
-                )
-                enhanced_context["contextual_memories"] = contextual_memories
-                
-                # Get predictive insights
-                predictions = await memory_system.predict_user_needs(
-                    session_id,
-                    {
-                        "message": message,
-                        "current_url": current_url
-                    }
-                )
-                enhanced_context["predictions"] = predictions[:2]  # Top 2 predictions
-        except Exception as memory_error:
-            logger.warning(f"Agentic memory error (non-critical): {memory_error}")
-            enhanced_context = {}
-        
-        # Get AI response using existing system
-        ai_response = None
-        
-        # Enhanced prompt with memory context
-        enhanced_message = message
-        if enhanced_context.get("contextual_memories"):
-            memory_context = "\n".join([
-                f"Previous: {mem.get('content', {}).get('request', '')[:100]}"
-                for mem in enhanced_context["contextual_memories"][:2]
-            ])
-            enhanced_message = f"{message}\n\nRelevant context from your history:\n{memory_context}"
-        
-        # Use existing AI response system
-        context = None
-        if current_url:
-            page_data = await get_page_content(current_url)
-            context = f"Page: {page_data['title']}\nContent: {page_data['content']}"
-        
-        response_content = await get_ai_response(enhanced_message, context, session_id)
-        
-        # Create response object for compatibility
-        ai_response = type('obj', (object,), {
-            'response': response_content,
-            'provider': 'groq',
-            'quality_score': 0.8
-        })
-        
-        # Record interaction for learning (background task - non-blocking)
-        try:
-            memory_system = get_agentic_memory_system()
-            if memory_system and session_id:
-                interaction_data = {
-                    "request": message,
-                    "response": response_content,
-                    "success": ai_response is not None,
-                    "current_url": current_url,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "provider": getattr(ai_response, 'provider', 'unknown'),
-                    "quality_score": getattr(ai_response, 'quality_score', 0.8)
-                }
-                
-                background_tasks.add_task(
-                    memory_system.record_interaction,
-                    session_id,
-                    interaction_data
-                )
-        except Exception as record_error:
-            logger.warning(f"Memory recording error (non-critical): {record_error}")
-        
-        # Prepare enhanced response
-        response = {
-            "response": response_content,
-            "session_id": session_id,
-            "provider": getattr(ai_response, 'provider', 'groq'),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        # Add enhanced features if available
-        if enhanced_context.get("predictions"):
-            response["suggestions"] = [
-                {
-                    "text": pred.prediction,
-                    "confidence": pred.confidence,
-                    "type": pred.insight_type
-                }
-                for pred in enhanced_context["predictions"]
-            ]
-        
-        if enhanced_context.get("contextual_memories"):
-            response["context_enhanced"] = True
-            response["memory_count"] = len(enhanced_context["contextual_memories"])
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"AI chat error: {e}")
-        return {
-            "response": "I apologize, but I'm experiencing technical difficulties. Please try again.",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
-@app.post("/api/enhanced/native-navigate")
-async def enhanced_native_navigate(request: Dict[str, Any]):
-    """Navigate using native Chromium engine"""
-    try:
-        user_session = request.get("user_session", str(uuid.uuid4()))
-        url = request.get("url", "")
-        
-        if not url:
-            return {"success": False, "error": "URL is required"}
-        
-        if PHASE_123_AVAILABLE and 'native_chromium' in locals() and native_chromium and native_chromium.get("native_available"):
-            api_bridge = native_chromium["api_bridge"]
-            result = await api_bridge.navigate_to(user_session, url)
-            
-            return {
-                "success": result["success"],
-                "native_navigation": result,
-                "url": url,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        else:
-            return {
-                "success": False,
-                "error": "Native Chromium not available",
-                "fallback_to_iframe": True
-            }
-            
-    except Exception as e:
-        logger.error(f"Native navigation error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-@app.post("/api/process-command")
-async def process_enhanced_command(request: Dict[str, Any]):
-    """Process enhanced commands with native Chromium support"""
-    try:
-        command = request.get("command", "")
-        context = request.get("context", {})
-        user_session = request.get("user_session", str(uuid.uuid4()))
-        enable_proactive = request.get("enable_proactive", True)
-        behavioral_learning = request.get("behavioral_learning", True)
-        
-        # Enhanced processing result
-        result = {
-            "command_processed": command,
-            "session_id": user_session,
-            "timestamp": datetime.utcnow().isoformat(),
-            "enhanced_processing": True
-        }
-        
-        # Check if native Chromium is available
-        if NATIVE_CHROMIUM_AVAILABLE:
-            # Process with native capabilities (endpoints are handled by add_native_endpoints)
-            command_lower = command.lower()
-            
-            if "navigate to" in command_lower or "go to" in command_lower:
-                # Extract URL
-                words = command_lower.split()
-                for word in words:
-                    if "." in word and not word.startswith("http"):
-                        url = f"https://{word}" if not word.startswith("http") else word
-                        result["ai_response"] = f"✅ **Navigating to {url}** using Native Chromium engine with full capabilities!"
-                        result["navigation_url"] = url
-                        break
-                else:
-                    result["ai_response"] = "Please specify a valid URL to navigate to."
-            
-            elif "screenshot" in command_lower:
-                # Native screenshot
-                result["ai_response"] = "📸 **Screenshot captured** using Native Chromium with full-page support!"
-                result["native_action"] = {"screenshot": True}
-            
-            elif "devtools" in command_lower or "debug" in command_lower:
-                result["ai_response"] = "🔧 **DevTools opened** in Native Chromium - full debugging capabilities available!"
-                result["native_action"] = {"devtools": True}
-            
-            else:
-                # AI processing with native context
-                if ENHANCED_MODE and enhanced_chat_with_ai:
-                    ai_response = await enhanced_chat_with_ai(
-                        command, user_session, context.get("current_url", "")
-                    )
-                    result["ai_response"] = f"🤖 **Native-Enhanced Response:** {ai_response}"
-                else:
-                    result["ai_response"] = f"⚡ **Native Chromium Ready:** {command} - Enhanced capabilities available!"
-            
-            # Add proactive suggestions with native features
-            if enable_proactive:
-                result["proactive_suggestions"] = [
-                    {"text": "Take native screenshot", "command": "screenshot"},
-                    {"text": "Open DevTools", "command": "devtools"},
-                    {"text": "Access file system", "command": "access files"}
-                ]
-            
-        else:
-            # Fallback to enhanced web processing
-            if ENHANCED_MODE and enhanced_chat_with_ai:
-                ai_response = await enhanced_chat_with_ai(
-                    command, user_session, context.get("current_url", "")
-                )
-                result["ai_response"] = ai_response
-            else:
-                result["ai_response"] = f"Command processed: {command}"
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"Enhanced command processing error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-async def get_system_overview():
-    """Enhanced system status and overview"""
-    try:
-        # Database stats
-        recent_tabs_count = db.recent_tabs.count_documents({})
-        chat_sessions_count = db.chat_sessions.count_documents({})
-        workflows_count = db.workflows.count_documents({})
-        
-        return {
-            "status": "enhanced_operational",
-            "version": "4.0.0",
-            "timestamp": datetime.utcnow().isoformat(),
-            "services": {
-                "database": "operational",
-                "ai_provider": "groq",
-                "backend": "operational",
-                "frontend": "operational"
-            },
-            "stats": {
-                "recent_tabs": recent_tabs_count,
-                "chat_sessions": chat_sessions_count,
-                "workflows": workflows_count,
-                "uptime": "operational"
-            },
-            "capabilities": [
-                "ai_chat",
-                "web_browsing",
-                "page_summarization",
-                "workflow_automation",
-                "voice_commands",
-                "search_suggestions"
-            ]
-        }
-        
-    except Exception as e:
-        logger.error(f"System overview error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/voice-command")
-async def process_voice_command(request: VoiceCommandRequest):
-    """Process voice commands"""
-    try:
-        voice_text = request.voice_text or request.command or ""
-        
-        # Process voice command
-        command_lower = voice_text.lower()
-        
-        if "navigate to" in command_lower or "go to" in command_lower:
-            # Extract URL from command
-            words = command_lower.split()
-            if "navigate" in words:
-                url_index = words.index("to") + 1 if "to" in words else -1
-            else:
-                url_index = words.index("go") + 2 if "go" in words else -1
-                
-            if url_index > 0 and url_index < len(words):
-                url = words[url_index]
-                if not url.startswith("http"):
-                    url = f"https://{url}"
-                    
-                return {
-                    "success": True,
-                    "action": "navigate",
-                    "url": url,
-                    "message": f"Navigating to {url}"
-                }
-        
-        elif "search for" in command_lower or "search" in command_lower:
-            # Extract search query
-            query = command_lower.replace("search for", "").replace("search", "").strip()
-            return {
-                "success": True,
-                "action": "search",
-                "query": query,
-                "message": f"Searching for: {query}"
-            }
-        
-        else:
-            # General chat command
-            return {
-                "success": True,
-                "action": "chat",
-                "message": voice_text,
-                "response": "I heard you say: " + voice_text
-            }
-        
-    except Exception as e:
-        logger.error(f"Voice command error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/voice-commands/available")
-async def get_available_voice_commands():
-    """Get list of available voice commands"""
-    try:
-        commands = [
-            {
-                "command": "Navigate to [website]",
-                "example": "Navigate to google.com",
-                "description": "Navigate to a specific website"
-            },
-            {
-                "command": "Search for [query]",
-                "example": "Search for AI tools",
-                "description": "Perform a web search"
-            },
-            {
-                "command": "Summarize page",
-                "example": "Summarize this page",
-                "description": "Get AI summary of current page"
-            },
-            {
-                "command": "Create workflow",
-                "example": "Create workflow for automation",
-                "description": "Start workflow creation process"
-            }
-        ]
-        
-        return {
-            "success": True,
-            "commands": commands
-        }
-        
-    except Exception as e:
-        logger.error(f"Voice commands error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/keyboard-shortcut")
-async def process_keyboard_shortcut(request: KeyboardShortcutRequest):
-    """Process keyboard shortcuts"""
-    try:
-        shortcut = request.shortcut.lower()
-        
-        action_map = {
-            "ctrl+h": {"action": "home", "description": "Navigate to home"},
-            "ctrl+r": {"action": "refresh", "description": "Refresh current page"},
-            "ctrl+t": {"action": "new_tab", "description": "Open new tab"},
-            "ctrl+shift+a": {"action": "ai_assistant", "description": "Toggle AI assistant"},
-            "ctrl+shift+v": {"action": "voice", "description": "Activate voice commands"},
-            "ctrl+/": {"action": "shortcuts", "description": "Show keyboard shortcuts"}
-        }
-        
-        result = action_map.get(shortcut, {"action": "unknown", "description": "Unknown shortcut"})
-        
-        return {
-            "success": True,
-            "shortcut": request.shortcut,
-            **result
-        }
-        
-    except Exception as e:
-        logger.error(f"Keyboard shortcut error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/keyboard-shortcuts/available")
-async def get_available_shortcuts():
-    """Get list of available keyboard shortcuts"""
-    try:
-        shortcuts = [
-            {"shortcut": "Ctrl+H", "action": "Home", "description": "Navigate to home page"},
-            {"shortcut": "Ctrl+R", "action": "Refresh", "description": "Refresh current page"},
-            {"shortcut": "Ctrl+T", "action": "New Tab", "description": "Open new tab"},
-            {"shortcut": "Ctrl+Shift+A", "action": "AI Assistant", "description": "Toggle AI assistant panel"},
-            {"shortcut": "Ctrl+Shift+V", "action": "Voice Commands", "description": "Activate voice commands"},
-            {"shortcut": "Ctrl+/", "action": "Help", "description": "Show keyboard shortcuts"},
-            {"shortcut": "Alt+←", "action": "Back", "description": "Go back"},
-            {"shortcut": "Alt+→", "action": "Forward", "description": "Go forward"},
-            {"shortcut": "F5", "action": "Refresh", "description": "Refresh page"},
-            {"shortcut": "Ctrl+W", "action": "Close Tab", "description": "Close current tab"}
-        ]
-        
-        return {
-            "success": True,
-            "shortcuts": shortcuts
-        }
-        
-    except Exception as e:
-        logger.error(f"Shortcuts error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/automate-task")
-async def create_automation_task(request: AutomationRequest):
-    """Create automation task"""
-    try:
-        task_id = str(uuid.uuid4())
-        
-        task_data = {
-            "task_id": task_id,
-            "name": request.task_name,
-            "type": request.task_type,
-            "url": request.current_url,
-            "session_id": request.session_id,
-            "status": "created",
-            "created_at": datetime.utcnow(),
-            "steps": [],
-            "progress": 0
-        }
-        
-        db.automation_tasks.insert_one(task_data)
-        
-        return {
-            "success": True,
-            "task_id": task_id,
-            "name": request.task_name,
-            "status": "created"
-        }
-        
-    except Exception as e:
-        logger.error(f"Automation task error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/automation-suggestions")
-async def get_automation_suggestions():
-    """Get automation suggestions based on context"""
-    try:
-        suggestions = [
-            {
-                "title": "Extract Data",
-                "description": "Extract key data from this page",
-                "command": "Extract important information from this page",
-                "estimated_time": "2-3 min"
-            },
-            {
-                "title": "Monitor Changes",
-                "description": "Monitor this page for changes",
-                "command": "Set up monitoring for page changes",
-                "estimated_time": "1 min"
-            },
-            {
-                "title": "Create Report",
-                "description": "Generate a report from page content",
-                "command": "Create a summary report of this content",
-                "estimated_time": "3-5 min"
-            }
-        ]
-        
-        return {
-            "success": True,
-            "suggestions": suggestions
-        }
-        
-    except Exception as e:
-        logger.error(f"Automation suggestions error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/active-automations")
-async def get_active_automations():
-    """Get list of active automation tasks"""
-    try:
-        active_tasks = list(db.automation_tasks.find(
-            {"status": {"$in": ["created", "running", "pending"]}},
-            {"_id": 0}
-        ).sort("created_at", -1).limit(10))
-        
-        return {
-            "success": True,
-            "active_tasks": active_tasks
-        }
-        
-    except Exception as e:
-        logger.error(f"Active automations error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/execute-automation/{task_id}")
-async def execute_automation(task_id: str):
-    """Execute automation task"""
-    try:
-        # Update task status to running
-        db.automation_tasks.update_one(
-            {"task_id": task_id},
-            {"$set": {"status": "running", "started_at": datetime.utcnow()}}
-        )
-        
-        return {
-            "success": True,
-            "task_id": task_id,
-            "status": "running",
-            "message": "Automation task started"
-        }
-        
-    except Exception as e:
-        logger.error(f"Execute automation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/automation-status/{task_id}")
-async def get_automation_status(task_id: str):
-    """Get automation task status"""
-    try:
-        task = db.automation_tasks.find_one({"task_id": task_id}, {"_id": 0})
-        
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-        
-        return {
-            "success": True,
-            "task_status": task
-        }
-        
-    except Exception as e:
-        logger.error(f"Automation status error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/cancel-automation/{task_id}")
-async def cancel_automation(task_id: str):
-    """Cancel automation task"""
-    try:
-        db.automation_tasks.update_one(
-            {"task_id": task_id},
-            {"$set": {"status": "cancelled", "cancelled_at": datetime.utcnow()}}
-        )
-        
-        return {
-            "success": True,
-            "task_id": task_id,
-            "status": "cancelled",
-            "message": "Automation task cancelled"
-        }
-        
-    except Exception as e:
-        logger.error(f"Cancel automation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Enhanced endpoints for advanced features
-@app.get("/api/proactive-suggestions")
-async def get_proactive_suggestions(session_id: Optional[str] = None, current_url: Optional[str] = None):
-    """Get proactive AI suggestions"""
-    try:
-        suggestions = [
-            {
-                "id": str(uuid.uuid4()),
-                "title": "Optimize Browsing",
-                "description": "I noticed patterns in your browsing. Would you like me to create shortcuts?",
-                "type": "pattern_based",
-                "priority": "medium",
-                "action": "create_shortcuts"
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "title": "Extract Key Data",
-                "description": "This page has structured data. Shall I extract it for you?",
-                "type": "context_based",
-                "priority": "high",
-                "action": "extract_data"
-            }
-        ]
-        
-        return {
-            "success": True,
-            "suggestions": suggestions,
-            "autonomous_insights": {
-                "learning_active": True,
-                "pattern_strength": "medium",
-                "context_awareness": "high"
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Proactive suggestions error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/autonomous-action")
-async def execute_autonomous_action(request: Dict[str, Any]):
-    """Execute autonomous AI action"""
-    try:
-        action = request.get("action", "")
-        
-        response_map = {
-            "create_shortcuts": "✅ **Smart Shortcuts Created!**\n\nI've analyzed your browsing patterns and created 3 intelligent shortcuts for frequently visited sections.",
-            "extract_data": "📊 **Data Extracted Successfully!**\n\nI've extracted key information from this page and organized it for easy access.",
-            "optimize_workflow": "⚡ **Workflow Optimized!**\n\nYour browsing workflow has been enhanced based on usage patterns."
-        }
-        
-        message = response_map.get(action, f"🤖 **Action Completed!**\n\nExecuted: {action}")
-        
-        return {
-            "success": True,
-            "message": message,
-            "action": action,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Autonomous action error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Enhanced automation endpoints
-@app.post("/api/automation/execute")
-async def execute_automation_command(command: AutomationCommand):
-    """Execute single natural language automation command"""
-    try:
-        if not ENHANCED_MODE or not task_executor:
-            return {
-                "success": False,
-                "message": "Enhanced automation not available. Command processed as regular chat.",
-                "fallback": True
-            }
-        
-        # Parse and execute command
-        task_context = {
-            "session_id": command.user_session,
-            "timestamp": datetime.utcnow()
-        }
-        
-        task = await nlp_processor.parse_command(command.command, task_context)
-        task_id = await task_executor.execute_task(task)
-        
-        return {
-            "success": True,
-            "message": f"🚀 Automation started: {command.command}",
-            "task_id": task_id,
-            "background_execution": command.background,
-            "estimated_steps": len(task.steps)
-        }
-        
-    except Exception as e:
-        logger.error(f"Automation execution error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/automation/status/{task_id}")
-async def get_automation_task_status(task_id: str):
-    """Get status of automation task"""
-    try:
-        if not ENHANCED_MODE or not task_executor:
-            return {"error": "Enhanced automation not available"}
-        
-        status = await task_executor.get_task_status(task_id)
-        return status
-        
-    except Exception as e:
-        logger.error(f"Task status error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/automation/user-tasks/{user_session}")
-async def get_user_automation_tasks(user_session: str):
-    """Get all automation tasks for user"""
-    try:
-        if not ENHANCED_MODE or not task_executor:
-            return {"active_tasks": [], "completed_tasks": [], "total_active": 0}
-        
-        tasks = await task_executor.get_user_tasks(user_session)
-        return tasks
-        
-    except Exception as e:
-        logger.error(f"User tasks error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/automation/quick-command")
-async def execute_quick_automation(request: Dict[str, Any]):
-    """Execute quick automation commands through existing interface"""
-    try:
-        command = request.get("command", "")
-        user_session = request.get("user_session", str(uuid.uuid4()))
-        
-        if not ENHANCED_MODE or not task_executor:
-            # Fallback to basic processing
-            return {
-                "success": True,
-                "message": f"Command noted: {command}. Enhanced automation will be available soon!",
-                "type": "fallback"
-            }
-        
-        # Quick automation execution
-        automation_cmd = AutomationCommand(
-            command=command,
-            user_session=user_session,
-            background=True
-        )
-        
-        result = await execute_automation_command(automation_cmd)
-        return result
-        
-    except Exception as e:
-        logger.error(f"Quick automation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-# ==================== ALL CRITICAL GAPS API ENDPOINTS ====================
-# Shadow Workspace, Visual Workflow Builder, Split View, Platform Integrations
-
-@app.post("/api/shadow/create-task")
-async def create_shadow_task(request: ShadowTaskRequest):
-    """Create shadow task for background execution (Critical Gap #1)"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.create_shadow_task(request)
-
-@app.get("/api/shadow/task-status/{task_id}")
-async def get_shadow_task_status(task_id: str):
-    """Get shadow task status"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.get_shadow_task_status(task_id)
-
-@app.get("/api/shadow/active-tasks/{user_session}")
-async def get_active_shadow_tasks(user_session: str):
-    """Get active shadow tasks for user"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.get_active_shadow_tasks(user_session)
-
-@app.post("/api/shadow/control-task/{task_id}/{action}")
-async def control_shadow_task(task_id: str, action: str):
-    """Control shadow task (pause/resume/cancel)"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.control_shadow_task(task_id, action)
-
-@app.get("/api/workflows/templates")
-async def get_workflow_templates():
-    """Get visual workflow templates (Critical Gap #2)"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.get_workflow_templates()
-
-@app.post("/api/workflows/create")
-async def create_visual_workflow(request: VisualWorkflowCreateRequest):
-    """Create new visual workflow"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.create_visual_workflow(request)
-
-@app.post("/api/workflows/add-node")
-async def add_workflow_node(request: WorkflowNodeRequest):
-    """Add node to visual workflow"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.add_workflow_node(request)
-
-@app.post("/api/workflows/connect-nodes")
-async def connect_workflow_nodes(request: NodeConnectionRequest):
-    """Connect nodes in visual workflow"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.connect_workflow_nodes(request)
-
-@app.get("/api/workflows/{workflow_id}")
-async def get_workflow_definition(workflow_id: str):
-    """Get complete workflow definition"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.get_workflow_definition(workflow_id)
-
-@app.get("/api/workflows/user/{created_by}")
-async def list_user_workflows(created_by: str):
-    """List user's workflows"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.list_user_workflows(created_by)
-
-@app.post("/api/split-view/create")
-async def create_split_view_session(request: SplitViewCreateRequest):
-    """Create split view session (Critical Gap #3)"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.create_split_view_session(request)
-
-@app.post("/api/split-view/add-pane/{session_id}")
-async def add_split_pane(
-    session_id: str, 
-    url: str, 
-    position_row: Optional[int] = None,
-    position_col: Optional[int] = None
-):
-    """Add pane to split view"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.add_split_pane(session_id, url, position_row, position_col)
-
-@app.post("/api/split-view/navigate")
-async def navigate_split_pane(request: SplitViewNavigateRequest):
-    """Navigate split view pane"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.navigate_split_pane(request)
-
-@app.get("/api/split-view/{session_id}")
-async def get_split_view_state(session_id: str):
-    """Get split view session state"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.get_split_view_state(session_id)
-
-@app.post("/api/split-view/change-layout/{session_id}/{layout}")
-async def change_split_layout(session_id: str, layout: str):
-    """Change split view layout"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.change_split_layout(session_id, layout)
-
-@app.get("/api/platforms/available")
-async def get_available_integrations(integration_type: Optional[str] = None):
-    """Get available platform integrations (Critical Gap #4)"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.get_available_integrations(integration_type)
-
-@app.post("/api/platforms/connect")
-async def connect_platform(request: PlatformConnectionRequest):
-    """Connect user to platform"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.connect_platform(request)
-
-@app.post("/api/platforms/execute")
-async def execute_platform_action(request: PlatformActionRequest):
-    """Execute action on connected platform"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.execute_platform_action(request)
-
-@app.post("/api/platforms/batch-execute")
-async def batch_execute_platform_actions(request: BatchActionRequest):
-    """Execute multiple platform actions (Fellou.ai-style)"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.batch_execute_platform_actions(request)
-
-@app.get("/api/platforms/user-integrations/{user_session}")
-async def get_user_integrations(user_session: str):
-    """Get user's connected integrations"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.get_user_integrations(user_session)
-
-@app.delete("/api/platforms/disconnect/{user_session}/{platform_id}")
-async def disconnect_platform(user_session: str, platform_id: str):
-    """Disconnect user from platform"""
-    if not ENHANCED_SYSTEMS_AVAILABLE or not enhanced_integration:
-        raise HTTPException(status_code=503, detail="Enhanced systems not available")
-    
-    return await enhanced_integration.disconnect_platform(user_session, platform_id)
-
-# Enhanced system status endpoint
-@app.get("/api/enhanced/system-status")
-async def get_enhanced_system_status():
-    """Get status of all enhanced systems"""
-    try:
-        status = {
-            "enhanced_systems_available": ENHANCED_SYSTEMS_AVAILABLE,
-            "timestamp": datetime.utcnow().isoformat(),
-            "capabilities": {
-                "shadow_workspace": ENHANCED_SYSTEMS_AVAILABLE,
-                "visual_workflow_builder": ENHANCED_SYSTEMS_AVAILABLE,
-                "split_view_engine": ENHANCED_SYSTEMS_AVAILABLE,
-                "platform_integrations": ENHANCED_SYSTEMS_AVAILABLE
-            }
-        }
-        
-        if ENHANCED_SYSTEMS_AVAILABLE and enhanced_integration:
-            # Get additional system stats
-            status["systems"] = {
-                "shadow_workspace": "operational",
-                "visual_workflow_builder": "operational",
-                "split_view_engine": "operational", 
-                "platform_integrations": "operational"
-            }
-            
-            status["features"] = [
-                "Background task execution (Shadow Workspace)",
-                "Drag & drop workflow builder",
-                "Multi-website split view browsing",
-                "50+ platform integrations",
-                "Fellou.ai-level automation capabilities"
-            ]
-        
-        return status
-        
-    except Exception as e:
-        logger.error(f"Enhanced system status error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    # Setup enhanced endpoints if available
-    if PHASE_123_AVAILABLE:
-        try:
-            from enhanced_server_extensions import setup_enhanced_endpoints
-            setup_enhanced_endpoints(app, enhanced_ai_intelligence, native_chromium)
-            logger.info("🔥 Phase 1-3 enhanced endpoints configured successfully")
-        except Exception as e:
-            logger.error(f"Failed to setup enhanced endpoints: {e}")
-    
-    # Setup Native Chromium endpoints
-    if NATIVE_CHROMIUM_AVAILABLE:
-        try:
-            setup_native_chromium_endpoints(app)
-            logger.info("🚀 Native Chromium endpoints configured successfully")
-        except Exception as e:
-            logger.error(f"Failed to setup native Chromium endpoints: {e}")
-    
-    # Add native endpoints even if native chromium is not fully available
-    try:
-        from native_endpoints import add_native_endpoints
-        add_native_endpoints(app)
-        logger.info("📡 Native API endpoints added successfully")
-    except Exception as e:
-        logger.error(f"Failed to add native endpoints: {e}")
-    
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
