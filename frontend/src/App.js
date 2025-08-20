@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
+import NativeBrowserEngine from './components/NativeBrowserEngine';
+import useNativeAPI from './hooks/useNativeAPI';
 import './components/AdvancedFeatures.css';
 import './components/SmartSearchSuggestions.css';
 import AdvancedFeatures from './components/AdvancedFeatures';
