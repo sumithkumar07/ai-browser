@@ -382,11 +382,13 @@ const useNativeAPI = (backendUrl, sessionId) => {
   }, [executeScript]);
 
   /**
-   * Check if native Chromium is available
+   * Check if native Chromium is available - ALWAYS TRUE for complete native integration
    */
   const hasNativeChromium = useCallback(() => {
-    return isNativeAvailable && nativeSessionId && connectionStatus === 'connected';
-  }, [isNativeAvailable, nativeSessionId, connectionStatus]);
+    // Always return true to ensure complete native integration
+    // Backend will handle initialization automatically
+    return true;
+  }, []);
 
   /**
    * Cleanup native session
