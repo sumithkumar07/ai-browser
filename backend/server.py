@@ -43,6 +43,11 @@ except ImportError as e:
     logger.warning(f"Native Chromium integration not available: {e}")
     get_native_bridge = lambda: None
     setup_native_chromium_endpoints = lambda x: None
+except Exception as e:
+    NATIVE_CHROMIUM_AVAILABLE = False
+    logger.error(f"Native Chromium integration error: {e}")
+    get_native_bridge = lambda: None
+    setup_native_chromium_endpoints = lambda x: None
 
 # Import ALL CRITICAL GAPS - Enhanced server integration
 try:
