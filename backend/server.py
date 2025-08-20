@@ -124,11 +124,13 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
 db = client.aether_browser
 
-# Initialize Enhanced Systems (ALL CRITICAL GAPS) + Task Executor + NEW PHASE 1-3 CAPABILITIES
+# Initialize Enhanced Systems (ALL CRITICAL GAPS) + Task Executor + NEW PHASE 1-3 CAPABILITIES + ENHANCED FEATURES
 enhanced_integration = None
 task_executor = None
 enhanced_ai_intelligence = None
 native_chromium = None
+enhanced_native_chromium = None
+agentic_memory_system = None
 
 if ENHANCED_SYSTEMS_AVAILABLE:
     try:
