@@ -14,7 +14,7 @@ import concurrent.futures
 import threading
 
 # Backend URL from environment
-BACKEND_URL = "https://unified-browser.preview.emergentagent.com"
+BACKEND_URL = "https://phase-fusion.preview.emergentagent.com"
 
 class ComprehensiveBackendTester:
     def __init__(self):
