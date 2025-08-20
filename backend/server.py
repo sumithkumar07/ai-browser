@@ -740,7 +740,7 @@ async def clear_browsing_history():
 # ============================================================================
 
 # Include the enhanced API router
-app.include_router(enhanced_router)
+# app.include_router(enhanced_router)  # Temporarily disabled until components are ready
 
 # ============================================================================
 # CLEANUP AND SHUTDOWN
