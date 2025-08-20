@@ -453,6 +453,88 @@ function App() {
   // Enhanced state for background tasks
   const [backgroundTasks, setBackgroundTasks] = useState({});
 
+  // Check native browser availability
+  useEffect(() => {
+    if (nativeAPI?.hasNativeChromium()) {
+      setNativeBrowserReady(true);
+      console.log('🔥 Native Chromium Engine ready with capabilities:', nativeAPI.capabilities);
+    } else {
+      console.log('⚠️ Native Chromium not available, using enhanced iframe fallback');
+      setNativeBrowserReady(false);
+    }
+  }, [nativeAPI]);
+
+  // Handle URL navigation with native API support
+  async function handleNavigate(url) {
+    if (!url) return;
+    
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    setIsLoading(true);
+    setCurrentUrl(url);
+    setUrlInput(url);
+    setIsSecure(url.startsWith('https://'));
+    
+    // Try native Chromium first, fallback to iframe
+    if (nativeAPI?.hasNativeChromium()) {
+      console.log('🔥 Using Native Chromium for navigation:', url);
+      const result = await nativeAPI.navigateTo(url);
+      if (result.success) {
+        console.log('✅ Native navigation successful');
+        setIsLoading(false);
+        return;
+      } else {
+        console.warn('Native navigation failed, falling back to iframe:', result.error);
+      }
+    }
+    
+    // Fallback to iframe navigation
+    await fallbackIframeNavigation(url);
+  }
+
+  // Fallback iframe navigation
+  const fallbackIframeNavigation = async (url) => {
+    // Standard iframe navigation
+    if (iframeRef.current) {
+      iframeRef.current.src = url;
+    }
+    
+    // Update tab
+    const updatedTabs = tabs.map(tab => 
+      tab.id === activeTab 
+        ? { ...tab, url: url, title: getDomainFromUrl(url) }
+        : tab
+    );
+    setTabs(updatedTabs);
+    
+    // Update history
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(url);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setCanGoBack(newHistory.length > 1);
+    setCanGoForward(false);
+    
+    // Simulate loading time
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
+    // Store in browsing history
+    try {
+      await fetch(`${backendUrl}/api/browse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+      });
+    } catch (error) {
+      console.error('Error storing browse history:', error);
+    }
+  }
+
   // Enhanced AI Quick Actions - All capabilities in one place
   const aiQuickActions = [
     { 
