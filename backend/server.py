@@ -171,6 +171,35 @@ if PHASE_123_AVAILABLE:
         enhanced_ai_intelligence = None
         native_chromium = None
 
+# Initialize Enhanced Native Chromium (New)
+if NATIVE_CHROMIUM_AVAILABLE:
+    try:
+        enhanced_native_chromium = initialize_enhanced_native_chromium(client)
+        logger.info("🔥 ENHANCED NATIVE CHROMIUM initialized:")
+        logger.info("   ✅ Advanced Browser Engine")
+        logger.info("   ✅ Enhanced DevTools Protocol")
+        logger.info("   ✅ Extension Management")
+        logger.info("   ✅ Performance Monitoring")
+        logger.info("   ✅ Split View Native Support")
+    except Exception as e:
+        logger.error(f"Failed to initialize Enhanced Native Chromium: {e}")
+        enhanced_native_chromium = None
+
+# Initialize Agentic Memory System (New)
+if AGENTIC_MEMORY_AVAILABLE:
+    try:
+        agentic_memory_system = initialize_agentic_memory_system(client)
+        asyncio.create_task(agentic_memory_system.initialize())
+        logger.info("🧠 AGENTIC MEMORY SYSTEM initialized:")
+        logger.info("   ✅ Cross-Session Learning")
+        logger.info("   ✅ Behavioral Analysis") 
+        logger.info("   ✅ Predictive Insights")
+        logger.info("   ✅ User Modeling")
+        logger.info("   ✅ Contextual Memory")
+    except Exception as e:
+        logger.error(f"Failed to initialize Agentic Memory System: {e}")
+        agentic_memory_system = None
+
 if ENHANCED_MODE:
     try:
         task_executor = initialize_task_executor(client)
