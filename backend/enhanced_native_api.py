@@ -18,10 +18,11 @@ import uuid
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
-from computer_use_api import computer_use_api
-from agentic_memory_system import memory_system
-from natural_language_programming import aether_programming
-from native_chromium_engine import native_chromium_engine
+# Import system components - will be initialized at startup
+computer_use_api = None
+memory_system = None  
+aether_programming = None
+native_chromium_engine = None
 
 
 # Enhanced API Models
