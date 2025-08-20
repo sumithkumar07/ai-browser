@@ -94,6 +94,14 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Add native endpoints even if native chromium is not fully available (do this early)
+try:
+    from native_endpoints import add_native_endpoints
+    add_native_endpoints(app)
+    logger.info("📡 Native API endpoints added successfully")
+except Exception as e:
+    logger.error(f"Failed to add native endpoints: {e}")
+
 # Database connection
 MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
