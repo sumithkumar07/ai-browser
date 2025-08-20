@@ -32,11 +32,12 @@ except ImportError as e:
     get_task_executor = lambda: None
     logger.warning(f"Enhanced automation not available: {e}")
 
-# Import Native Chromium Integration
+# Import Native Chromium Integration (Enhanced)
 try:
     from native_chromium_integration import initialize_native_bridge, get_native_bridge
+    from enhanced_native_chromium import initialize_enhanced_native_chromium, get_enhanced_native_chromium
     NATIVE_CHROMIUM_AVAILABLE = True
-    logger.info("🔥 Native Chromium integration loaded successfully")
+    logger.info("🔥 Enhanced Native Chromium integration loaded successfully")
     
     # Import native endpoints setup
     try:
@@ -47,14 +48,30 @@ try:
     
 except ImportError as e:
     NATIVE_CHROMIUM_AVAILABLE = False
-    logger.warning(f"Native Chromium integration not available: {e}")
+    logger.warning(f"Enhanced Native Chromium integration not available: {e}")
     get_native_bridge = lambda: None
+    get_enhanced_native_chromium = lambda: None
     setup_native_chromium_endpoints = lambda x: None
 except Exception as e:
     NATIVE_CHROMIUM_AVAILABLE = False
-    logger.error(f"Native Chromium integration error: {e}")
+    logger.error(f"Enhanced Native Chromium integration error: {e}")
     get_native_bridge = lambda: None
+    get_enhanced_native_chromium = lambda: None
     setup_native_chromium_endpoints = lambda x: None
+
+# Import Agentic Memory System
+try:
+    from agentic_memory_system import initialize_agentic_memory_system, get_agentic_memory_system
+    AGENTIC_MEMORY_AVAILABLE = True
+    logger.info("🧠 Agentic Memory System loaded successfully")
+except ImportError as e:
+    AGENTIC_MEMORY_AVAILABLE = False
+    logger.warning(f"Agentic Memory System not available: {e}")
+    get_agentic_memory_system = lambda: None
+except Exception as e:
+    AGENTIC_MEMORY_AVAILABLE = False
+    logger.error(f"Agentic Memory System error: {e}")
+    get_agentic_memory_system = lambda: None
 
 # Import ALL CRITICAL GAPS - Enhanced server integration
 try:
