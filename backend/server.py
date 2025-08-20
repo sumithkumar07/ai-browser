@@ -13,6 +13,7 @@ import groq
 import json
 import logging
 import time
+import asyncio
 
 load_dotenv()
 
