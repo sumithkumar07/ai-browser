@@ -361,7 +361,94 @@ async def browse_page(session: BrowsingSession):
         logger.error(f"Browse error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/api/chat")
+@app.post("/api/process-command")
+async def process_enhanced_command(request: Dict[str, Any]):
+    """Process Fellou.ai-style enhanced commands"""
+    try:
+        command = request.get("command", "")
+        context = request.get("context", {})
+        user_session = request.get("user_session", str(uuid.uuid4()))
+        
+        if not command:
+            return {"success": False, "error": "Command is required"}
+        
+        # Check if enhanced AI intelligence is available
+        if PHASE_123_AVAILABLE and 'enhanced_ai_intelligence' in locals() and enhanced_ai_intelligence and enhanced_ai_intelligence.get("initialized"):
+            # Use enhanced AI processing
+            learning_engine = enhanced_ai_intelligence["learning_engine"]
+            proactive_engine = enhanced_ai_intelligence["proactive_engine"]
+            nlp_processor = enhanced_ai_intelligence["nlp_processor"]
+            
+            # Record interaction for learning
+            await learning_engine.record_interaction(
+                user_session,
+                {
+                    "type": "enhanced_command",
+                    "command": command,
+                    "current_url": context.get("current_url"),
+                    "interface_mode": context.get("interface_mode", "fellou")
+                }
+            )
+            
+            # Parse complex command
+            parsed_command = await nlp_processor.parse_complex_command(command, context)
+            
+            # Generate AI response based on command complexity
+            if parsed_command.get("complexity") == "complex":
+                response = f"🔥 **Complex Command Detected**\n\nAnalyzed {len(parsed_command.get('steps', []))} steps. Executing enhanced workflow..."
+            else:
+                intent = parsed_command.get("intent", "general")
+                response = f"✅ **Command Understood**\n\nProcessing {intent} request with AI assistance."
+            
+            # Generate proactive suggestions
+            suggestions = await proactive_engine.generate_proactive_suggestions(user_session, context)
+            suggestions_data = [
+                {
+                    "title": s.title,
+                    "description": s.description,
+                    "action": s.suggested_action
+                }
+                for s in suggestions[:3]
+            ]
+            
+            return {
+                "success": True,
+                "ai_response": response,
+                "parsed_command": parsed_command,
+                "proactive_suggestions": suggestions_data,
+                "patterns_detected": f"Learning active, pattern strength: {parsed_command.get('success_probability', 0.8)}",
+                "enhanced_mode": True
+            }
+        
+        else:
+            # Fallback to basic processing
+            response = await get_ai_response(command, context.get("current_url"), user_session)
+            
+            return {
+                "success": True,
+                "ai_response": response,
+                "enhanced_mode": False,
+                "fallback_message": "Using basic AI processing"
+            }
+            
+    except Exception as e:
+        logger.error(f"Enhanced command processing error: {e}")
+        # Fallback to basic chat
+        try:
+            fallback_response = await get_ai_response(
+                request.get("command", ""), 
+                request.get("context", {}).get("current_url"),
+                request.get("user_session", str(uuid.uuid4()))
+            )
+            return {
+                "success": True,
+                "ai_response": fallback_response,
+                "enhanced_mode": False,
+                "fallback_message": "Enhanced processing failed, using basic mode"
+            }
+        except:
+            raise HTTPException(status_code=500, detail=str(e))
+
 async def chat_with_ai(chat_data: ChatMessage):
     """Enhanced AI chat with automation capabilities"""
     try:
