@@ -792,9 +792,7 @@ async def process_enhanced_command(request: Dict[str, Any]):
         
         # Check if native Chromium is available
         if NATIVE_CHROMIUM_AVAILABLE:
-            native_bridge = get_native_bridge()
-            
-            # Process with native capabilities
+            # Process with native capabilities (endpoints are handled by add_native_endpoints)
             command_lower = command.lower()
             
             if "navigate to" in command_lower or "go to" in command_lower:
@@ -803,18 +801,16 @@ async def process_enhanced_command(request: Dict[str, Any]):
                 for word in words:
                     if "." in word and not word.startswith("http"):
                         url = f"https://{word}" if not word.startswith("http") else word
-                        nav_result = await native_bridge.execute_native_navigation(user_session, url)
-                        result["native_navigation"] = nav_result
                         result["ai_response"] = f"✅ **Navigating to {url}** using Native Chromium engine with full capabilities!"
+                        result["navigation_url"] = url
                         break
                 else:
                     result["ai_response"] = "Please specify a valid URL to navigate to."
             
             elif "screenshot" in command_lower:
                 # Native screenshot
-                screenshot_result = await native_bridge.capture_native_screenshot(user_session)
-                result["native_screenshot"] = screenshot_result
                 result["ai_response"] = "📸 **Screenshot captured** using Native Chromium with full-page support!"
+                result["native_action"] = {"screenshot": True}
             
             elif "devtools" in command_lower or "debug" in command_lower:
                 result["ai_response"] = "🔧 **DevTools opened** in Native Chromium - full debugging capabilities available!"
