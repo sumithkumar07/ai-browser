@@ -1,11 +1,11 @@
 """
-AETHER Native Chromium Browser API v6.0.0 - Clean Implementation
+AETHER Native Chromium Browser API v6.0.0 - Complete Native Integration
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -13,6 +13,12 @@ import uuid
 from datetime import datetime
 import logging
 import asyncio
+import json
+import threading
+
+# Import native components
+from native_chromium_engine import NativeChromiumEngine, initialize_native_chromium_engine
+from websocket_server import AETHERWebSocketServer, integrate_websocket_with_native_engine
 
 load_dotenv()
 
@@ -22,9 +28,9 @@ logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
-    title="AETHER Native Browser API",
+    title="AETHER Native Chromium Browser API",
     version="6.0.0",
-    description="Complete Native Chromium Integration"
+    description="Complete Native Chromium Integration with Computer Use API"
 )
 
 # Add CORS middleware
@@ -46,12 +52,60 @@ class ChatMessage(BaseModel):
     message: str
     session_id: Optional[str] = None
     current_url: Optional[str] = None
+    enable_automation: Optional[bool] = False
+    background_execution: Optional[bool] = False
 
 class BrowsingSession(BaseModel):
     url: str
     title: Optional[str] = None
 
+class NativeSessionRequest(BaseModel):
+    user_session: str
+    user_agent: Optional[str] = None
+
+class NavigationRequest(BaseModel):
+    session_id: str
+    url: str
+    timeout: Optional[int] = 30000
+
+class JavaScriptRequest(BaseModel):
+    session_id: str
+    script: str
+    args: Optional[List[Any]] = []
+
+class ClickRequest(BaseModel):
+    session_id: str
+    selector: Optional[str] = None
+    x: Optional[int] = None
+    y: Optional[int] = None
+    timeout: Optional[int] = 5000
+
+class TypeRequest(BaseModel):
+    session_id: str
+    selector: str
+    text: str
+    clear: Optional[bool] = True
+
+class ScreenshotRequest(BaseModel):
+    session_id: str
+    full_page: Optional[bool] = False
+    quality: Optional[int] = 80
+
+class SmartClickRequest(BaseModel):
+    session_id: str
+    description: str
+
+class ExtractDataRequest(BaseModel):
+    session_id: str
+    data_type: Optional[str] = 'general'
+
+class ContentRequest(BaseModel):
+    session_id: str
+    include_html: Optional[bool] = False
+
 # Global state for native engine
+native_engine: Optional[NativeChromiumEngine] = None
+websocket_server: Optional[AETHERWebSocketServer] = None
 native_engine_ready = False
 
 @app.on_event("startup")
