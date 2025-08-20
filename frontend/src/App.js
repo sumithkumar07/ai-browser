@@ -230,11 +230,16 @@ function App() {
   };
 
   const handleGoBack = async () => {
-    if (nativeAPI?.browserBack) {
+    // Try native API first
+    if (nativeAPI?.hasNativeChromium()) {
       const success = await nativeAPI.browserBack();
-      if (success) return;
+      if (success?.success) {
+        console.log('🔥 Native browser back successful');
+        return;
+      }
     }
     
+    // Fallback to iframe history
     if (canGoBack && historyIndex > 0) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
@@ -247,11 +252,16 @@ function App() {
   };
 
   const handleGoForward = async () => {
-    if (nativeAPI?.browserForward) {
+    // Try native API first
+    if (nativeAPI?.hasNativeChromium()) {
       const success = await nativeAPI.browserForward();
-      if (success) return;
+      if (success?.success) {
+        console.log('🔥 Native browser forward successful');
+        return;
+      }
     }
     
+    // Fallback to iframe history
     if (canGoForward && historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
@@ -264,13 +274,21 @@ function App() {
   };
 
   const handleRefresh = async () => {
-    if (nativeAPI?.browserRefresh) {
-      await nativeAPI.browserRefresh();
-      return;
+    // Try native API first
+    if (nativeAPI?.hasNativeChromium()) {
+      const success = await nativeAPI.browserRefresh();
+      if (success?.success) {
+        console.log('🔥 Native browser refresh successful');
+        return;
+      }
     }
     
+    // Fallback to iframe refresh
     if (currentUrl) {
       setIsLoading(true);
+      if (iframeRef.current) {
+        iframeRef.current.src = iframeRef.current.src; // Force reload
+      }
       setTimeout(() => setIsLoading(false), 800);
     }
   };
