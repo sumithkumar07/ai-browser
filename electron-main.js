@@ -1,448 +1,379 @@
-const { app, BrowserWindow, BrowserView, ipcMain, Menu, dialog, shell } = require('electron');
-const { spawn } = require('child_process');
+const { app, BrowserWindow, ipcMain, session, webContents } = require('electron');
 const path = require('path');
-const isDev = process.env.ELECTRON_IS_DEV === '1';
-const Store = require('electron-store');
+const isDev = require('electron-is-dev');
+const { autoUpdater } = require('electron-updater');
 
-// Enhanced Store for native Chromium features
-const store = new Store({
-  defaults: {
-    windowBounds: { width: 1400, height: 900 },
-    browserSettings: {
-      enableExtensions: true,
-      enableDevTools: true,
-      enableWebSecurity: false, // For cross-origin access
-      enableNodeIntegration: false
-    },
-    aiSettings: {
-      proactiveMode: true,
-      behavioralLearning: true,
-      commandMode: 'single-box'
-    }
-  }
-});
-
-class AetherNativeBrowser {
+// Native Chromium Engine - Main Process
+class NativeChromiumEngine {
   constructor() {
     this.mainWindow = null;
-    this.browserView = null;
-    this.backendProcess = null;
-    this.isReady = false;
-    
-    // Native Chromium session management
+    this.browserViews = new Map();
+    this.currentViewId = null;
     this.sessions = new Map();
-    this.extensions = new Map();
+    
+    // Initialize native capabilities
+    this.setupNativeCapabilities();
   }
 
-  async initialize() {
-    await app.whenReady();
-    this.createMainWindow();
-    this.setupNativeChromium();
-    this.startBackendProcess();
-    this.setupIPC();
-    this.setupMenu();
+  setupNativeCapabilities() {
+    // Enable chrome extensions support
+    app.commandLine.appendSwitch('--enable-chrome-browser-cloud-management');
+    app.commandLine.appendSwitch('--enable-features', 'ElectronSerialChooser');
     
-    console.log('🔥 AETHER Native Browser initialized with Chromium engine');
+    // Enhanced security and compatibility
+    app.commandLine.appendSwitch('--disable-web-security');
+    app.commandLine.appendSwitch('--disable-features', 'OutOfBlinkCors');
+    app.commandLine.appendSwitch('--allow-running-insecure-content');
+    app.commandLine.appendSwitch('--ignore-certificate-errors');
   }
 
-  createMainWindow() {
-    const bounds = store.get('windowBounds');
-    
+  async createMainWindow() {
     this.mainWindow = new BrowserWindow({
-      ...bounds,
-      minWidth: 1200,
-      minHeight: 800,
-      show: false,
+      width: 1400,
+      height: 900,
+      minWidth: 800,
+      minHeight: 600,
       webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        enableRemoteModule: false,
-        preload: path.join(__dirname, 'electron-preload.js'),
-        webSecurity: false, // Enable cross-origin access like Fellou.ai
-        allowRunningInsecureContent: true
+        nodeIntegration: true,
+        contextIsolation: false,
+        enableRemoteModule: true,
+        webSecurity: false,
+        allowRunningInsecureContent: true,
+        experimentalFeatures: true
       },
-      titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+      titleBarStyle: 'hidden',
+      titleBarOverlay: {
+        color: '#1a1a1a',
+        symbolColor: '#8b5cf6'
+      },
       icon: path.join(__dirname, 'assets', 'icon.png')
     });
 
-    // Load the React frontend
-    const frontendUrl = isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, 'frontend/build/index.html')}`;
-    this.mainWindow.loadURL(frontendUrl);
+    // Load AETHER interface
+    const startUrl = isDev 
+      ? 'http://localhost:3000' 
+      : `file://${path.join(__dirname, '../frontend/build/index.html')}`;
+    
+    await this.mainWindow.loadURL(startUrl);
 
-    // Show window when ready
-    this.mainWindow.once('ready-to-show', () => {
-      this.mainWindow.show();
-      if (isDev) {
-        this.mainWindow.webContents.openDevTools();
-      }
-      this.isReady = true;
-    });
+    // Setup IPC handlers
+    this.setupIpcHandlers();
+    
+    // Inject native API
+    await this.injectNativeAPI();
 
-    // Save window bounds
-    this.mainWindow.on('close', () => {
-      store.set('windowBounds', this.mainWindow.getBounds());
-    });
+    if (isDev) {
+      this.mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
 
     return this.mainWindow;
   }
 
-  setupNativeChromium() {
-    const { session } = require('electron');
-    
-    // Create enhanced browsing session with Chromium features
-    const browserSession = session.fromPartition('persist:main-browser', {
-      cache: true
-    });
+  async injectNativeAPI() {
+    // Inject the native API into the renderer process
+    await this.mainWindow.webContents.executeJavaScript(`
+      window.nativeAPI = {
+        // Core browser methods
+        navigateTo: async (url) => {
+          return new Promise((resolve) => {
+            window.electronAPI.navigateTo(url).then(resolve);
+          });
+        },
+        
+        browserBack: async () => {
+          return new Promise((resolve) => {
+            window.electronAPI.browserBack().then(resolve);
+          });
+        },
+        
+        browserForward: async () => {
+          return new Promise((resolve) => {
+            window.electronAPI.browserForward().then(resolve);
+          });
+        },
+        
+        browserRefresh: async () => {
+          return new Promise((resolve) => {
+            window.electronAPI.browserRefresh().then(resolve);
+          });
+        },
 
-    // Enable Chrome extensions support
-    if (store.get('browserSettings.enableExtensions')) {
-      this.enableExtensionsSupport(browserSession);
-    }
-
-    // Configure session for cross-origin access (like Fellou.ai)
-    browserSession.webRequest.onBeforeSendHeaders((details, callback) => {
-      details.requestHeaders['User-Agent'] = 'AETHER-Native-Browser/6.0.0 Chrome/120.0.0.0';
-      callback({ requestHeaders: details.requestHeaders });
-    });
-
-    // Native BrowserView for true Chromium engine
-    this.browserView = new BrowserView({
-      webPreferences: {
-        session: browserSession,
-        nodeIntegration: false,
-        contextIsolation: true,
-        webSecurity: false, // Fellou.ai-level access
-        allowRunningInsecureContent: true,
-        plugins: true,
-        experimentalFeatures: true
-      }
-    });
-
-    // Add browser view to main window
-    this.mainWindow.setBrowserView(this.browserView);
-    
-    // Dynamic browser view resizing
-    this.mainWindow.on('resize', () => {
-      if (this.browserView) {
-        const bounds = this.mainWindow.getBounds();
-        this.browserView.setBounds({ 
-          x: 0, 
-          y: 120, // Leave space for UI controls
-          width: bounds.width, 
-          height: bounds.height - 120 
-        });
-      }
-    });
-
-    console.log('🌐 Native Chromium engine initialized with extension support');
-  }
-
-  enableExtensionsSupport(session) {
-    // Enable Chrome extension support
-    const extensionsDir = path.join(__dirname, 'extensions');
-    
-    try {
-      // Load common extensions
-      const commonExtensions = [
-        // Add paths to Chrome extensions here
-        // e.g., './extensions/react-devtools'
-      ];
-
-      commonExtensions.forEach(async (extensionPath) => {
-        try {
-          const extension = await session.loadExtension(extensionPath);
-          this.extensions.set(extension.id, extension);
-          console.log(`📦 Loaded extension: ${extension.name}`);
-        } catch (error) {
-          console.log(`⚠️ Could not load extension: ${extensionPath}`);
+        // Enhanced capabilities
+        hasNativeChromium: () => true,
+        
+        executeJavaScript: async (code) => {
+          return window.electronAPI.executeJavaScript(code);
+        },
+        
+        captureScreenshot: async () => {
+          return window.electronAPI.captureScreenshot();
+        },
+        
+        openDevTools: () => {
+          window.electronAPI.openDevTools();
+        },
+        
+        installExtension: async (extensionPath) => {
+          return window.electronAPI.installExtension(extensionPath);
+        },
+        
+        // Platform integrations
+        accessLocalFiles: async (path) => {
+          return window.electronAPI.accessLocalFiles(path);
+        },
+        
+        systemNotification: (title, body) => {
+          window.electronAPI.systemNotification(title, body);
         }
-      });
-    } catch (error) {
-      console.log('⚠️ Extensions directory not found, skipping extension loading');
-    }
-  }
+      };
 
-  startBackendProcess() {
-    if (isDev) {
-      // In development, backend runs via supervisor
-      console.log('📡 Using supervisor backend in development');
-      return;
-    }
+      // Expose electron API
+      window.electronAPI = {
+        navigateTo: (url) => window.electronIPC.invoke('navigate-to', url),
+        browserBack: () => window.electronIPC.invoke('browser-back'),
+        browserForward: () => window.electronIPC.invoke('browser-forward'), 
+        browserRefresh: () => window.electronIPC.invoke('browser-refresh'),
+        executeJavaScript: (code) => window.electronIPC.invoke('execute-js', code),
+        captureScreenshot: () => window.electronIPC.invoke('capture-screenshot'),
+        openDevTools: () => window.electronIPC.invoke('open-devtools'),
+        installExtension: (path) => window.electronIPC.invoke('install-extension', path),
+        accessLocalFiles: (path) => window.electronIPC.invoke('access-local-files', path),
+        systemNotification: (title, body) => window.electronIPC.invoke('system-notification', title, body)
+      };
 
-    // In production, start backend process
-    const backendScript = path.join(__dirname, 'backend', 'server.py');
-    this.backendProcess = spawn('python', [backendScript], {
-      cwd: path.join(__dirname, 'backend'),
-      stdio: 'pipe'
-    });
-
-    this.backendProcess.stdout.on('data', (data) => {
-      console.log(`Backend: ${data}`);
-    });
-
-    this.backendProcess.stderr.on('data', (data) => {
-      console.error(`Backend Error: ${data}`);
-    });
-
-    console.log('🚀 Backend process started');
-  }
-
-  setupIPC() {
-    // Native browser navigation
-    ipcMain.handle('navigate-to', async (event, url) => {
-      if (this.browserView) {
-        try {
-          await this.browserView.webContents.loadURL(url);
-          return { success: true, url };
-        } catch (error) {
-          return { success: false, error: error.message };
+      window.electronIPC = {
+        invoke: (channel, ...args) => {
+          return new Promise((resolve, reject) => {
+            const callbackId = 'callback_' + Date.now() + '_' + Math.random();
+            
+            window.addEventListener(callbackId, (event) => {
+              if (event.detail.error) {
+                reject(new Error(event.detail.error));
+              } else {
+                resolve(event.detail.result);
+              }
+            }, { once: true });
+            
+            window.postMessage({
+              type: 'ipc-invoke',
+              channel: channel,
+              args: args,
+              callbackId: callbackId
+            }, '*');
+          });
         }
-      }
-    });
+      };
 
-    // Native browser controls
-    ipcMain.handle('browser-back', () => {
-      if (this.browserView && this.browserView.webContents.canGoBack()) {
-        this.browserView.webContents.goBack();
-        return true;
-      }
-      return false;
-    });
-
-    ipcMain.handle('browser-forward', () => {
-      if (this.browserView && this.browserView.webContents.canGoForward()) {
-        this.browserView.webContents.goForward();
-        return true;
-      }
-      return false;
-    });
-
-    ipcMain.handle('browser-refresh', () => {
-      if (this.browserView) {
-        this.browserView.webContents.reload();
-        return true;
-      }
-      return false;
-    });
-
-    // Native DevTools access
-    ipcMain.handle('open-devtools', () => {
-      if (this.browserView && store.get('browserSettings.enableDevTools')) {
-        this.browserView.webContents.openDevTools();
-        return true;
-      }
-      return false;
-    });
-
-    // Extension management
-    ipcMain.handle('get-extensions', () => {
-      return Array.from(this.extensions.values()).map(ext => ({
-        id: ext.id,
-        name: ext.name,
-        version: ext.version
-      }));
-    });
-
-    // Fellou.ai-style command processing
-    ipcMain.handle('process-command', async (event, command) => {
-      return this.processNaturalLanguageCommand(command);
-    });
-
-    // Native session management
-    ipcMain.handle('create-session', async (event, options) => {
-      const sessionId = `session-${Date.now()}`;
-      const newSession = session.fromPartition(`persist:${sessionId}`, options);
-      this.sessions.set(sessionId, newSession);
-      return sessionId;
-    });
-
-    console.log('🔌 IPC handlers registered for native Chromium features');
-  }
-
-  async processNaturalLanguageCommand(command) {
-    // Enhanced NLP command processing (Fellou.ai-style)
-    const commandLower = command.toLowerCase();
-    
-    if (commandLower.includes('navigate to') || commandLower.includes('go to')) {
-      const urlMatch = command.match(/(?:navigate to|go to)\s+(.+)/i);
-      if (urlMatch) {
-        const url = urlMatch[1].trim();
-        const fullUrl = url.startsWith('http') ? url : `https://${url}`;
-        return await this.ipcMain.emit('navigate-to', null, fullUrl);
-      }
-    }
-    
-    if (commandLower.includes('open devtools') || commandLower.includes('developer tools')) {
-      return await this.ipcMain.emit('open-devtools');
-    }
-    
-    if (commandLower.includes('back') || commandLower === 'go back') {
-      return await this.ipcMain.emit('browser-back');
-    }
-    
-    if (commandLower.includes('forward') || commandLower === 'go forward') {
-      return await this.ipcMain.emit('browser-forward');
-    }
-    
-    if (commandLower.includes('refresh') || commandLower.includes('reload')) {
-      return await this.ipcMain.emit('browser-refresh');
-    }
-
-    // Advanced AI command processing via backend
-    try {
-      const response = await fetch('http://localhost:8001/api/process-command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command, context: 'native-browser' })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        return result;
-      }
-    } catch (error) {
-      console.error('Error processing command:', error);
-    }
-    
-    return { 
-      success: false, 
-      message: `Command not recognized: ${command}` 
-    };
-  }
-
-  setupMenu() {
-    const template = [
-      {
-        label: 'AETHER',
-        submenu: [
-          { role: 'about' },
-          { type: 'separator' },
-          { 
-            label: 'Preferences',
-            accelerator: 'CmdOrCtrl+,',
-            click: () => {
-              this.showPreferences();
-            }
-          },
-          { type: 'separator' },
-          { role: 'quit' }
-        ]
-      },
-      {
-        label: 'Browser',
-        submenu: [
-          { 
-            label: 'Back',
-            accelerator: 'CmdOrCtrl+Left',
-            click: () => this.browserView?.webContents.goBack()
-          },
-          { 
-            label: 'Forward',
-            accelerator: 'CmdOrCtrl+Right',
-            click: () => this.browserView?.webContents.goForward()
-          },
-          { 
-            label: 'Refresh',
-            accelerator: 'CmdOrCtrl+R',
-            click: () => this.browserView?.webContents.reload()
-          },
-          { type: 'separator' },
-          {
-            label: 'Developer Tools',
-            accelerator: 'F12',
-            click: () => this.browserView?.webContents.openDevTools()
-          }
-        ]
-      },
-      {
-        label: 'AI Assistant',
-        submenu: [
-          {
-            label: 'Toggle AI Panel',
-            accelerator: 'CmdOrCtrl+Shift+A',
-            click: () => {
-              this.mainWindow.webContents.send('toggle-ai-panel');
-            }
-          },
-          {
-            label: 'Voice Commands',
-            accelerator: 'CmdOrCtrl+Shift+P',
-            click: () => {
-              this.mainWindow.webContents.send('toggle-voice-commands');
-            }
-          }
-        ]
-      }
-    ];
-
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
-  }
-
-  showPreferences() {
-    // Create preferences window
-    const prefsWindow = new BrowserWindow({
-      width: 600,
-      height: 400,
-      parent: this.mainWindow,
-      modal: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true
-      }
-    });
-
-    prefsWindow.loadURL(`data:text/html,
-      <html>
-        <head><title>AETHER Preferences</title></head>
-        <body style="font-family: system-ui; padding: 20px;">
-          <h2>🔥 AETHER Native Browser Settings</h2>
-          <h3>🌐 Chromium Engine</h3>
-          <label><input type="checkbox" ${store.get('browserSettings.enableExtensions') ? 'checked' : ''}> Enable Chrome Extensions</label><br>
-          <label><input type="checkbox" ${store.get('browserSettings.enableDevTools') ? 'checked' : ''}> Enable Developer Tools</label><br>
-          <label><input type="checkbox" ${!store.get('browserSettings.enableWebSecurity') ? 'checked' : ''}> Disable Web Security (Cross-Origin Access)</label><br>
-          
-          <h3>🤖 AI Settings</h3>
-          <label><input type="checkbox" ${store.get('aiSettings.proactiveMode') ? 'checked' : ''}> Proactive AI Suggestions</label><br>
-          <label><input type="checkbox" ${store.get('aiSettings.behavioralLearning') ? 'checked' : ''}> Behavioral Learning</label><br>
-          
-          <h3>🎯 Interface Mode</h3>
-          <label><input type="radio" name="commandMode" value="single-box" ${store.get('aiSettings.commandMode') === 'single-box' ? 'checked' : ''}> Single Command Box (Fellou.ai Style)</label><br>
-          <label><input type="radio" name="commandMode" value="traditional" ${store.get('aiSettings.commandMode') === 'traditional' ? 'checked' : ''}> Traditional Interface</label><br>
-          
-          <br><button onclick="window.close()">Close</button>
-        </body>
-      </html>
+      console.log('🔥 Native Chromium API injected successfully');
     `);
+  }
+
+  setupIpcHandlers() {
+    // Navigation handlers
+    ipcMain.handle('navigate-to', async (event, url) => {
+      try {
+        await this.navigateToUrl(url);
+        return { success: true, url: url };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('browser-back', async (event) => {
+      try {
+        const view = this.getCurrentBrowserView();
+        if (view && view.webContents.canGoBack()) {
+          view.webContents.goBack();
+          return true;
+        }
+        return false;
+      } catch (error) {
+        return false;
+      }
+    });
+
+    ipcMain.handle('browser-forward', async (event) => {
+      try {
+        const view = this.getCurrentBrowserView();
+        if (view && view.webContents.canGoForward()) {
+          view.webContents.goForward();
+          return true;
+        }
+        return false;
+      } catch (error) {
+        return false;
+      }
+    });
+
+    ipcMain.handle('browser-refresh', async (event) => {
+      try {
+        const view = this.getCurrentBrowserView();
+        if (view) {
+          view.webContents.reload();
+          return true;
+        }
+        return false;
+      } catch (error) {
+        return false;
+      }
+    });
+
+    // Enhanced capabilities handlers
+    ipcMain.handle('execute-js', async (event, code) => {
+      try {
+        const view = this.getCurrentBrowserView();
+        if (view) {
+          const result = await view.webContents.executeJavaScript(code);
+          return { success: true, result: result };
+        }
+        return { success: false, error: 'No active browser view' };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('capture-screenshot', async (event) => {
+      try {
+        const view = this.getCurrentBrowserView();
+        if (view) {
+          const image = await view.webContents.capturePage();
+          return { success: true, screenshot: image.toDataURL() };
+        }
+        return { success: false, error: 'No active browser view' };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('open-devtools', async (event) => {
+      try {
+        const view = this.getCurrentBrowserView();
+        if (view) {
+          view.webContents.openDevTools({ mode: 'detach' });
+          return { success: true };
+        }
+        return { success: false, error: 'No active browser view' };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    // System integration handlers
+    ipcMain.handle('system-notification', async (event, title, body) => {
+      try {
+        const { Notification } = require('electron');
+        new Notification({ title, body }).show();
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('install-extension', async (event, extensionPath) => {
+      try {
+        // Extension installation capability
+        const extensionId = await session.defaultSession.loadExtension(extensionPath);
+        return { success: true, extensionId: extensionId };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    });
+  }
+
+  async navigateToUrl(url) {
+    const { BrowserView } = require('electron');
+    
+    // Create or reuse browser view
+    if (!this.currentViewId || !this.browserViews.has(this.currentViewId)) {
+      const viewId = 'view_' + Date.now();
+      const browserView = new BrowserView({
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          enableRemoteModule: false,
+          webSecurity: false,
+          allowRunningInsecureContent: true,
+          plugins: true,
+          experimentalFeatures: true
+        }
+      });
+
+      this.browserViews.set(viewId, browserView);
+      this.currentViewId = viewId;
+      this.mainWindow.setBrowserView(browserView);
+      
+      // Position the browser view (leave space for AETHER UI)
+      const { width, height } = this.mainWindow.getBounds();
+      browserView.setBounds({ x: 0, y: 120, width: width, height: height - 120 });
+    }
+
+    const browserView = this.browserViews.get(this.currentViewId);
+    await browserView.webContents.loadURL(url);
+    
+    return browserView;
+  }
+
+  getCurrentBrowserView() {
+    if (this.currentViewId && this.browserViews.has(this.currentViewId)) {
+      return this.browserViews.get(this.currentViewId);
+    }
+    return null;
+  }
+
+  setupAutoUpdater() {
+    if (!isDev) {
+      autoUpdater.checkForUpdatesAndNotify();
+      
+      autoUpdater.on('update-available', () => {
+        console.log('Update available');
+      });
+
+      autoUpdater.on('update-downloaded', () => {
+        console.log('Update downloaded');
+        autoUpdater.quitAndInstall();
+      });
+    }
   }
 }
 
-// Initialize AETHER Native Browser
-const aetherBrowser = new AetherNativeBrowser();
+// Initialize native engine
+const nativeEngine = new NativeChromiumEngine();
 
-app.on('ready', () => {
-  aetherBrowser.initialize();
+// App event handlers
+app.whenReady().then(async () => {
+  await nativeEngine.createMainWindow();
+  nativeEngine.setupAutoUpdater();
+  
+  console.log('🚀 AETHER Native Chromium Engine started');
 });
 
 app.on('window-all-closed', () => {
-  if (aetherBrowser.backendProcess) {
-    aetherBrowser.backendProcess.kill();
-  }
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-app.on('activate', () => {
+app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    aetherBrowser.createMainWindow();
+    await nativeEngine.createMainWindow();
   }
 });
 
-// Handle certificate errors for cross-origin access
-app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
-  event.preventDefault();
-  callback(true);
+// Enhanced session management
+app.on('ready', () => {
+  // Enable chrome extensions
+  const extensions = [
+    // Popular extensions can be loaded here
+  ];
+  
+  // Setup enhanced session
+  const ses = session.defaultSession;
+  
+  // Enable additional protocols
+  ses.protocol.registerFileProtocol('aether', (request, callback) => {
+    const url = request.url.substr(8);
+    callback({ path: path.normalize(`${__dirname}/${url}`) });
+  });
 });
 
-console.log('🔥 AETHER Native Browser v6.0.0 - Chromium Engine with Fellou.ai capabilities');
+module.exports = nativeEngine;

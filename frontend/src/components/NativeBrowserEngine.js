@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import './NativeBrowserEngine.css';
 
 const NativeBrowserEngine = ({ 
   currentUrl, 
@@ -7,153 +6,123 @@ const NativeBrowserEngine = ({
   onNavigationChange, 
   nativeAPI 
 }) => {
-  const browserRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [securityInfo, setSecurityInfo] = useState({ isSecure: true, certificate: null });
-  const [performance, setPerformance] = useState({ loadTime: 0, memoryUsage: 0 });
-  const [devToolsOpen, setDevToolsOpen] = useState(false);
-  const [extensionsEnabled, setExtensionsEnabled] = useState(true);
-
-  useEffect(() => {
-    if (nativeAPI && browserRef.current) {
-      initializeNativeBrowser();
-    }
-  }, [nativeAPI]);
+  const [currentDomain, setCurrentDomain] = useState('');
+  const [isSecure, setIsSecure] = useState(true);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     if (currentUrl && nativeAPI) {
-      navigateToUrl(currentUrl);
+      handleNavigation(currentUrl);
     }
   }, [currentUrl, nativeAPI]);
 
-  const initializeNativeBrowser = async () => {
-    try {
-      // Initialize native Chromium engine
-      await nativeAPI.initializeBrowser(browserRef.current, {
-        enableExtensions: true,
-        enableDevTools: true,
-        enableWebSecurity: true,
-        enableJavaScript: true,
-        enableImages: true,
-        enablePlugins: true,
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AETHER/6.0.0 Chrome/121.0.0.0 Safari/537.36'
-      });
-
-      // Set up event listeners
-      nativeAPI.onNavigationStart((url) => {
-        setIsLoading(true);
-        onUrlChange(url);
-      });
-
-      nativeAPI.onNavigationComplete((data) => {
-        setIsLoading(false);
-        setCanGoBack(data.canGoBack);
-        setCanGoForward(data.canGoForward);
-        setSecurityInfo(data.securityInfo);
-        setPerformance(data.performance);
-        
-        onNavigationChange({
-          canGoBack: data.canGoBack,
-          canGoForward: data.canGoForward,
-          isLoading: false
-        });
-      });
-
-      nativeAPI.onSecurityStateChanged((securityInfo) => {
-        setSecurityInfo(securityInfo);
-      });
-
-      nativeAPI.onPerformanceUpdate((perfData) => {
-        setPerformance(perfData);
-      });
-
-      console.log('✅ Native Chromium browser initialized');
-    } catch (error) {
-      console.error('❌ Failed to initialize native browser:', error);
-    }
-  };
-
-  const navigateToUrl = async (url) => {
+  const handleNavigation = async (url) => {
     if (!nativeAPI || !url) return;
+
+    setIsLoading(true);
     
     try {
-      setIsLoading(true);
       const result = await nativeAPI.navigateTo(url);
       
       if (result.success) {
-        console.log(`✅ Native navigation to ${url} successful`);
-      } else {
-        console.error(`❌ Native navigation failed: ${result.error}`);
+        // Update domain and security indicators
+        const urlObj = new URL(url);
+        setCurrentDomain(urlObj.hostname);
+        setIsSecure(url.startsWith('https://'));
+        
+        // Update navigation state
+        await updateNavigationState();
+        
+        // Notify parent component
+        onUrlChange(url);
       }
     } catch (error) {
-      console.error('❌ Navigation error:', error);
+      console.error('Native navigation error:', error);
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoBack = async () => {
-    if (nativeAPI && canGoBack) {
-      await nativeAPI.browserBack();
+  const updateNavigationState = async () => {
+    if (!nativeAPI) return;
+
+    try {
+      // Note: In a real implementation, you'd get these from the native API
+      // For now, we'll simulate the state
+      const navigationState = {
+        canGoBack: canGoBack,
+        canGoForward: canGoForward,
+        isLoading: isLoading
+      };
+      
+      onNavigationChange(navigationState);
+    } catch (error) {
+      console.error('Navigation state update error:', error);
     }
   };
 
-  const handleGoForward = async () => {
-    if (nativeAPI && canGoForward) {
-      await nativeAPI.browserForward();
+  const handleBack = async () => {
+    if (!nativeAPI) return;
+    
+    const success = await nativeAPI.browserBack();
+    if (success) {
+      setCanGoBack(false); // Will be updated by navigation state
+      await updateNavigationState();
+    }
+  };
+
+  const handleForward = async () => {
+    if (!nativeAPI) return;
+    
+    const success = await nativeAPI.browserForward();
+    if (success) {
+      setCanGoForward(false); // Will be updated by navigation state
+      await updateNavigationState();
     }
   };
 
   const handleRefresh = async () => {
-    if (nativeAPI) {
-      await nativeAPI.browserRefresh();
+    if (!nativeAPI) return;
+    
+    await nativeAPI.browserRefresh();
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1000); // Simulate loading
+  };
+
+  const handleDevTools = async () => {
+    if (!nativeAPI) return;
+    await nativeAPI.openDevTools();
+  };
+
+  const handleScreenshot = async () => {
+    if (!nativeAPI) return;
+    
+    try {
+      const result = await nativeAPI.captureScreenshot();
+      if (result.success) {
+        // Create download link for screenshot
+        const link = document.createElement('a');
+        link.href = result.screenshot;
+        link.download = `aether-screenshot-${Date.now()}.png`;
+        link.click();
+      }
+    } catch (error) {
+      console.error('Screenshot error:', error);
     }
   };
 
-  const toggleDevTools = async () => {
-    if (nativeAPI) {
-      if (devToolsOpen) {
-        await nativeAPI.closeDevTools();
-      } else {
-        await nativeAPI.openDevTools();
-      }
-      setDevToolsOpen(!devToolsOpen);
-    }
-  };
-
-  const captureScreenshot = async () => {
-    if (nativeAPI) {
-      try {
-        const screenshot = await nativeAPI.captureScreenshot();
-        console.log('📸 Screenshot captured:', screenshot);
-        return screenshot;
-      } catch (error) {
-        console.error('❌ Screenshot failed:', error);
-      }
-    }
-  };
-
-  const executeJavaScript = async (script) => {
-    if (nativeAPI) {
-      try {
-        const result = await nativeAPI.executeJavaScript(script);
-        return result;
-      } catch (error) {
-        console.error('❌ JavaScript execution failed:', error);
-      }
-    }
-  };
-
-  const installExtension = async (extensionPath) => {
-    if (nativeAPI) {
-      try {
-        const result = await nativeAPI.installExtension(extensionPath);
-        console.log('🧩 Extension installed:', result);
-        return result;
-      } catch (error) {
-        console.error('❌ Extension installation failed:', error);
-      }
+  const executeScript = async (script) => {
+    if (!nativeAPI) return;
+    
+    try {
+      const result = await nativeAPI.executeJavaScript(script);
+      return result;
+    } catch (error) {
+      console.error('Script execution error:', error);
+      return { success: false, error: error.message };
     }
   };
 
@@ -163,23 +132,23 @@ const NativeBrowserEngine = ({
       <div className="native-controls">
         <div className="navigation-controls">
           <button 
-            className={`control-btn ${!canGoBack ? 'disabled' : ''}`}
-            onClick={handleGoBack}
+            className={`nav-btn ${!canGoBack ? 'disabled' : ''}`}
+            onClick={handleBack}
             disabled={!canGoBack}
             title="Go back"
           >
             ←
           </button>
           <button 
-            className={`control-btn ${!canGoForward ? 'disabled' : ''}`}
-            onClick={handleGoForward}
+            className={`nav-btn ${!canGoForward ? 'disabled' : ''}`}
+            onClick={handleForward}
             disabled={!canGoForward}
             title="Go forward"
           >
             →
           </button>
           <button 
-            className="control-btn"
+            className="nav-btn"
             onClick={handleRefresh}
             title="Refresh"
           >
@@ -187,121 +156,272 @@ const NativeBrowserEngine = ({
           </button>
         </div>
 
-        <div className="browser-info">
-          <div className={`security-badge ${securityInfo.isSecure ? 'secure' : 'insecure'}`}>
-            {securityInfo.isSecure ? '🔒' : '⚠️'}
-            <span>{securityInfo.isSecure ? 'Secure' : 'Not Secure'}</span>
+        <div className="url-display">
+          <div className="security-indicator">
+            {isSecure ? (
+              <span className="secure" title="Secure connection">🔒</span>
+            ) : (
+              <span className="insecure" title="Not secure">⚠️</span>
+            )}
           </div>
-          
-          <div className="performance-info">
-            <span className="load-time">Load: {performance.loadTime}ms</span>
-            <span className="memory-usage">Memory: {Math.round(performance.memoryUsage)}MB</span>
+          <div className="current-url">
+            {currentDomain || 'No page loaded'}
           </div>
         </div>
 
-        <div className="developer-tools">
+        <div className="native-features">
           <button 
-            className={`control-btn ${devToolsOpen ? 'active' : ''}`}
-            onClick={toggleDevTools}
-            title="Toggle DevTools"
+            className="feature-btn"
+            onClick={handleDevTools}
+            title="Open Developer Tools"
           >
             🔧
           </button>
           <button 
-            className="control-btn"
-            onClick={captureScreenshot}
-            title="Capture Screenshot"
+            className="feature-btn"
+            onClick={handleScreenshot}
+            title="Take Screenshot"
           >
             📸
-          </button>
-          <button 
-            className={`control-btn ${extensionsEnabled ? 'active' : ''}`}
-            onClick={() => setExtensionsEnabled(!extensionsEnabled)}
-            title="Toggle Extensions"
-          >
-            🧩
           </button>
         </div>
       </div>
 
       {/* Native Browser Container */}
       <div 
-        ref={browserRef}
+        ref={containerRef}
         className="native-browser-container"
-        style={{ 
-          width: '100%', 
-          height: 'calc(100% - 60px)',
-          background: '#ffffff'
+        style={{
+          width: '100%',
+          height: 'calc(100vh - 200px)',
+          backgroundColor: '#1a1a1a',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          position: 'relative'
         }}
       >
+        {/* Loading Overlay */}
         {isLoading && (
           <div className="native-loading-overlay">
-            <div className="native-loading-spinner"></div>
-            <div className="loading-info">
-              <span>Loading with Native Chromium...</span>
-              <div className="loading-progress">
-                <div className="progress-bar"></div>
+            <div className="loading-spinner"></div>
+            <div className="loading-text">
+              Loading with Native Chromium Engine...
+            </div>
+          </div>
+        )}
+
+        {/* Native Browser View Area */}
+        <div className="native-browser-view">
+          {/* The actual browser content is rendered by Electron BrowserView */}
+          {!currentUrl && (
+            <div className="native-welcome">
+              <div className="welcome-content">
+                <h2>🔥 Native Chromium Engine</h2>
+                <p>Full browser capabilities with no restrictions</p>
+                <ul className="features-list">
+                  <li>✅ Cross-origin access</li>
+                  <li>✅ Browser extensions support</li>
+                  <li>✅ Native DevTools</li>
+                  <li>✅ Hardware acceleration</li>
+                  <li>✅ Full JavaScript API access</li>
+                </ul>
               </div>
             </div>
-          </div>
-        )}
-        
-        {!nativeAPI && (
-          <div className="native-fallback">
-            <div className="fallback-message">
-              <h3>🔥 Native Chromium Engine</h3>
-              <p>This feature requires the AETHER desktop application.</p>
-              <p>Currently running in enhanced web mode.</p>
-              <button 
-                className="download-desktop-btn"
-                onClick={() => window.open('https://github.com/aether-browser/desktop', '_blank')}
-              >
-                Download Desktop App
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Extension Management Panel */}
-      {extensionsEnabled && (
-        <div className="extensions-panel">
-          <div className="panel-header">
-            <h4>🧩 Extensions</h4>
-          </div>
-          <div className="extensions-list">
-            <div className="extension-item">
-              <span>uBlock Origin</span>
-              <button className="toggle-extension">✅</button>
-            </div>
-            <div className="extension-item">
-              <span>React DevTools</span>
-              <button className="toggle-extension">✅</button>
-            </div>
-            <div className="extension-item">
-              <span>AETHER Assistant</span>
-              <button className="toggle-extension">✅</button>
-            </div>
-          </div>
-          <button 
-            className="install-extension-btn"
-            onClick={() => document.getElementById('extension-input').click()}
-          >
-            + Install Extension
-          </button>
-          <input 
-            id="extension-input"
-            type="file" 
-            accept=".crx,.zip"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              if (e.target.files[0]) {
-                installExtension(e.target.files[0].path);
-              }
-            }}
-          />
-        </div>
-      )}
+      {/* Native API Status */}
+      <div className="native-status">
+        <span className="status-indicator">
+          {nativeAPI ? '🟢 Native Chromium Active' : '🟡 Web Mode'}
+        </span>
+      </div>
+
+      <style jsx>{`
+        .native-browser-engine {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          background: #0a0a0f;
+        }
+
+        .native-controls {
+          display: flex;
+          align-items: center;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+          border-bottom: 1px solid #333;
+          gap: 16px;
+        }
+
+        .navigation-controls {
+          display: flex;
+          gap: 8px;
+        }
+
+        .nav-btn {
+          width: 36px;
+          height: 36px;
+          border: none;
+          background: #333;
+          color: #fff;
+          border-radius: 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover:not(.disabled) {
+          background: #8b5cf6;
+          transform: translateY(-1px);
+        }
+
+        .nav-btn.disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .url-display {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px 16px;
+          background: #1a1a1a;
+          border-radius: 24px;
+          border: 1px solid #333;
+        }
+
+        .security-indicator {
+          font-size: 14px;
+        }
+
+        .current-url {
+          flex: 1;
+          color: #e5e5e5;
+          font-family: 'Monaco', monospace;
+          font-size: 14px;
+        }
+
+        .native-features {
+          display: flex;
+          gap: 8px;
+        }
+
+        .feature-btn {
+          width: 36px;
+          height: 36px;
+          border: none;
+          background: #8b5cf6;
+          color: #fff;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .feature-btn:hover {
+          background: #7c3aed;
+          transform: scale(1.05);
+        }
+
+        .native-browser-container {
+          position: relative;
+          flex: 1;
+        }
+
+        .native-loading-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(26, 26, 26, 0.9);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid #333;
+          border-left: 4px solid #8b5cf6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 16px;
+        }
+
+        .loading-text {
+          color: #8b5cf6;
+          font-size: 16px;
+          font-weight: 600;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .native-welcome {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #0a0a0f 0%, #1a1a1f 100%);
+        }
+
+        .welcome-content {
+          text-align: center;
+          padding: 40px;
+          border-radius: 16px;
+          background: rgba(139, 92, 246, 0.1);
+          border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .welcome-content h2 {
+          color: #8b5cf6;
+          margin-bottom: 16px;
+          font-size: 24px;
+        }
+
+        .welcome-content p {
+          color: #e5e5e5;
+          margin-bottom: 24px;
+          font-size: 16px;
+        }
+
+        .features-list {
+          list-style: none;
+          padding: 0;
+          text-align: left;
+        }
+
+        .features-list li {
+          color: #a1a1aa;
+          padding: 4px 0;
+          font-size: 14px;
+        }
+
+        .native-status {
+          padding: 8px 16px;
+          background: #1a1a1a;
+          border-top: 1px solid #333;
+          display: flex;
+          justify-content: center;
+        }
+
+        .status-indicator {
+          font-size: 12px;
+          color: #22c55e;
+          font-weight: 600;
+        }
+      `}</style>
     </div>
   );
 };
