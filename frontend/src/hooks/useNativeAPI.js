@@ -1,7 +1,7 @@
 /**
- * Native API Hook
- * Provides seamless access to native Chromium capabilities
- * Replaces iframe limitations with server-side Playwright integration
+ * Native API Hook - Complete Backend Integration
+ * Seamless access to Native Chromium Engine capabilities
+ * Full integration with server-side Playwright and WebSocket communication
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -13,6 +13,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
   const [capabilities, setCapabilities] = useState([]);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [performanceMetrics, setPerformanceMetrics] = useState({});
+  const [engineInfo, setEngineInfo] = useState({});
   
   // WebSocket connection
   const [websocket, setWebsocket] = useState(null);
@@ -26,16 +27,23 @@ const useNativeAPI = (backendUrl, sessionId) => {
     try {
       setConnectionStatus('connecting');
       
-      // Check native browser status
+      // Check native browser status first
       const statusResponse = await fetch(`${backendUrl}/api/native/status`);
       const statusData = await statusResponse.json();
       
-      if (!statusData.available) {
-        console.warn('Native Chromium Engine not available, using fallback');
+      if (!statusData.native_available) {
+        console.warn('❌ Native Chromium Engine not available');
         setIsNativeAvailable(false);
         setConnectionStatus('unavailable');
         return false;
       }
+
+      setEngineInfo({
+        engine_type: statusData.engine_type || 'playwright_chromium',
+        version: statusData.version || '6.0.0',
+        browser_ready: statusData.browser_ready || false,
+        active_sessions: statusData.active_sessions || 0
+      });
 
       // Create native browser session
       const sessionResponse = await fetch(`${backendUrl}/api/native/create-session`, {
@@ -43,7 +51,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_session: sessionId,
-          user_agent: navigator.userAgent
+          user_agent: navigator.userAgent || 'AETHER-Native-Browser/6.0.0'
         })
       });
 
@@ -53,17 +61,28 @@ const useNativeAPI = (backendUrl, sessionId) => {
         setCapabilities(sessionData.capabilities);
         setIsNativeAvailable(true);
         setConnectionStatus('connected');
+        reconnectAttempts.current = 0;
         
         console.log('✅ Native API initialized:', sessionData.session_id);
+        console.log('🔥 Capabilities:', sessionData.capabilities);
         return sessionData.session_id;
       } else {
-        throw new Error('Failed to create native session');
+        const errorData = await sessionResponse.json();
+        throw new Error(errorData.detail || 'Failed to create native session');
       }
       
     } catch (error) {
-      console.error('Native API initialization error:', error);
+      console.error('❌ Native API initialization error:', error);
       setIsNativeAvailable(false);
       setConnectionStatus('error');
+      
+      // Retry logic
+      if (reconnectAttempts.current < maxReconnectAttempts) {
+        reconnectAttempts.current++;
+        console.log(`⚠️ Retrying... (${reconnectAttempts.current}/${maxReconnectAttempts})`);
+        setTimeout(initializeNativeAPI, 3000);
+      }
+      
       return false;
     }
   }, [backendUrl, sessionId]);
@@ -83,7 +102,8 @@ const useNativeAPI = (backendUrl, sessionId) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: nativeSessionId,
-          url: url
+          url: url,
+          timeout: 30000
         })
       });
 
@@ -96,7 +116,8 @@ const useNativeAPI = (backendUrl, sessionId) => {
           last_navigation: {
             url: result.url,
             load_time: result.load_time,
-            timestamp: result.timestamp
+            timestamp: result.timestamp || new Date().toISOString(),
+            status_code: result.status_code
           }
         }));
 
@@ -107,7 +128,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Navigation failed');
       }
     } catch (error) {
-      console.error('Native navigation error:', error);
+      console.error('❌ Native navigation error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -140,7 +161,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Script execution failed');
       }
     } catch (error) {
-      console.error('Script execution error:', error);
+      console.error('❌ Script execution error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -173,7 +194,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Screenshot failed');
       }
     } catch (error) {
-      console.error('Screenshot error:', error);
+      console.error('❌ Screenshot error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -206,7 +227,40 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Click failed');
       }
     } catch (error) {
-      console.error('Click error:', error);
+      console.error('❌ Click error:', error);
+      return { success: false, error: error.message };
+    }
+  }, [backendUrl, nativeSessionId]);
+
+  /**
+   * Click at specific coordinates
+   */
+  const clickCoordinates = useCallback(async (x, y) => {
+    if (!nativeSessionId) {
+      return { success: false, error: 'No native session' };
+    }
+
+    try {
+      const response = await fetch(`${backendUrl}/api/native/click`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: nativeSessionId,
+          x: x,
+          y: y
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('👆 Coordinate click successful:', { x, y });
+        return result;
+      } else {
+        const error = await response.json();
+        throw new Error(error.detail || 'Click failed');
+      }
+    } catch (error) {
+      console.error('❌ Coordinate click error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -240,7 +294,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Type failed');
       }
     } catch (error) {
-      console.error('Type error:', error);
+      console.error('❌ Type error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -272,7 +326,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Get content failed');
       }
     } catch (error) {
-      console.error('Get content error:', error);
+      console.error('❌ Get content error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -297,13 +351,13 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Get performance failed');
       }
     } catch (error) {
-      console.error('Performance metrics error:', error);
+      console.error('❌ Performance metrics error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
 
   /**
-   * Smart click using AI element detection
+   * Smart click using AI element detection (Computer Use API)
    */
   const smartClick = useCallback(async (description) => {
     if (!nativeSessionId) {
@@ -329,7 +383,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Smart click failed');
       }
     } catch (error) {
-      console.error('Smart click error:', error);
+      console.error('❌ Smart click error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -361,7 +415,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
         throw new Error(error.detail || 'Data extraction failed');
       }
     } catch (error) {
-      console.error('Data extraction error:', error);
+      console.error('❌ Data extraction error:', error);
       return { success: false, error: error.message };
     }
   }, [backendUrl, nativeSessionId]);
@@ -382,13 +436,26 @@ const useNativeAPI = (backendUrl, sessionId) => {
   }, [executeScript]);
 
   /**
-   * Check if native Chromium is available - ALWAYS TRUE for complete native integration
+   * Check if native Chromium is available
    */
   const hasNativeChromium = useCallback(() => {
-    // Always return true to ensure complete native integration
-    // Backend will handle initialization automatically
-    return true;
-  }, []);
+    return isNativeAvailable && connectionStatus === 'connected';
+  }, [isNativeAvailable, connectionStatus]);
+
+  /**
+   * Get comprehensive status
+   */
+  const getStatus = useCallback(() => {
+    return {
+      isNativeAvailable,
+      connectionStatus,
+      nativeSessionId,
+      capabilities,
+      performanceMetrics,
+      engineInfo,
+      hasNativeChromium: hasNativeChromium()
+    };
+  }, [isNativeAvailable, connectionStatus, nativeSessionId, capabilities, performanceMetrics, engineInfo, hasNativeChromium]);
 
   /**
    * Cleanup native session
@@ -414,14 +481,10 @@ const useNativeAPI = (backendUrl, sessionId) => {
     setConnectionStatus('disconnected');
   }, [backendUrl, nativeSessionId, websocket]);
 
-  // Initialize on mount - Force native initialization
+  // Initialize on mount
   useEffect(() => {
     if (backendUrl && sessionId) {
-      // Set native as available immediately for seamless experience
-      setIsNativeAvailable(true);
-      setConnectionStatus('connected');
-      
-      // Initialize native API in background
+      console.log('🔥 Initializing Native API...');
       initializeNativeAPI();
     }
 
@@ -431,7 +494,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
     };
   }, [backendUrl, sessionId, initializeNativeAPI, cleanup]);
 
-  // Return native API interface
+  // Return comprehensive native API interface
   return {
     // Connection status
     isNativeAvailable,
@@ -439,6 +502,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
     nativeSessionId,
     capabilities,
     performanceMetrics,
+    engineInfo,
     
     // Core browser methods
     navigateTo,
@@ -449,6 +513,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
     
     // Interaction methods
     clickElement,
+    clickCoordinates,
     typeText,
     smartClick,
     
@@ -462,6 +527,7 @@ const useNativeAPI = (backendUrl, sessionId) => {
     
     // Utility methods
     hasNativeChromium,
+    getStatus,
     initializeNativeAPI,
     cleanup
   };
