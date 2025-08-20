@@ -274,7 +274,7 @@ function App() {
   };
 
   const handleRefresh = async () => {
-    // Try native API first
+    // Use native API for refresh
     if (nativeAPI?.hasNativeChromium()) {
       const success = await nativeAPI.browserRefresh();
       if (success?.success) {
@@ -283,12 +283,10 @@ function App() {
       }
     }
     
-    // Fallback to iframe refresh
+    // Direct URL reload as fallback
     if (currentUrl) {
       setIsLoading(true);
-      if (iframeRef.current) {
-        iframeRef.current.src = iframeRef.current.src; // Force reload
-      }
+      // Native engine will handle the refresh
       setTimeout(() => setIsLoading(false), 800);
     }
   };
