@@ -125,6 +125,16 @@ MONGO_URL = os.getenv("MONGO_URL")
 client = MongoClient(MONGO_URL)
 db = client.aether_browser
 
+# Setup enhanced API endpoints
+try:
+    from enhanced_api_endpoints import setup_enhanced_endpoints
+    setup_enhanced_endpoints(app, client)
+    logger.info("🚀 Enhanced API endpoints configured successfully")
+except ImportError as e:
+    logger.warning(f"Enhanced API endpoints not available: {e}")
+except Exception as e:
+    logger.error(f"Enhanced API endpoints setup error: {e}")
+
 # Initialize Enhanced Systems (ALL CRITICAL GAPS) + Task Executor + NEW PHASE 1-3 CAPABILITIES + ENHANCED FEATURES
 enhanced_integration = None
 task_executor = None
