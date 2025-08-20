@@ -714,28 +714,6 @@ function App() {
               nativeAPI={nativeAPI}
             />
           ) : (
-          {/* Native Chromium Browser Engine */}
-          {nativeBrowserReady ? (
-            <NativeBrowserEngine 
-              currentUrl={currentUrl}
-              onUrlChange={setCurrentUrl}
-              onNavigationChange={(data) => {
-                setCanGoBack(data.canGoBack);
-                setCanGoForward(data.canGoForward);
-                setIsLoading(data.isLoading);
-                if (data.title) {
-                  const updatedTabs = tabs.map(tab => 
-                    tab.id === activeTab 
-                      ? { ...tab, title: data.title }
-                      : tab
-                  );
-                  setTabs(updatedTabs);
-                }
-              }}
-              sessionId={sessionId}
-              backendUrl={backendUrl}
-            />
-          ) : (
             /* Enhanced iframe browser for fallback */
             <div className="browser-container enhanced-iframe">
               <iframe
@@ -755,6 +733,7 @@ function App() {
                 </div>
               )}
             </div>
+          )}
           )}
           )}
         </>
