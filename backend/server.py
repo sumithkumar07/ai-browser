@@ -1564,5 +1564,13 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"Failed to setup native Chromium endpoints: {e}")
     
+    # Add native endpoints even if native chromium is not fully available
+    try:
+        from native_endpoints import add_native_endpoints
+        add_native_endpoints(app)
+        logger.info("📡 Native API endpoints added successfully")
+    except Exception as e:
+        logger.error(f"Failed to add native endpoints: {e}")
+    
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
