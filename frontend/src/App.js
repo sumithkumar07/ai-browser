@@ -511,44 +511,22 @@ function App() {
     await fallbackIframeNavigation(url);
   }
 
-  // Fallback iframe navigation
+  // Enhanced native navigation - Always use native Chromium
   const fallbackIframeNavigation = async (url) => {
-    // Standard iframe navigation
-    if (iframeRef.current) {
-      iframeRef.current.src = url;
+    // Native Chromium navigation
+    console.log('🔥 Using Native Chromium for navigation:', url);
+    
+    if (nativeAPI?.navigateTo) {
+      const result = await nativeAPI.navigateTo(url);
+      if (result?.success) {
+        console.log('✅ Native navigation successful');
+        return true;
+      }
     }
     
-    // Update tab
-    const updatedTabs = tabs.map(tab => 
-      tab.id === activeTab 
-        ? { ...tab, url: url, title: getDomainFromUrl(url) }
-        : tab
-    );
-    setTabs(updatedTabs);
-    
-    // Update history
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(url);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    setCanGoBack(newHistory.length > 1);
-    setCanGoForward(false);
-    
-    // Simulate loading time
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    // Store in browsing history
-    try {
-      await fetch(`${backendUrl}/api/browse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url })
-      });
-    } catch (error) {
-      console.error('Error storing browse history:', error);
-    }
+    console.log('⚠️ Native navigation fallback, direct URL setting');
+    setCurrentUrl(url);
+    return false;
   }
 
   // Enhanced AI Quick Actions - All capabilities in one place
