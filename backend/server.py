@@ -110,39 +110,43 @@ native_engine_ready = False
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize Native Chromium Engine on startup"""
-    global native_engine_ready
+    """Initialize Native Chromium Engine and WebSocket server on startup"""
+    global native_engine, websocket_server, native_engine_ready
     
     try:
         logger.info("🔥 AETHER Native Chromium Integration - Starting...")
         
-        # Test native chromium imports
-        try:
-            from native_chromium_engine import initialize_native_chromium_engine
-            logger.info("✅ Native Chromium imports successful")
+        # Initialize Native Chromium Engine
+        native_engine = await initialize_native_chromium_engine(client)
+        
+        if native_engine:
+            native_engine_ready = True
+            logger.info("✅ Native Chromium Engine initialized successfully")
             
-            # Initialize in background
-            asyncio.create_task(initialize_native_engine())
+            # Initialize WebSocket Server
+            websocket_server = AETHERWebSocketServer(native_engine)
             
-        except ImportError as e:
-            logger.warning(f"⚠️ Native Chromium imports failed: {e}")
+            # Integrate WebSocket with Native Engine
+            integrate_websocket_with_native_engine(native_engine)
             
+            # Start WebSocket server in background
+            asyncio.create_task(websocket_server.start_server())
+            
+            logger.info("✅ WebSocket Server started successfully")
+        else:
+            logger.error("❌ Failed to initialize Native Chromium Engine")
+            native_engine_ready = False
+        
         logger.info("🚀 AETHER Backend startup complete")
         
     except Exception as e:
         logger.error(f"Startup error: {e}")
+        native_engine_ready = False
 
 async def initialize_native_engine():
-    """Initialize native engine in background"""
-    global native_engine_ready
-    try:
-        from native_chromium_engine import initialize_native_chromium_engine
-        native_engine = await initialize_native_chromium_engine(client)
-        if native_engine:
-            native_engine_ready = True
-            logger.info("✅ Native Chromium Engine ready")
-    except Exception as e:
-        logger.error(f"Native engine initialization error: {e}")
+    """Initialize native engine in background - DEPRECATED"""
+    # This method is now handled in startup_event
+    pass
 
 # API Routes
 
