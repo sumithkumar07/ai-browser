@@ -756,11 +756,20 @@ function App() {
             </div>
 
             <div className="browser-actions">
-              {/* Enhanced action buttons with switch to Fellou mode */}
+              {/* Enhanced action buttons with switch to Fellou Browser mode */}
+              <button 
+                className="action-btn fellou-toggle"
+                onClick={() => setInterfaceMode('fellou-browser')}
+                title="Switch to Fellou.ai Browser Interface"
+                aria-label="Switch to Fellou-inspired browser interface"
+              >
+                🌐
+              </button>
+              
               <button 
                 className="action-btn fellou-toggle"
                 onClick={() => setInterfaceMode('fellou')}
-                title="Switch to Fellou.ai Style Interface"
+                title="Switch to Fellou.ai Simple Interface"
                 aria-label="Switch to simplified interface"
               >
                 ⚡
