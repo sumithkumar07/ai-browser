@@ -1,386 +1,253 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bot, Zap, Menu, Eye, EyeOff } from 'lucide-react';
-import FellouCommandInterface from './FellouCommandInterface';
+import './SimplifiedInterface.css';
 
 const SimplifiedInterface = ({ 
   onCommand, 
   currentUrl, 
-  sessionId,
-  aiLoading = false,
-  nativeAPI = null
+  sessionId, 
+  aiLoading, 
+  nativeAPI 
 }) => {
-  const [interfaceMode, setInterfaceMode] = useState('fellou'); // 'fellou' or 'traditional'
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [proactiveSuggestions, setProactiveSuggestions] = useState([]);
-  const [behavioralInsights, setBehavioralInsights] = useState(null);
-  const [aiActive, setAiActive] = useState(false);
+  const [commandInput, setCommandInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [recentCommands, setRecentCommands] = useState([]);
 
-  // Load interface preferences
+  // Fellou.ai-style intelligent suggestions
+  const intelligentSuggestions = [
+    'Navigate to google.com and search for AI tools',
+    'Extract all links from this page',
+    'Create an automation workflow',
+    'Summarize the current page',
+    'Find similar websites',
+    'Monitor this page for changes',
+    'Generate a report from page content',
+    'Set up price monitoring',
+    'Create shortcuts for frequent tasks',
+    'Analyze page performance'
+  ];
+
+  // Voice recognition setup
   useEffect(() => {
-    const savedMode = localStorage.getItem('aether-interface-mode') || 'fellou';
-    setInterfaceMode(savedMode);
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setCommandInput(transcript);
+        setIsListening(false);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      window.speechRecognition = recognition;
+    }
   }, []);
 
-  // Enhanced command processor with native API integration
-  const processEnhancedCommand = useCallback(async (commandData) => {
-    setAiActive(true);
-    
-    try {
-      // Use native API if available (desktop app)
-      if (nativeAPI?.hasNativeChromium() && nativeAPI.processCommand) {
-        const result = await nativeAPI.processCommand(commandData.command);
-        
-        if (result.success) {
-          // Update proactive suggestions based on native response
-          if (result.suggestions) {
-            setProactiveSuggestions(result.suggestions);
-          }
-          
-          // Handle native browser actions
-          if (result.action === 'navigate') {
-            await nativeAPI.navigateTo(result.url);
-          }
-        }
-      }
-      
-      // Fallback to regular backend processing
-      await onCommand(commandData);
-      
-      // Simulate behavioral learning insights
-      updateBehavioralInsights(commandData);
-      
-    } catch (error) {
-      console.error('Enhanced command processing error:', error);
-    } finally {
-      setAiActive(false);
-    }
-  }, [onCommand, nativeAPI]);
-
-  // Behavioral learning system
-  const updateBehavioralInsights = (commandData) => {
-    const command = commandData.command.toLowerCase();
-    
-    // Pattern detection
-    if (command.includes('extract') || command.includes('data')) {
-      setBehavioralInsights({
-        pattern: 'Data Extraction Workflow',
-        confidence: 85,
-        suggestion: 'You frequently extract data. Consider creating an automation template.'
-      });
-    } else if (command.includes('navigate') || command.includes('search')) {
-      setBehavioralInsights({
-        pattern: 'Research & Navigation',
-        confidence: 92,
-        suggestion: 'Your browsing suggests research tasks. I can help streamline this.'
-      });
-    } else if (command.includes('monitor') || command.includes('track')) {
-      setBehavioralInsights({
-        pattern: 'Content Monitoring',
-        confidence: 78,
-        suggestion: 'Setting up automated monitoring might save you time.'
-      });
-    }
-    
-    // Clear insights after 5 seconds
-    setTimeout(() => setBehavioralInsights(null), 5000);
-  };
-
-  // Proactive AI suggestions based on context
+  // Smart suggestions based on input
   useEffect(() => {
-    if (currentUrl) {
-      generateProactiveSuggestions(currentUrl);
-    }
-  }, [currentUrl]);
-
-  const generateProactiveSuggestions = (url) => {
-    const domain = new URL(url).hostname.toLowerCase();
-    
-    let suggestions = [];
-    
-    if (domain.includes('linkedin')) {
-      suggestions = [
-        "Extract all professional contacts from this page",
-        "Monitor this profile for job updates",
-        "Create outreach automation for similar profiles"
-      ];
-    } else if (domain.includes('github')) {
-      suggestions = [
-        "Track this repository for new releases",
-        "Extract contributor information",
-        "Monitor issues and pull requests"
-      ];
-    } else if (domain.includes('amazon') || domain.includes('shop')) {
-      suggestions = [
-        "Monitor this product for price changes",
-        "Extract product reviews and ratings",
-        "Set up automated purchase when price drops"
-      ];
+    if (commandInput.length > 2) {
+      const filtered = intelligentSuggestions.filter(suggestion =>
+        suggestion.toLowerCase().includes(commandInput.toLowerCase())
+      );
+      setSuggestions(filtered.slice(0, 5));
+      setShowSuggestions(true);
     } else {
-      suggestions = [
-        "Extract key information from this page",
-        "Monitor this page for content changes",
-        "Find similar websites or competitors"
-      ];
+      setShowSuggestions(false);
     }
+  }, [commandInput]);
+
+  // Handle command execution
+  const executeCommand = useCallback(async (command) => {
+    if (!command.trim()) return;
+
+    // Add to recent commands
+    setRecentCommands(prev => [command, ...prev.slice(0, 4)]);
     
-    setProactiveSuggestions(suggestions);
+    // Hide suggestions
+    setShowSuggestions(false);
+    setCommandInput('');
+
+    // Process command with AI
+    await onCommand({
+      command: command,
+      context: {
+        currentUrl,
+        sessionId,
+        timestamp: new Date().toISOString(),
+        interface_mode: 'fellou'
+      }
+    });
+  }, [onCommand, currentUrl, sessionId]);
+
+  // Handle voice input
+  const startVoiceInput = () => {
+    if (window.speechRecognition) {
+      window.speechRecognition.start();
+    }
   };
 
-  // Toggle between Fellou-style and traditional interface
-  const toggleInterfaceMode = () => {
-    const newMode = interfaceMode === 'fellou' ? 'traditional' : 'fellou';
-    setInterfaceMode(newMode);
-    localStorage.setItem('aether-interface-mode', newMode);
+  // Handle key press
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      executeCommand(commandInput);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setCommandInput('');
+    }
   };
 
-  if (interfaceMode === 'fellou') {
-    return (
-      <div className="simplified-interface fellou-mode">
-        {/* Minimal Header - Only Essential Controls */}
-        <div className="minimal-header">
-          <div className="aether-brand">
-            <Zap className="w-6 h-6 text-purple-400" />
-            <span className="brand-text">AETHER</span>
-            {nativeAPI?.hasNativeChromium() && (
-              <span className="native-badge">Native</span>
-            )}
-          </div>
-          
-          {/* Minimal Controls - Only 2 buttons like Fellou.ai */}
-          <div className="minimal-controls">
-            <button
-              className={`control-btn ai-btn ${aiActive ? 'active' : ''}`}
-              title="AI Assistant"
-            >
-              <Bot className="w-5 h-5" />
-            </button>
-            
-            <button
-              className="control-btn menu-btn"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              title="Toggle Advanced View"
-            >
-              {showAdvanced ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
+  return (
+    <div className="simplified-interface">
+      {/* AETHER Branding - Fellou.ai Style */}
+      <div className="aether-header">
+        <div className="aether-logo-simplified">
+          <div className="logo-gradient">⚡</div>
+          <div className="brand-text">
+            <h1>AETHER</h1>
+            <p>Express Ideas, AETHER Acts</p>
           </div>
         </div>
+        
+        {/* Status Indicator */}
+        <div className="status-indicator">
+          <div className={`status-dot ${nativeAPI ? 'native' : 'web'}`}></div>
+          <span className="status-text">
+            {nativeAPI ? 'Native Chromium' : 'Enhanced Web'}
+          </span>
+        </div>
+      </div>
 
-        {/* Advanced Controls (Hidden by default) */}
-        {showAdvanced && (
-          <div className="advanced-controls">
-            <button
-              onClick={toggleInterfaceMode}
-              className="interface-toggle"
-              title="Switch to Traditional Interface"
-            >
-              <Menu className="w-4 h-4" />
-              <span>Traditional Mode</span>
-            </button>
+      {/* Single Command Interface - Fellou.ai Style */}
+      <div className="command-center">
+        <div className="command-container">
+          <div className="command-input-wrapper">
+            <div className="command-icon">
+              <div className="ai-pulse"></div>
+              🤖
+            </div>
             
-            {nativeAPI?.hasNativeChromium() && (
-              <div className="native-features">
-                <button
-                  onClick={() => nativeAPI.openDevTools()}
-                  className="native-btn"
-                  title="Open Chrome DevTools"
+            <input
+              type="text"
+              className="command-input"
+              placeholder="Tell AETHER what you want to do..."
+              value={commandInput}
+              onChange={(e) => setCommandInput(e.target.value)}
+              onKeyDown={handleKeyPress}
+              disabled={aiLoading}
+              autoFocus
+            />
+            
+            <div className="command-actions">
+              <button
+                className={`voice-btn ${isListening ? 'listening' : ''}`}
+                onClick={startVoiceInput}
+                disabled={aiLoading}
+                title="Voice Command"
+              >
+                {isListening ? (
+                  <div className="listening-indicator">
+                    <div className="pulse-ring"></div>
+                    <div className="pulse-ring delay-1"></div>
+                    <div className="pulse-ring delay-2"></div>
+                    🎤
+                  </div>
+                ) : (
+                  '🎤'
+                )}
+              </button>
+              
+              <button
+                className={`execute-btn ${aiLoading ? 'loading' : ''}`}
+                onClick={() => executeCommand(commandInput)}
+                disabled={aiLoading || !commandInput.trim()}
+                title="Execute Command"
+              >
+                {aiLoading ? (
+                  <div className="loading-spinner"></div>
+                ) : (
+                  '→'
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Smart Suggestions Dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="suggestions-dropdown">
+              {suggestions.map((suggestion, index) => (
+                <div
+                  key={index}
+                  className="suggestion-item"
+                  onClick={() => executeCommand(suggestion)}
                 >
-                  DevTools
-                </button>
-                
-                <button
-                  onClick={() => nativeAPI.getExtensions()}
-                  className="native-btn"
-                  title="Manage Extensions"
+                  <div className="suggestion-icon">💡</div>
+                  <span className="suggestion-text">{suggestion}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Recent Commands */}
+          {recentCommands.length > 0 && !showSuggestions && (
+            <div className="recent-commands">
+              <div className="recent-header">Recent</div>
+              {recentCommands.slice(0, 3).map((command, index) => (
+                <div
+                  key={index}
+                  className="recent-item"
+                  onClick={() => executeCommand(command)}
                 >
-                  Extensions
-                </button>
-              </div>
-            )}
+                  <div className="recent-icon">⏱️</div>
+                  <span className="recent-text">{command}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Context Information */}
+        {currentUrl && (
+          <div className="context-info">
+            <div className="context-icon">🌐</div>
+            <span className="context-url">{currentUrl}</span>
           </div>
         )}
-
-        {/* Fellou-style Command Interface */}
-        <FellouCommandInterface
-          onCommand={processEnhancedCommand}
-          currentUrl={currentUrl}
-          sessionId={sessionId}
-          aiLoading={aiLoading || aiActive}
-          proactiveSuggestions={proactiveSuggestions}
-          behavioralInsights={behavioralInsights}
-        />
-
-        <style jsx>{`
-          .simplified-interface {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 999;
-            background: rgba(10, 10, 15, 0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(147, 51, 234, 0.1);
-          }
-
-          .fellou-mode .minimal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 20px;
-            height: 60px;
-          }
-
-          .aether-brand {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          }
-
-          .brand-text {
-            font-size: 18px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #9333ea, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-          }
-
-          .native-badge {
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 6px;
-            background: rgba(34, 197, 94, 0.2);
-            color: #22c55e;
-            border-radius: 4px;
-            text-transform: uppercase;
-          }
-
-          .minimal-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-          }
-
-          .control-btn {
-            padding: 8px;
-            border-radius: 12px;
-            border: none;
-            background: rgba(147, 51, 234, 0.1);
-            color: rgba(255, 255, 255, 0.8);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-
-          .control-btn:hover {
-            background: rgba(147, 51, 234, 0.2);
-            color: white;
-            transform: scale(1.05);
-          }
-
-          .control-btn.active {
-            background: rgba(147, 51, 234, 0.3);
-            color: white;
-          }
-
-          .advanced-controls {
-            padding: 12px 20px;
-            border-top: 1px solid rgba(147, 51, 234, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            animation: slideDown 0.3s ease-out;
-          }
-
-          .interface-toggle {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(147, 51, 234, 0.2);
-            background: rgba(147, 51, 234, 0.05);
-            color: rgba(255, 255, 255, 0.7);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 14px;
-          }
-
-          .interface-toggle:hover {
-            background: rgba(147, 51, 234, 0.1);
-            color: white;
-          }
-
-          .native-features {
-            display: flex;
-            gap: 8px;
-          }
-
-          .native-btn {
-            padding: 6px 10px;
-            border-radius: 6px;
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            background: rgba(34, 197, 94, 0.05);
-            color: #22c55e;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 12px;
-            font-weight: 500;
-          }
-
-          .native-btn:hover {
-            background: rgba(34, 197, 94, 0.1);
-          }
-
-          @keyframes slideDown {
-            from {
-              opacity: 0;
-              transform: translateY(-10px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-
-          /* Mobile responsiveness */
-          @media (max-width: 768px) {
-            .minimal-header {
-              padding: 10px 16px;
-              height: 56px;
-            }
-
-            .brand-text {
-              font-size: 16px;
-            }
-
-            .minimal-controls {
-              gap: 8px;
-            }
-
-            .advanced-controls {
-              padding: 10px 16px;
-              flex-wrap: wrap;
-              gap: 8px;
-            }
-
-            .native-features {
-              gap: 6px;
-            }
-          }
-        `}</style>
       </div>
-    );
-  }
 
-  // Traditional interface fallback
-  return (
-    <div className="simplified-interface traditional-mode">
-      <div className="traditional-header">
-        <button onClick={toggleInterfaceMode} className="mode-toggle">
-          Switch to Fellou Mode
-        </button>
+      {/* Minimal Action Bar - Only Essential Controls */}
+      <div className="minimal-actions">
+        <div className="action-group">
+          <button className="minimal-btn home" title="Home">🏠</button>
+          <button className="minimal-btn back" title="Back">←</button>
+          <button className="minimal-btn forward" title="Forward">→</button>
+          <button className="minimal-btn refresh" title="Refresh">↻</button>
+        </div>
+        
+        <div className="action-group">
+          <button className="minimal-btn settings" title="Settings">⚙️</button>
+          <button 
+            className="minimal-btn traditional" 
+            title="Switch to Traditional Mode"
+            onClick={() => window.location.reload()}
+          >
+            📱
+          </button>
+        </div>
       </div>
     </div>
   );

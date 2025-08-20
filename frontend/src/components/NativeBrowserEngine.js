@@ -1,596 +1,307 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  RotateCcw, 
-  Shield, 
-  ShieldAlert, 
-  Settings, 
-  Puzzle,
-  Code2,
-  Monitor
-} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import './NativeBrowserEngine.css';
 
 const NativeBrowserEngine = ({ 
   currentUrl, 
-  onUrlChange,
-  onNavigationChange,
-  nativeAPI = null 
+  onUrlChange, 
+  onNavigationChange, 
+  nativeAPI 
 }) => {
-  const [navigationState, setNavigationState] = useState({
-    canGoBack: false,
-    canGoForward: false,
-    isLoading: false,
-    isSecure: false,
-    title: 'New Tab'
-  });
-  
+  const browserRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
+  const [securityInfo, setSecurityInfo] = useState({ isSecure: true, certificate: null });
+  const [performance, setPerformance] = useState({ loadTime: 0, memoryUsage: 0 });
   const [devToolsOpen, setDevToolsOpen] = useState(false);
-  const [extensions, setExtensions] = useState([]);
-  const [showEngineInfo, setShowEngineInfo] = useState(false);
-  const browserViewRef = useRef(null);
+  const [extensionsEnabled, setExtensionsEnabled] = useState(true);
 
-  // Native Chromium capabilities detection
-  const hasNativeChromium = nativeAPI?.hasNativeChromium() || false;
-  const hasExtensionSupport = nativeAPI?.hasExtensionSupport() || false;
-  const hasCrossOriginAccess = nativeAPI?.hasCrossOriginAccess() || false;
-
-  // Initialize native browser capabilities
   useEffect(() => {
-    if (nativeAPI) {
-      // Load extensions
-      loadExtensions();
-      
-      // Set up navigation event listeners
-      nativeAPI.onNavigationChange((data) => {
-        setNavigationState(prev => ({
-          ...prev,
-          ...data
-        }));
-        onNavigationChange?.(data);
+    if (nativeAPI && browserRef.current) {
+      initializeNativeBrowser();
+    }
+  }, [nativeAPI]);
+
+  useEffect(() => {
+    if (currentUrl && nativeAPI) {
+      navigateToUrl(currentUrl);
+    }
+  }, [currentUrl, nativeAPI]);
+
+  const initializeNativeBrowser = async () => {
+    try {
+      // Initialize native Chromium engine
+      await nativeAPI.initializeBrowser(browserRef.current, {
+        enableExtensions: true,
+        enableDevTools: true,
+        enableWebSecurity: true,
+        enableJavaScript: true,
+        enableImages: true,
+        enablePlugins: true,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) AETHER/6.0.0 Chrome/121.0.0.0 Safari/537.36'
       });
-    }
-  }, [nativeAPI, onNavigationChange]);
 
-  const loadExtensions = async () => {
-    if (nativeAPI?.getExtensions) {
-      try {
-        const extensionList = await nativeAPI.getExtensions();
-        setExtensions(extensionList);
-      } catch (error) {
-        console.error('Failed to load extensions:', error);
-      }
+      // Set up event listeners
+      nativeAPI.onNavigationStart((url) => {
+        setIsLoading(true);
+        onUrlChange(url);
+      });
+
+      nativeAPI.onNavigationComplete((data) => {
+        setIsLoading(false);
+        setCanGoBack(data.canGoBack);
+        setCanGoForward(data.canGoForward);
+        setSecurityInfo(data.securityInfo);
+        setPerformance(data.performance);
+        
+        onNavigationChange({
+          canGoBack: data.canGoBack,
+          canGoForward: data.canGoForward,
+          isLoading: false
+        });
+      });
+
+      nativeAPI.onSecurityStateChanged((securityInfo) => {
+        setSecurityInfo(securityInfo);
+      });
+
+      nativeAPI.onPerformanceUpdate((perfData) => {
+        setPerformance(perfData);
+      });
+
+      console.log('✅ Native Chromium browser initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize native browser:', error);
     }
   };
 
-  // Native browser controls
-  const handleBack = async () => {
-    if (nativeAPI?.browserBack) {
-      const success = await nativeAPI.browserBack();
-      if (success) {
-        setNavigationState(prev => ({ ...prev, canGoBack: false }));
+  const navigateToUrl = async (url) => {
+    if (!nativeAPI || !url) return;
+    
+    try {
+      setIsLoading(true);
+      const result = await nativeAPI.navigateTo(url);
+      
+      if (result.success) {
+        console.log(`✅ Native navigation to ${url} successful`);
+      } else {
+        console.error(`❌ Native navigation failed: ${result.error}`);
       }
+    } catch (error) {
+      console.error('❌ Navigation error:', error);
+      setIsLoading(false);
     }
   };
 
-  const handleForward = async () => {
-    if (nativeAPI?.browserForward) {
-      const success = await nativeAPI.browserForward();
-      if (success) {
-        setNavigationState(prev => ({ ...prev, canGoForward: false }));
-      }
+  const handleGoBack = async () => {
+    if (nativeAPI && canGoBack) {
+      await nativeAPI.browserBack();
+    }
+  };
+
+  const handleGoForward = async () => {
+    if (nativeAPI && canGoForward) {
+      await nativeAPI.browserForward();
     }
   };
 
   const handleRefresh = async () => {
-    if (nativeAPI?.browserRefresh) {
-      setNavigationState(prev => ({ ...prev, isLoading: true }));
+    if (nativeAPI) {
       await nativeAPI.browserRefresh();
-      setTimeout(() => {
-        setNavigationState(prev => ({ ...prev, isLoading: false }));
-      }, 1000);
-    }
-  };
-
-  const handleNavigate = async (url) => {
-    if (nativeAPI?.navigateTo) {
-      setNavigationState(prev => ({ ...prev, isLoading: true }));
-      
-      try {
-        const result = await nativeAPI.navigateTo(url);
-        if (result.success) {
-          onUrlChange?.(url);
-          setNavigationState(prev => ({
-            ...prev,
-            isSecure: url.startsWith('https://'),
-            isLoading: false
-          }));
-        }
-      } catch (error) {
-        console.error('Navigation error:', error);
-        setNavigationState(prev => ({ ...prev, isLoading: false }));
-      }
     }
   };
 
   const toggleDevTools = async () => {
-    if (nativeAPI?.openDevTools) {
-      await nativeAPI.openDevTools();
+    if (nativeAPI) {
+      if (devToolsOpen) {
+        await nativeAPI.closeDevTools();
+      } else {
+        await nativeAPI.openDevTools();
+      }
       setDevToolsOpen(!devToolsOpen);
     }
   };
 
-  if (!hasNativeChromium) {
-    return (
-      <div className="browser-engine-fallback">
-        <div className="fallback-message">
-          <Monitor className="w-8 h-8 text-yellow-400" />
-          <h3>Enhanced Browser Mode</h3>
-          <p>Running in enhanced iframe mode. For full native Chromium features, use the desktop app.</p>
-        </div>
-        
-        <style jsx>{`
-          .browser-engine-fallback {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 200px;
-            background: rgba(15, 15, 20, 0.95);
-            border-radius: 12px;
-            border: 1px solid rgba(234, 179, 8, 0.2);
-            margin: 20px;
-          }
+  const captureScreenshot = async () => {
+    if (nativeAPI) {
+      try {
+        const screenshot = await nativeAPI.captureScreenshot();
+        console.log('📸 Screenshot captured:', screenshot);
+        return screenshot;
+      } catch (error) {
+        console.error('❌ Screenshot failed:', error);
+      }
+    }
+  };
 
-          .fallback-message {
-            text-align: center;
-            color: white;
-          }
+  const executeJavaScript = async (script) => {
+    if (nativeAPI) {
+      try {
+        const result = await nativeAPI.executeJavaScript(script);
+        return result;
+      } catch (error) {
+        console.error('❌ JavaScript execution failed:', error);
+      }
+    }
+  };
 
-          .fallback-message h3 {
-            margin: 12px 0 8px;
-            color: #eab308;
-          }
-
-          .fallback-message p {
-            margin: 0;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
-          }
-        `}</style>
-      </div>
-    );
-  }
+  const installExtension = async (extensionPath) => {
+    if (nativeAPI) {
+      try {
+        const result = await nativeAPI.installExtension(extensionPath);
+        console.log('🧩 Extension installed:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ Extension installation failed:', error);
+      }
+    }
+  };
 
   return (
     <div className="native-browser-engine">
       {/* Native Browser Controls */}
       <div className="native-controls">
         <div className="navigation-controls">
-          <button
-            className={`nav-btn ${!navigationState.canGoBack ? 'disabled' : ''}`}
-            onClick={handleBack}
-            disabled={!navigationState.canGoBack}
-            title="Go Back"
+          <button 
+            className={`control-btn ${!canGoBack ? 'disabled' : ''}`}
+            onClick={handleGoBack}
+            disabled={!canGoBack}
+            title="Go back"
           >
-            <ArrowLeft className="w-4 h-4" />
+            ←
           </button>
-          
-          <button
-            className={`nav-btn ${!navigationState.canGoForward ? 'disabled' : ''}`}
-            onClick={handleForward}
-            disabled={!navigationState.canGoForward}
-            title="Go Forward"
+          <button 
+            className={`control-btn ${!canGoForward ? 'disabled' : ''}`}
+            onClick={handleGoForward}
+            disabled={!canGoForward}
+            title="Go forward"
           >
-            <ArrowRight className="w-4 h-4" />
+            →
           </button>
-          
-          <button
-            className="nav-btn"
+          <button 
+            className="control-btn"
             onClick={handleRefresh}
-            disabled={navigationState.isLoading}
             title="Refresh"
           >
-            <RotateCcw className={`w-4 h-4 ${navigationState.isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? '⟳' : '↻'}
           </button>
         </div>
 
-        {/* Security Indicator */}
-        <div className="security-indicator">
-          {navigationState.isSecure ? (
-            <Shield className="w-4 h-4 text-green-400" title="Secure Connection" />
-          ) : (
-            <ShieldAlert className="w-4 h-4 text-yellow-400" title="Not Secure" />
-          )}
+        <div className="browser-info">
+          <div className={`security-badge ${securityInfo.isSecure ? 'secure' : 'insecure'}`}>
+            {securityInfo.isSecure ? '🔒' : '⚠️'}
+            <span>{securityInfo.isSecure ? 'Secure' : 'Not Secure'}</span>
+          </div>
+          
+          <div className="performance-info">
+            <span className="load-time">Load: {performance.loadTime}ms</span>
+            <span className="memory-usage">Memory: {Math.round(performance.memoryUsage)}MB</span>
+          </div>
         </div>
 
-        {/* Native Features */}
-        <div className="native-features">
-          {/* DevTools Access */}
-          <button
-            className={`feature-btn ${devToolsOpen ? 'active' : ''}`}
+        <div className="developer-tools">
+          <button 
+            className={`control-btn ${devToolsOpen ? 'active' : ''}`}
             onClick={toggleDevTools}
-            title="Chrome Developer Tools"
+            title="Toggle DevTools"
           >
-            <Code2 className="w-4 h-4" />
+            🔧
           </button>
-
-          {/* Extensions */}
-          {hasExtensionSupport && (
-            <div className="extensions-panel">
-              <button
-                className="feature-btn"
-                onClick={() => setShowEngineInfo(!showEngineInfo)}
-                title={`Extensions (${extensions.length})`}
-              >
-                <Puzzle className="w-4 h-4" />
-                {extensions.length > 0 && (
-                  <span className="extension-count">{extensions.length}</span>
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Engine Info */}
-          <button
-            className="feature-btn"
-            onClick={() => setShowEngineInfo(!showEngineInfo)}
-            title="Native Engine Info"
+          <button 
+            className="control-btn"
+            onClick={captureScreenshot}
+            title="Capture Screenshot"
           >
-            <Settings className="w-4 h-4" />
+            📸
+          </button>
+          <button 
+            className={`control-btn ${extensionsEnabled ? 'active' : ''}`}
+            onClick={() => setExtensionsEnabled(!extensionsEnabled)}
+            title="Toggle Extensions"
+          >
+            🧩
           </button>
         </div>
       </div>
 
-      {/* Engine Info Panel */}
-      {showEngineInfo && (
-        <div className="engine-info-panel">
-          <div className="info-header">
-            <h3>🔥 Native Chromium Engine</h3>
-            <button onClick={() => setShowEngineInfo(false)}>×</button>
-          </div>
-          
-          <div className="capabilities-grid">
-            <div className="capability">
-              <div className="capability-icon">🌐</div>
-              <div>
-                <h4>Native Browser Engine</h4>
-                <p>Full Chromium with V8 JavaScript engine</p>
-              </div>
-            </div>
-            
-            <div className="capability">
-              <div className="capability-icon">🔧</div>
-              <div>
-                <h4>Chrome DevTools</h4>
-                <p>Complete debugging and inspection tools</p>
-              </div>
-            </div>
-            
-            {hasExtensionSupport && (
-              <div className="capability">
-                <div className="capability-icon">🧩</div>
-                <div>
-                  <h4>Extension Support</h4>
-                  <p>{extensions.length} extensions loaded</p>
-                </div>
-              </div>
-            )}
-            
-            {hasCrossOriginAccess && (
-              <div className="capability">
-                <div className="capability-icon">🔓</div>
-                <div>
-                  <h4>Cross-Origin Access</h4>
-                  <p>No CORS restrictions (like Fellou.ai)</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {extensions.length > 0 && (
-            <div className="extensions-list">
-              <h4>Loaded Extensions:</h4>
-              <div className="extension-items">
-                {extensions.map((ext) => (
-                  <div key={ext.id} className="extension-item">
-                    <span className="extension-name">{ext.name}</span>
-                    <span className="extension-version">v{ext.version}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Native Browser View Container */}
+      {/* Native Browser Container */}
       <div 
-        ref={browserViewRef}
-        className="native-browser-view"
-        style={{
-          position: 'absolute',
-          top: '60px',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: '#1a1a1a'
+        ref={browserRef}
+        className="native-browser-container"
+        style={{ 
+          width: '100%', 
+          height: 'calc(100% - 60px)',
+          background: '#ffffff'
         }}
       >
-        {navigationState.isLoading && (
-          <div className="loading-overlay">
-            <div className="loading-indicator">
-              <div className="loading-spinner"></div>
-              <span>Loading with native Chromium...</span>
+        {isLoading && (
+          <div className="native-loading-overlay">
+            <div className="native-loading-spinner"></div>
+            <div className="loading-info">
+              <span>Loading with Native Chromium...</span>
+              <div className="loading-progress">
+                <div className="progress-bar"></div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {!nativeAPI && (
+          <div className="native-fallback">
+            <div className="fallback-message">
+              <h3>🔥 Native Chromium Engine</h3>
+              <p>This feature requires the AETHER desktop application.</p>
+              <p>Currently running in enhanced web mode.</p>
+              <button 
+                className="download-desktop-btn"
+                onClick={() => window.open('https://github.com/aether-browser/desktop', '_blank')}
+              >
+                Download Desktop App
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      <style jsx>{`
-        .native-browser-engine {
-          position: relative;
-          width: 100%;
-          height: 100vh;
-          background: #0a0a0f;
-        }
-
-        .native-controls {
-          display: flex;
-          align-items: center;
-          padding: 12px 16px;
-          background: rgba(15, 15, 20, 0.95);
-          border-bottom: 1px solid rgba(147, 51, 234, 0.1);
-          gap: 16px;
-          height: 60px;
-          backdrop-filter: blur(10px);
-        }
-
-        .navigation-controls {
-          display: flex;
-          gap: 8px;
-        }
-
-        .nav-btn, .feature-btn {
-          padding: 8px;
-          border-radius: 8px;
-          border: none;
-          background: rgba(147, 51, 234, 0.1);
-          color: white;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .nav-btn:hover, .feature-btn:hover {
-          background: rgba(147, 51, 234, 0.2);
-          transform: scale(1.05);
-        }
-
-        .nav-btn.disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .feature-btn.active {
-          background: rgba(147, 51, 234, 0.3);
-        }
-
-        .security-indicator {
-          margin-left: 8px;
-        }
-
-        .native-features {
-          display: flex;
-          gap: 8px;
-          margin-left: auto;
-        }
-
-        .extensions-panel {
-          position: relative;
-        }
-
-        .extension-count {
-          position: absolute;
-          top: -4px;
-          right: -4px;
-          background: #ef4444;
-          color: white;
-          font-size: 10px;
-          border-radius: 50%;
-          width: 16px;
-          height: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 600;
-        }
-
-        .engine-info-panel {
-          position: absolute;
-          top: 60px;
-          right: 20px;
-          width: 400px;
-          background: rgba(15, 15, 20, 0.95);
-          border: 1px solid rgba(147, 51, 234, 0.2);
-          border-radius: 12px;
-          padding: 20px;
-          backdrop-filter: blur(20px);
-          z-index: 1000;
-          animation: slideIn 0.3s ease-out;
-        }
-
-        .info-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-        }
-
-        .info-header h3 {
-          margin: 0;
-          color: white;
-          font-size: 16px;
-        }
-
-        .info-header button {
-          background: none;
-          border: none;
-          color: white;
-          font-size: 20px;
-          cursor: pointer;
-          padding: 4px;
-          border-radius: 4px;
-        }
-
-        .info-header button:hover {
-          background: rgba(255, 255, 255, 0.1);
-        }
-
-        .capabilities-grid {
-          display: grid;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .capability {
-          display: flex;
-          gap: 12px;
-          align-items: center;
-          padding: 12px;
-          background: rgba(147, 51, 234, 0.05);
-          border: 1px solid rgba(147, 51, 234, 0.1);
-          border-radius: 8px;
-        }
-
-        .capability-icon {
-          font-size: 24px;
-          flex-shrink: 0;
-        }
-
-        .capability h4 {
-          margin: 0 0 4px 0;
-          color: white;
-          font-size: 14px;
-        }
-
-        .capability p {
-          margin: 0;
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 12px;
-        }
-
-        .extensions-list {
-          border-top: 1px solid rgba(147, 51, 234, 0.1);
-          padding-top: 16px;
-        }
-
-        .extensions-list h4 {
-          margin: 0 0 12px 0;
-          color: white;
-          font-size: 14px;
-        }
-
-        .extension-items {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .extension-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 12px;
-          background: rgba(34, 197, 94, 0.05);
-          border: 1px solid rgba(34, 197, 94, 0.1);
-          border-radius: 6px;
-        }
-
-        .extension-name {
-          color: #22c55e;
-          font-size: 13px;
-          font-weight: 500;
-        }
-
-        .extension-version {
-          color: rgba(34, 197, 94, 0.7);
-          font-size: 11px;
-        }
-
-        .loading-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(10, 10, 15, 0.8);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 100;
-        }
-
-        .loading-indicator {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-          color: white;
-        }
-
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid rgba(147, 51, 234, 0.3);
-          border-top: 4px solid rgb(147, 51, 234);
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-          .engine-info-panel {
-            width: 90%;
-            right: 5%;
-          }
-
-          .native-controls {
-            padding: 10px 12px;
-            gap: 12px;
-          }
-
-          .capability {
-            padding: 10px;
-          }
-
-          .capability-icon {
-            font-size: 20px;
-          }
-        }
-      `}</style>
+      {/* Extension Management Panel */}
+      {extensionsEnabled && (
+        <div className="extensions-panel">
+          <div className="panel-header">
+            <h4>🧩 Extensions</h4>
+          </div>
+          <div className="extensions-list">
+            <div className="extension-item">
+              <span>uBlock Origin</span>
+              <button className="toggle-extension">✅</button>
+            </div>
+            <div className="extension-item">
+              <span>React DevTools</span>
+              <button className="toggle-extension">✅</button>
+            </div>
+            <div className="extension-item">
+              <span>AETHER Assistant</span>
+              <button className="toggle-extension">✅</button>
+            </div>
+          </div>
+          <button 
+            className="install-extension-btn"
+            onClick={() => document.getElementById('extension-input').click()}
+          >
+            + Install Extension
+          </button>
+          <input 
+            id="extension-input"
+            type="file" 
+            accept=".crx,.zip"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              if (e.target.files[0]) {
+                installExtension(e.target.files[0].path);
+              }
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };
