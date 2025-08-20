@@ -19,7 +19,6 @@ import VisualWorkflowBuilder from './components/VisualWorkflowBuilder';
 
 // Import NEW PHASE 1-3 COMPONENTS
 import SimplifiedInterface from './components/SimplifiedInterface';
-import NativeBrowserEngine from './components/NativeBrowserEngine';
 
 // Import FELLOU.AI-INSPIRED INTERFACE
 import FellouInspiredInterface from './components/FellouInspiredInterface';
