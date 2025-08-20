@@ -1,6 +1,4 @@
-<file>
-      <absolute_file_name>/app/backend/native_chromium_integration.py</absolute_file_name>
-      <content">"""
+"""
 Native Chromium Integration Module
 Provides backend support for Electron-based native Chromium functionality
 """
