@@ -218,7 +218,7 @@ if PHASE_123_AVAILABLE:
 native_chromium_engine_instance = None
 if NATIVE_CHROMIUM_AVAILABLE:
     try:
-        native_chromium_engine_instance = initialize_enhanced_native_chromium(client)
+        native_chromium_engine_instance = initialize_native_chromium(client)
         if native_chromium_engine_instance:
             logger.info("🔥 NATIVE CHROMIUM ENGINE initialized:")
             logger.info("   ✅ Playwright Browser Engine")
