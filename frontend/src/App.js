@@ -701,39 +701,17 @@ function App() {
             nativeAPI={nativeAPI}
           />
           
-          {/* Native Chromium Browser Engine */}
-          {nativeAPI?.hasNativeChromium() ? (
-            <NativeBrowserEngine 
-              currentUrl={currentUrl}
-              onUrlChange={setCurrentUrl}
-              onNavigationChange={(data) => {
-                setCanGoBack(data.canGoBack);
-                setCanGoForward(data.canGoForward);
-                setIsLoading(data.isLoading);
-              }}
-              nativeAPI={nativeAPI}
-            />
-          ) : (
-            /* Enhanced iframe browser for fallback */
-            <div className="browser-container enhanced-iframe">
-              <iframe
-                ref={iframeRef}
-                src={currentUrl}
-                className="browser-frame"
-                title="AETHER Browser"
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"
-                allow="camera; microphone; geolocation; autoplay; encrypted-media; fullscreen"
-                onLoad={() => setIsLoading(false)}
-              />
-              
-              {isLoading && (
-                <div className="loading-overlay">
-                  <div className="loading-spinner"></div>
-                  <span>Loading with enhanced engine...</span>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Native Chromium Browser Engine - Always Active */}
+          <NativeBrowserEngine 
+            currentUrl={currentUrl}
+            onUrlChange={setCurrentUrl}
+            onNavigationChange={(data) => {
+              setCanGoBack(data.canGoBack);
+              setCanGoForward(data.canGoForward);
+              setIsLoading(data.isLoading);
+            }}
+            nativeAPI={nativeAPI}
+          />
         </>
       ) : (
         /* TRADITIONAL AETHER INTERFACE - Full Feature Mode */
