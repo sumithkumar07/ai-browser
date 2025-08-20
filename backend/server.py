@@ -33,31 +33,22 @@ except ImportError as e:
     get_task_executor = lambda: None
     logger.warning(f"Enhanced automation not available: {e}")
 
-# Import Native Chromium Integration (Enhanced)
+# Import Native Chromium Integration (Enhanced) - NEW IMPLEMENTATION
 try:
-    from native_chromium_integration import initialize_native_bridge, get_native_bridge
-    from enhanced_native_chromium import initialize_enhanced_native_chromium, get_enhanced_native_chromium
+    from native_chromium_engine import initialize_native_chromium_engine, get_native_chromium_engine
+    from native_chromium_endpoints import setup_native_chromium_endpoints
     NATIVE_CHROMIUM_AVAILABLE = True
-    logger.info("🔥 Enhanced Native Chromium integration loaded successfully")
-    
-    # Import native endpoints setup
-    try:
-        from enhanced_server_native import setup_native_chromium_endpoints
-    except ImportError:
-        from native_endpoints import add_native_endpoints as setup_native_chromium_endpoints
-        logger.info("Using native_endpoints for setup")
+    logger.info("🔥 Native Chromium Engine loaded successfully")
     
 except ImportError as e:
     NATIVE_CHROMIUM_AVAILABLE = False
-    logger.warning(f"Enhanced Native Chromium integration not available: {e}")
-    get_native_bridge = lambda: None
-    get_enhanced_native_chromium = lambda: None
+    logger.warning(f"Native Chromium Engine not available: {e}")
+    get_native_chromium_engine = lambda: None
     setup_native_chromium_endpoints = lambda x: None
 except Exception as e:
     NATIVE_CHROMIUM_AVAILABLE = False
-    logger.error(f"Enhanced Native Chromium integration error: {e}")
-    get_native_bridge = lambda: None
-    get_enhanced_native_chromium = lambda: None
+    logger.error(f"Native Chromium Engine error: {e}")
+    get_native_chromium_engine = lambda: None
     setup_native_chromium_endpoints = lambda x: None
 
 # Import Agentic Memory System
